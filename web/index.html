@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Local interactive citation and timeline graph for a categorized paper library">
+  <title>Paper Relationship Graph</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page-shell">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">LOCAL PAPER MAP</p>
+        <h1>论文内部关系图</h1>
+      </div>
+      <p id="graph-summary" class="summary">正在读取本地关系数据…</p>
+    </header>
+
+    <section class="toolbar" aria-label="图谱控制">
+      <label class="switch-control">
+        <input type="checkbox" id="show-citations" checked>
+        <span>引用：引用论文 → 被引用论文</span>
+      </label>
+      <label class="switch-control">
+        <input type="checkbox" id="show-time" checked>
+        <span>时间：较早论文 → 较新论文</span>
+      </label>
+      <button type="button" id="reset-view">重置视图</button>
+    </section>
+
+    <section id="category-list" class="category-list" aria-label="论文类别"></section>
+
+    <section class="graph-panel">
+      <svg id="graph-svg" viewBox="0 0 960 680" role="img" aria-labelledby="graph-title graph-description">
+        <title id="graph-title">论文引用和时间关系球状图</title>
+        <desc id="graph-description">每个节点代表一篇唯一论文。每类最大的带环节点是该类在当前论文库中被引用最多的论文。点击节点会旋转并居中，点击类别会高亮整个类别。</desc>
+        <defs>
+          <marker id="citation-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+          <marker id="time-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+          <radialGradient id="sphere-glow">
+            <stop offset="0%" stop-color="var(--sphere-glow-start)"></stop>
+            <stop offset="100%" stop-color="var(--sphere-glow-end)"></stop>
+          </radialGradient>
+        </defs>
+        <g class="sphere-shells" aria-hidden="true">
+          <circle cx="480" cy="340" r="285" fill="url(#sphere-glow)"></circle>
+          <circle cx="480" cy="340" r="98"></circle>
+          <circle cx="480" cy="340" r="190"></circle>
+          <circle cx="480" cy="340" r="285"></circle>
+          <ellipse cx="480" cy="340" rx="285" ry="95"></ellipse>
+          <ellipse cx="480" cy="340" rx="100" ry="285"></ellipse>
+          <text x="488" y="235">早期</text>
+          <text x="488" y="143">中期</text>
+          <text x="488" y="48">近期</text>
+        </g>
+        <g id="edge-layer"></g>
+        <g id="node-layer"></g>
+      </svg>
+      <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
+    </section>
+
+    <p id="selection-detail" class="selection-detail">点击节点查看关系；拖动球体可自由旋转。</p>
+
+    <footer class="legend">
+      <span><i class="line-sample citation"></i>引用方向</span>
+      <span><i class="line-sample time"></i>时间方向</span>
+      <span><i class="main-sample"></i>类别主节点</span>
+    </footer>
+  </main>
+
+  <script src="data/graph-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
