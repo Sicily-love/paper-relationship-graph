@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the local paper citation/time graph used by the static web app."""
+"""Build the local paper citation graph and radial time metadata for the web app."""
 
 from __future__ import annotations
 
@@ -171,29 +171,6 @@ def choose_main_nodes(nodes: list[dict], counts: dict[str, int]) -> dict[str, st
     return main_nodes
 
 
-def build_time_edges(nodes: list[dict], counts: dict[str, int]) -> list[dict]:
-    """Connect each paper from the strongest earlier paper in its category."""
-    edges: list[dict] = []
-    categories = sorted({node["category"] for node in nodes})
-    for category in categories:
-        group = [node for node in nodes if node["category"] == category and node["year"]]
-        group.sort(key=lambda node: (node["year"], node["title"]))
-        for node in group:
-            earlier = [candidate for candidate in group if candidate["year"] < node["year"]]
-            if not earlier:
-                continue
-            predecessor = max(
-                earlier,
-                key=lambda candidate: (
-                    counts[candidate["id"]],
-                    candidate["year"],
-                    candidate["title"],
-                ),
-            )
-            edges.append({"source": predecessor["id"], "target": node["id"]})
-    return edges
-
-
 def build_graph(papers_dir: Path) -> dict:
     nodes, full_text, duplicates = extract_nodes(papers_dir)
     if not nodes:
@@ -202,7 +179,6 @@ def build_graph(papers_dir: Path) -> dict:
     citation_edges = build_citation_edges(nodes, full_text)
     counts = citation_counts(nodes, citation_edges)
     main_nodes = choose_main_nodes(nodes, counts)
-    time_edges = build_time_edges(nodes, counts)
 
     for node in nodes:
         node["citation_count"] = counts[node["id"]]
@@ -226,15 +202,14 @@ def build_graph(papers_dir: Path) -> dict:
             "unique_papers": len(nodes),
             "duplicate_files": len(duplicates),
             "citation_edges": len(citation_edges),
-            "time_edges": len(time_edges),
             "year_min": min(years) if years else None,
             "year_max": max(years) if years else None,
             "citation_direction": "citing_paper -> cited_paper",
-            "time_direction": "older_paper -> newer_paper",
+            "time_encoding": "distance_from_center: older -> newer",
         },
         "categories": categories,
         "nodes": nodes,
-        "edges": {"citation": citation_edges, "time": time_edges},
+        "edges": {"citation": citation_edges},
         "duplicates": duplicates,
     }
 
@@ -264,8 +239,7 @@ def main() -> None:
     metadata = graph["metadata"]
     print(
         f"Built {metadata['unique_papers']} unique papers, "
-        f"{metadata['citation_edges']} citation edges, "
-        f"{metadata['time_edges']} time edges"
+        f"{metadata['citation_edges']} citation edges"
     )
     for category in graph["categories"]:
         node = next(node for node in graph["nodes"] if node["id"] == category["main_node"])

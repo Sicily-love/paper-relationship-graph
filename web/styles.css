@@ -8,7 +8,6 @@
   --accent: #2878ff;
   --accent-soft: rgba(40, 120, 255, 0.13);
   --citation: #2475ff;
-  --time: #e07818;
   --sphere-glow-start: rgba(40, 120, 255, 0.10);
   --sphere-glow-end: rgba(40, 120, 255, 0);
   --shadow: 0 18px 45px rgba(34, 52, 84, 0.10);
@@ -34,7 +33,6 @@
     --accent: #73a9ff;
     --accent-soft: rgba(115, 169, 255, 0.15);
     --citation: #69a3ff;
-    --time: #ffae5d;
     --sphere-glow-start: rgba(105, 163, 255, 0.13);
     --sphere-glow-end: rgba(16, 19, 26, 0);
     --shadow: 0 18px 45px rgba(0, 0, 0, 0.30);
@@ -102,7 +100,7 @@ button:hover, button:focus-visible, button[aria-pressed="true"] {
 h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.45rem); line-height: 1.1; }
 .summary { margin: 0; color: var(--muted); text-align: right; }
 
-.toolbar, .category-list, .legend {
+.toolbar, .legend {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -122,19 +120,22 @@ h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.45rem); line-height: 1.1; }
 }
 
 .switch-control input { accent-color: var(--accent); }
-.category-list { margin-bottom: 12px; }
-
-.category-button {
+.select-control {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  padding: 0.42rem 0.52rem 0.42rem 0.78rem;
 }
 
-.category-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--category-color);
+.select-control select {
+  border: 0;
+  border-radius: 999px;
+  background: var(--background);
+  color: var(--foreground);
+  padding: 0.32rem 1.8rem 0.32rem 0.55rem;
 }
 
 .graph-panel {
@@ -179,21 +180,11 @@ h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.45rem); line-height: 1.1; }
   marker-end: url(#citation-arrow);
 }
 
-.edge.time {
-  stroke: var(--time);
-  stroke-width: 1.15;
-  stroke-opacity: 0.34;
-  stroke-dasharray: 3 6;
-  marker-end: url(#time-arrow);
-}
-
 #citation-arrow path { fill: var(--citation); }
-#time-arrow path { fill: var(--time); }
 .edge.focused { stroke-width: 2.2; stroke-opacity: 0.95; }
 
 .node { cursor: pointer; transition: opacity 180ms ease; }
 .node .node-mark { stroke: var(--panel); stroke-width: 2.2; vector-effect: non-scaling-stroke; }
-.node .main-halo { fill: none; stroke: var(--foreground); stroke-width: 1.8; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
 .node.selected .node-mark { stroke: var(--foreground); stroke-width: 3.2; }
 .node.back { opacity: 0.52; }
 .node.dimmed { opacity: 0.10; }
@@ -229,8 +220,8 @@ h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.45rem); line-height: 1.1; }
 
 .line-sample { width: 28px; height: 0; display: inline-block; border-top: 2px solid; }
 .line-sample.citation { border-color: var(--citation); }
-.line-sample.time { border-color: var(--time); border-top-style: dashed; }
-.main-sample { width: 11px; height: 11px; display: inline-block; border: 2px solid var(--foreground); border-radius: 50%; }
+.radius-sample { width: 13px; height: 13px; display: inline-block; border: 1px solid var(--muted); border-radius: 50%; box-shadow: 0 0 0 4px color-mix(in srgb, var(--muted) 22%, transparent); }
+.size-sample { width: 13px; height: 13px; display: inline-block; background: var(--accent); border-radius: 50%; box-shadow: -14px 3px 0 -4px var(--accent); }
 
 @media (max-width: 720px) {
   .page-shell { width: min(100% - 18px, 1180px); padding-top: 18px; }

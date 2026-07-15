@@ -10,22 +10,22 @@
   const nodeLayer = document.getElementById('node-layer');
   const tooltip = document.getElementById('tooltip');
   const detail = document.getElementById('selection-detail');
-  const categoryList = document.getElementById('category-list');
+  const categorySelect = document.getElementById('category-select');
   const summary = document.getElementById('graph-summary');
   const ns = 'http://www.w3.org/2000/svg';
 
   const nodesById = Object.fromEntries(graph.nodes.map(node => [node.id, node]));
   const categoryById = Object.fromEntries(graph.categories.map((category, index) => [category.id, {...category, index}]));
-  const allEdges = [
-    ...graph.edges.citation.map((edge, index) => ({...edge, type: 'citation', id: `citation-${index}`})),
-    ...graph.edges.time.map((edge, index) => ({...edge, type: 'time', id: `time-${index}`})),
-  ];
+  const allEdges = graph.edges.citation.map((edge, index) => ({...edge, type: 'citation', id: `citation-${index}`}));
   const yearMin = graph.metadata.year_min;
   const yearMax = graph.metadata.year_max;
   const yearSpan = Math.max(1, yearMax - yearMin);
+  const NODE_RADIUS_MIN = 5.5;
+  const NODE_RADIUS_MAX = 15;
+  const maxCitationCount = Math.max(1, ...graph.nodes.map(node => node.citation_count));
 
-  let rotationX = -0.18;
-  let rotationY = 0.26;
+  let rotationX = 0;
+  let rotationY = 0;
   let selectedNode = null;
   let activeCategory = null;
   let dragging = false;
@@ -35,16 +35,15 @@
 
   summary.textContent = `${graph.metadata.paper_files} PDFs · ${graph.metadata.unique_papers} 篇唯一论文 · ${graph.categories.length} 类`;
 
+  document.getElementById('year-inner').textContent = String(yearMin);
+  document.getElementById('year-middle').textContent = String(Math.round((yearMin + yearMax) / 2));
+  document.getElementById('year-outer').textContent = String(yearMax);
+
   graph.categories.forEach(category => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'category-button';
-    button.dataset.category = category.id;
-    button.style.setProperty('--category-color', `var(--cat-${categoryById[category.id].index})`);
-    button.setAttribute('aria-pressed', 'false');
-    button.innerHTML = `<span class="category-dot" aria-hidden="true"></span><span>${category.label}</span>`;
-    button.addEventListener('click', () => activateCategory(category.id));
-    categoryList.appendChild(button);
+    const option = document.createElement('option');
+    option.value = category.id;
+    option.textContent = `${category.label}（${category.paper_count}）`;
+    categorySelect.appendChild(option);
   });
 
   const grouped = graph.nodes.reduce((result, node) => {
@@ -60,7 +59,7 @@
       const spread = (index - (group.length - 1) / 2) * 0.13;
       let x = Math.cos(sector + spread) * 0.82;
       let y = Math.sin(sector + spread) * 0.68;
-      let z = Math.sin(sector * 1.65 + index * 1.27) * 0.56;
+      let z = 0;
       const length = Math.hypot(x, y, z) || 1;
       node.base = {x: x / length * radius, y: y / length * radius, z: z / length * radius};
 
@@ -68,16 +67,10 @@
       groupElement.setAttribute('class', 'node');
       groupElement.dataset.node = node.id;
 
-      if (node.is_main) {
-        const halo = document.createElementNS(ns, 'circle');
-        halo.setAttribute('class', 'main-halo');
-        halo.setAttribute('r', '15');
-        groupElement.appendChild(halo);
-      }
-
       const mark = document.createElementNS(ns, 'circle');
       mark.setAttribute('class', 'node-mark');
-      mark.setAttribute('r', node.is_main ? '10.5' : String(5.6 + Math.min(3.5, Math.sqrt(node.citation_count))));
+      node.radius = NODE_RADIUS_MIN + Math.sqrt(node.citation_count / maxCitationCount) * (NODE_RADIUS_MAX - NODE_RADIUS_MIN);
+      mark.setAttribute('r', node.radius.toFixed(2));
       mark.style.fill = `var(--cat-${categoryIndex})`;
       groupElement.appendChild(mark);
 
@@ -85,7 +78,7 @@
       label.setAttribute('x', '15');
       label.setAttribute('y', '4');
       label.textContent = node.label;
-      label.style.display = node.is_main ? '' : 'none';
+      label.style.display = 'none';
       groupElement.appendChild(label);
 
       groupElement.addEventListener('pointerenter', () => showTooltip(node));
@@ -153,8 +146,8 @@
       const dx = target.x - source.x;
       const dy = target.y - source.y;
       const distance = Math.hypot(dx, dy) || 1;
-      const sourceOffset = sourceNode.is_main ? 13 : 8;
-      const targetOffset = targetNode.is_main ? 19 : 12;
+      const sourceOffset = sourceNode.radius + 3;
+      const targetOffset = targetNode.radius + 7;
       const start = {
         x: source.x + dx / distance * sourceOffset,
         y: source.y + dy / distance * sourceOffset,
@@ -163,7 +156,7 @@
         x: target.x - dx / distance * targetOffset,
         y: target.y - dy / distance * targetOffset,
       };
-      const bend = edge.type === 'citation' ? 0.027 : -0.035;
+      const bend = 0.027;
       const middleX = (start.x + end.x) / 2 + (end.y - start.y) * bend;
       const middleY = (start.y + end.y) / 2 - (end.x - start.x) * bend;
       edge.element.setAttribute(
@@ -186,7 +179,7 @@
       const dimForNode = neighborhood && !neighborhood.has(node.id);
       const dimForCategory = activeCategory && node.category !== activeCategory;
       node.element.classList.toggle('dimmed', Boolean(dimForNode || dimForCategory));
-      node.labelElement.style.display = (node.is_main || node.id === selectedNode) ? '' : 'none';
+      node.labelElement.style.display = node.id === selectedNode ? '' : 'none';
       nodeLayer.appendChild(node.element);
     });
   }
@@ -229,7 +222,7 @@
     if (selectedNode) {
       const node = nodesById[selectedNode];
       activeCategory = null;
-      updateCategoryButtons();
+      categorySelect.value = '';
       rotateToNode(node);
       const outgoing = graph.edges.citation.filter(edge => edge.source === node.id).length;
       const incoming = graph.edges.citation.filter(edge => edge.target === node.id).length;
@@ -243,7 +236,6 @@
   function activateCategory(categoryId) {
     activeCategory = activeCategory === categoryId ? null : categoryId;
     selectedNode = null;
-    updateCategoryButtons();
     if (activeCategory) {
       const category = categoryById[activeCategory];
       const mainNode = nodesById[category.main_node];
@@ -253,12 +245,6 @@
       detail.textContent = '点击节点查看关系；拖动球体可自由旋转。';
       render();
     }
-  }
-
-  function updateCategoryButtons() {
-    categoryList.querySelectorAll('button').forEach(button => {
-      button.setAttribute('aria-pressed', String(button.dataset.category === activeCategory));
-    });
   }
 
   function showTooltip(node) {
@@ -286,18 +272,14 @@
     });
   });
 
-  document.getElementById('show-time').addEventListener('change', event => {
-    allEdges.filter(edge => edge.type === 'time').forEach(edge => {
-      edge.element.style.display = event.target.checked ? '' : 'none';
-    });
-  });
+  categorySelect.addEventListener('change', event => activateCategory(event.target.value || null));
 
   document.getElementById('reset-view').addEventListener('click', () => {
     selectedNode = null;
     activeCategory = null;
-    rotationX = -0.18;
-    rotationY = 0.26;
-    updateCategoryButtons();
+    rotationX = 0;
+    rotationY = 0;
+    categorySelect.value = '';
     detail.textContent = '点击节点查看关系；拖动球体可自由旋转。';
     render();
   });
@@ -337,7 +319,7 @@
     if (event.target === svg) {
       selectedNode = null;
       activeCategory = null;
-      updateCategoryButtons();
+      categorySelect.value = '';
       detail.textContent = '点击节点查看关系；拖动球体可自由旋转。';
       render();
     }
