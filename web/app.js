@@ -24,8 +24,8 @@
   const NODE_RADIUS_MAX = 15;
   const maxCitationCount = Math.max(1, ...graph.nodes.map(node => node.citation_count));
 
-  let rotationX = 0;
-  let rotationY = 0;
+  let rotationX = -0.18;
+  let rotationY = 0.26;
   let selectedNode = null;
   let activeCategory = null;
   let dragging = false;
@@ -59,7 +59,7 @@
       const spread = (index - (group.length - 1) / 2) * 0.13;
       let x = Math.cos(sector + spread) * 0.82;
       let y = Math.sin(sector + spread) * 0.68;
-      let z = 0;
+      let z = Math.sin(sector * 1.65 + index * 1.27) * 0.56;
       const length = Math.hypot(x, y, z) || 1;
       node.base = {x: x / length * radius, y: y / length * radius, z: z / length * radius};
 
@@ -277,8 +277,8 @@
   document.getElementById('reset-view').addEventListener('click', () => {
     selectedNode = null;
     activeCategory = null;
-    rotationX = 0;
-    rotationY = 0;
+    rotationX = -0.18;
+    rotationY = 0.26;
     categorySelect.value = '';
     detail.textContent = '点击节点查看关系；拖动球体可自由旋转。';
     render();
