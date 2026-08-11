@@ -22,6 +22,19 @@ DEFAULT_PAPERS_DIR = REPO_ROOT.parent
 DEFAULT_JSON = REPO_ROOT / "web" / "data" / "graph.json"
 DEFAULT_JS = REPO_ROOT / "web" / "data" / "graph-data.js"
 
+STANDARD_CATEGORIES = (
+    "01_基础架构与训练方法",
+    "02_注意力与长上下文",
+    "03_MoE与稀疏模型",
+    "04_量化与低精度计算",
+    "05_分布式训练与AI基础设施",
+    "06_GPU内核_编译器与性能优化",
+    "07_AI智能体与自主学习",
+    "08_视频生成_扩散与推理系统",
+    "09_大模型技术报告与推理训练",
+    "10_数据管线与预训练工程",
+)
+
 
 def normalize(text: str) -> str:
     text = unicodedata.normalize("NFKD", text).lower()
@@ -39,6 +52,112 @@ def short_label(title: str, limit: int = 30) -> str:
             break
         label += " " + word
     return label + "…"
+
+
+def clean_inline(text: str) -> str:
+    text = re.sub(r"([a-zA-Z])-\s+([a-zA-Z])", r"\1\2", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def extract_abstract(text: str, limit: int = 1800) -> str | None:
+    match = re.search(
+        r"(?:^|\n)\s*abstract\s*[:—–-]?\s*(.*?)"
+        r"(?=\n\s*(?:\d+(?:\.\d+)*|[IVX]+)[\s.]+(?:introduction|background)\b"
+        r"|\n\s*(?:keywords?|index terms)\s*[:—–-]|\Z)",
+        text,
+        re.I | re.S,
+    )
+    if not match:
+        return None
+    raw_abstract = re.split(
+        r"\n\s*(?:[∗*†‡].{0,100}|\d+\s*\n\s*arxiv\s*:)",
+        match.group(1),
+        maxsplit=1,
+        flags=re.I,
+    )[0]
+    abstract = clean_inline(raw_abstract)
+    abstract = re.sub(r"(?<=[.!?])(?=[A-Z])", " ", abstract)
+    if len(abstract) < 40:
+        return None
+    return abstract if len(abstract) <= limit else abstract[: limit - 1].rstrip() + "…"
+
+
+def extract_authors(first_page: str, title: str, metadata: dict[str, object]) -> str | None:
+    metadata_author = clean_inline(str(metadata.get("/Author") or ""))
+    if metadata_author and metadata_author.lower() not in {"anonymous", "unknown", "liangchenyu03"}:
+        return metadata_author if len(metadata_author) <= 600 else metadata_author[:599].rstrip(" ,;") + "…"
+
+    blog_author = re.search(r"\|\s*([^|\n]+?)\s+blog\b", first_page, re.I)
+    if blog_author:
+        return clean_inline(blog_author.group(1))
+
+    lines = [clean_inline(line) for line in first_page.splitlines() if clean_inline(line)]
+    abstract_index = next(
+        (index for index, line in enumerate(lines) if re.match(r"abstract\b", line, re.I)),
+        min(len(lines), 40),
+    )
+    title_tokens = set(normalize(title).split())
+    title_end = None
+    best_title_score: tuple[float, int, int] | None = None
+    for start in range(min(16, abstract_index)):
+        for end in range(start + 1, min(start + 5, abstract_index) + 1):
+            candidate_tokens = set(normalize(" ".join(lines[start:end])).split())
+            if not candidate_tokens or not title_tokens:
+                continue
+            overlap = len(candidate_tokens & title_tokens) / len(title_tokens)
+            extras = len(candidate_tokens - title_tokens)
+            if overlap >= 0.72 and extras <= 3:
+                score = (overlap, -extras, -len(candidate_tokens))
+                if best_title_score is None or score > best_title_score:
+                    best_title_score = score
+                    title_end = end
+
+    if title_end is None:
+        return None
+
+    affiliation_terms = re.compile(
+        r"university|institute|laborator|department|school|college|research|"
+        r"google|meta ai|nvidia|microsoft|deepmind|bytedance|alibaba|tencent|"
+        r"amazon|siemens|huawei|github|https?://|www\.|@|facebook ai|"
+        r"conference paper|arxiv|technical report|blog|germany|china|beijing|"
+        r"shanghai|california|new york|carnegie mellon|technology|company|"
+        r"national key|operational systems|neudesic|peking|imperial|berkeley|"
+        r"january|february|march|april|may|june|"
+        r"july|august|september|october|november|december",
+        re.I,
+    )
+    prose_terms = re.compile(
+        r"\b(?:the|this|that|we|our|is|are|was|were|has|have|using|based|"
+        r"paper|figure|model|method|training|inference|workloads?)\b",
+        re.I,
+    )
+    author_lines: list[str] = []
+    for line in lines[title_end:abstract_index]:
+        if line.strip().lower() == "deepseek-ai":
+            author_lines.append("DeepSeek-AI")
+            break
+        collaboration = re.match(r"(.+?)\s+in collaboration\b", line, re.I)
+        if collaboration:
+            author_lines.append(clean_inline(collaboration.group(1)))
+            continue
+        stripped = affiliation_terms.split(line, maxsplit=1)[0]
+        stripped = re.sub(r"[∗*†‡\d]+", "", stripped).strip(" ,;|")
+        words = stripped.split()
+        if not stripped or len(words) > 20 or prose_terms.search(stripped):
+            continue
+        if not re.search(r"[A-Za-zÀ-ž]", stripped):
+            continue
+        name_like = sum(bool(re.match(r"^[A-ZÀ-Þ][A-Za-zÀ-ž'.-]*$", word.strip(",;&()"))) for word in words)
+        if name_like < 2 or name_like / len(words) < 0.55:
+            continue
+        author_lines.append(stripped)
+        if len(author_lines) == 5:
+            break
+
+    authors = ", ".join(author_lines)
+    if len(authors) > 600:
+        authors = authors[:599].rstrip(" ,;") + "…"
+    return authors or None
 
 
 def extract_year(text: str, metadata: dict[str, object]) -> int | None:
@@ -85,8 +204,8 @@ def sha256(path: Path) -> str:
 def discover_pdfs(papers_dir: Path) -> list[Path]:
     return sorted(
         path
-        for path in papers_dir.glob("*/*.pdf")
-        if re.match(r"^\d+_", path.parent.name)
+        for category in STANDARD_CATEGORIES
+        for path in (papers_dir / category).glob("*.pdf")
     )
 
 
@@ -106,13 +225,16 @@ def extract_nodes(papers_dir: Path) -> tuple[list[dict], dict[str, str], list[di
         reader = PdfReader(path)
         pages = [(page.extract_text() or "") for page in reader.pages]
         text = "\n".join(pages)
+        metadata = dict(reader.metadata or {})
         title = path.stem.replace(" (重复副本)", "")
         node_id = f"p{len(nodes):02d}"
         node = {
             "id": node_id,
             "title": title,
             "label": short_label(title),
-            "year": extract_year("\n".join(pages[:2]), dict(reader.metadata or {})),
+            "year": extract_year("\n".join(pages[:2]), metadata),
+            "authors": extract_authors(pages[0] if pages else "", title, metadata),
+            "abstract": extract_abstract("\n".join(pages[:3])),
             "category": path.parent.name,
             "path": relative_path,
             "sha256": digest,

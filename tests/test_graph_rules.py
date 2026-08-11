@@ -26,6 +26,41 @@ class GraphRuleTests(unittest.TestCase):
         result = build_graph.choose_main_nodes(self.nodes, {"a": 2, "b": 2, "c": 1})
         self.assertEqual(result["01_Test"], "a")
 
+    def test_extract_abstract_stops_before_introduction(self):
+        text = """Paper title
+Abstract
+We introduce a fast and accurate method for long-context inference.
+1 Introduction
+This should not appear in the abstract.
+"""
+        self.assertEqual(
+            build_graph.extract_abstract(text),
+            "We introduce a fast and accurate method for long-context inference.",
+        )
+
+    def test_extract_authors_uses_first_page_when_metadata_is_empty(self):
+        text = """Example Paper
+Ada Lovelace & Alan Turing
+Example University
+Abstract
+Example abstract.
+"""
+        authors = build_graph.extract_authors(text, "Example Paper", {"/Author": ""})
+        self.assertEqual(authors, "Ada Lovelace & Alan Turing")
+
+    def test_extract_authors_recognizes_blog_byline(self):
+        text = "Muon: An optimizer | Keller Jordan blog\nMuon: An optimizer"
+        authors = build_graph.extract_authors(text, "Muon: An optimizer", {"/Author": "liangchenyu03"})
+        self.assertEqual(authors, "Keller Jordan")
+
+    def test_extract_authors_recognizes_collaboration_byline(self):
+        text = """On-Policy Distillation
+Kevin Lu in collaboration with others at Thinking Machines
+Oct 27, 2025
+"""
+        authors = build_graph.extract_authors(text, "On-Policy Distillation", {"/Author": ""})
+        self.assertEqual(authors, "Kevin Lu")
+
 
 if __name__ == "__main__":
     unittest.main()

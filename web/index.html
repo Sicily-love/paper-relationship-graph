@@ -4,73 +4,187 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Local interactive citation graph with radial time encoding for a categorized paper library">
-  <title>Paper Relationship Graph</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="theme-color" content="#edf1f8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#090c13" media="(prefers-color-scheme: dark)">
+  <title>Paper Atlas · 论文关系图谱</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css?v=20260811b">
 </head>
 <body>
-  <main class="page-shell">
-    <header class="page-header">
-      <div>
-        <p class="eyebrow">LOCAL PAPER MAP</p>
-        <h1>论文内部关系图</h1>
+  <main class="app-shell">
+    <header class="hero">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true">
+          <span class="brand-orbit orbit-one"></span>
+          <span class="brand-orbit orbit-two"></span>
+          <span class="brand-core"></span>
+        </div>
+        <div>
+          <p class="eyebrow">RESEARCH CONSTELLATION</p>
+          <h1>论文关系图谱</h1>
+          <p class="hero-copy">在时间球壳中探索论文之间的内部引用脉络</p>
+        </div>
       </div>
-      <p id="graph-summary" class="summary">正在读取本地关系数据…</p>
+
+      <dl class="metric-strip" aria-label="论文库统计">
+        <div>
+          <dt>论文</dt>
+          <dd id="metric-papers">—</dd>
+        </div>
+        <div>
+          <dt>内部引用</dt>
+          <dd id="metric-citations">—</dd>
+        </div>
+        <div>
+          <dt>类别</dt>
+          <dd id="metric-categories">—</dd>
+        </div>
+        <div>
+          <dt>时间跨度</dt>
+          <dd id="metric-years">—</dd>
+        </div>
+      </dl>
     </header>
 
-    <section class="toolbar" aria-label="图谱控制">
-      <label class="switch-control">
-        <input type="checkbox" id="show-citations" checked>
-        <span>引用：引用论文 → 被引用论文</span>
-      </label>
-      <label class="select-control" for="category-select">
-        <span>类别</span>
-        <select id="category-select">
-          <option value="">全部类别</option>
-        </select>
-      </label>
-      <button type="button" id="reset-view">重置视图</button>
+    <section class="control-dock" aria-label="图谱控制">
+      <div class="control-group">
+        <label class="switch-control" for="show-citations">
+          <input type="checkbox" id="show-citations" checked>
+          <span class="switch-track" aria-hidden="true"><span></span></span>
+          <span class="control-copy">
+            <strong>引用关系</strong>
+            <small>引用论文 → 被引用论文</small>
+          </span>
+        </label>
+
+        <label class="select-control" for="category-select">
+          <span class="select-label">聚焦类别</span>
+          <span class="select-shell">
+            <select id="category-select">
+              <option value="">全部类别</option>
+            </select>
+          </span>
+        </label>
+      </div>
+
+      <button type="button" id="reset-view" class="reset-button">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4.9 7.5A8 8 0 1 1 4 13"></path>
+          <path d="M4 4v4h4"></path>
+        </svg>
+        重置视图
+      </button>
     </section>
 
-    <section class="graph-panel">
-      <svg id="graph-svg" viewBox="0 0 960 680" role="img" aria-labelledby="graph-title graph-description">
-        <title id="graph-title">论文引用和时间关系球状图</title>
-        <desc id="graph-description">每个节点代表一篇唯一论文。节点大小表示库内被引用次数并限制最小和最大半径。年份决定三维球壳半径，较早论文靠近球心，较新论文靠近外层。点击节点会旋转并居中，从下拉框选择类别会高亮整个类别。</desc>
-        <defs>
-          <marker id="citation-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-            <path d="M 0 0 L 10 5 L 0 10 z"></path>
-          </marker>
-          <radialGradient id="sphere-glow">
-            <stop offset="0%" stop-color="var(--sphere-glow-start)"></stop>
-            <stop offset="100%" stop-color="var(--sphere-glow-end)"></stop>
-          </radialGradient>
-        </defs>
-        <g class="sphere-shells" aria-hidden="true">
-          <circle cx="480" cy="340" r="285" fill="url(#sphere-glow)"></circle>
-          <circle cx="480" cy="340" r="75"></circle>
-          <circle cx="480" cy="340" r="176"></circle>
-          <circle cx="480" cy="340" r="277"></circle>
-          <ellipse cx="480" cy="340" rx="285" ry="95"></ellipse>
-          <ellipse cx="480" cy="340" rx="100" ry="285"></ellipse>
-          <text id="year-inner" x="488" y="258">早期</text>
-          <text id="year-middle" x="488" y="157">中期</text>
-          <text id="year-outer" x="488" y="56">近期</text>
-        </g>
-        <g id="edge-layer"></g>
-        <g id="node-layer"></g>
-      </svg>
-      <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
-    </section>
+    <div class="workspace">
+      <section class="graph-card" aria-labelledby="graph-heading">
+        <header class="graph-card-header">
+          <div>
+            <p class="section-label">INTERACTIVE MAP</p>
+            <h2 id="graph-heading">引用星图</h2>
+          </div>
+          <p id="selection-detail" class="selection-detail">点击节点查看关系；拖动球体可自由旋转。</p>
+        </header>
 
-    <p id="selection-detail" class="selection-detail">点击节点查看关系；拖动球体可自由旋转。</p>
+        <div class="graph-stage">
+          <svg id="graph-svg" viewBox="0 0 960 680" role="img" aria-labelledby="graph-title graph-description">
+            <title id="graph-title">论文引用和时间关系球状图</title>
+            <desc id="graph-description">每个节点代表一篇唯一论文。节点大小表示库内被引用次数并限制最小和最大半径。年份决定三维球壳半径，较早论文靠近球心，较新论文靠近外层。点击节点会旋转并居中，同时显示论文详情；从下拉框选择类别会高亮整个类别。</desc>
+            <defs>
+              <marker id="citation-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M 0 0 L 10 5 L 0 10 z"></path>
+              </marker>
+              <radialGradient id="sphere-glow">
+                <stop offset="0%" stop-color="var(--sphere-glow-core)"></stop>
+                <stop offset="54%" stop-color="var(--sphere-glow-mid)"></stop>
+                <stop offset="100%" stop-color="var(--sphere-glow-edge)"></stop>
+              </radialGradient>
+              <filter id="node-glow" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="5" result="blur"></feGaussianBlur>
+                <feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+              </filter>
+            </defs>
+            <g class="sphere-shells" aria-hidden="true">
+              <circle class="sphere-field" cx="480" cy="340" r="292" fill="url(#sphere-glow)"></circle>
+              <circle cx="480" cy="340" r="75"></circle>
+              <circle cx="480" cy="340" r="176"></circle>
+              <circle cx="480" cy="340" r="277"></circle>
+              <ellipse cx="480" cy="340" rx="285" ry="95"></ellipse>
+              <ellipse cx="480" cy="340" rx="100" ry="285"></ellipse>
+              <text id="year-inner" x="492" y="263">早期</text>
+              <text id="year-middle" x="492" y="162">中期</text>
+              <text id="year-outer" x="492" y="61">近期</text>
+            </g>
+            <g id="edge-layer"></g>
+            <g id="node-layer"></g>
+          </svg>
+          <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
+        </div>
 
-    <footer class="legend">
-      <span><i class="line-sample citation"></i>引用方向</span>
-      <span><i class="radius-sample"></i>三维球壳由内向外：时间由早到晚</span>
-      <span><i class="size-sample"></i>节点越大：被库内引用越多</span>
+        <footer class="graph-legend" aria-label="图例">
+          <span><i class="legend-line"></i>引用方向</span>
+          <span><i class="legend-orbit"></i>由内向外：时间由早到晚</span>
+          <span><i class="legend-node"></i>节点越大：被引用越多</span>
+        </footer>
+      </section>
+
+      <aside id="paper-detail" class="paper-detail" aria-live="polite">
+        <div id="detail-empty" class="detail-empty">
+          <div class="detail-constellation" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <p class="section-label">PAPER INSPECTOR</p>
+          <h2>选择一篇论文</h2>
+          <p>点击星图中的任意节点，查看作者、摘要以及当前论文库中的双向引用关系。</p>
+          <ol class="detail-guide">
+            <li><span>01</span> 点击节点聚焦论文</li>
+            <li><span>02</span> 沿引用列表继续探索</li>
+            <li><span>03</span> 打开本地 PDF 阅读原文</li>
+          </ol>
+        </div>
+
+        <div id="detail-content" hidden>
+          <div class="detail-heading">
+            <p class="section-label">PAPER INSPECTOR</p>
+            <span id="detail-main-badge" class="main-badge" hidden>类别主节点</span>
+          </div>
+          <h2 id="detail-title"></h2>
+          <p id="detail-meta" class="detail-meta"></p>
+          <p id="detail-authors" class="detail-authors"></p>
+          <a id="detail-pdf" class="pdf-button" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M14 3h5v5"></path>
+              <path d="m10 14 9-9"></path>
+              <path d="M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"></path>
+            </svg>
+            打开本地 PDF
+          </a>
+
+          <section class="detail-section abstract-section" aria-labelledby="abstract-heading">
+            <h3 id="abstract-heading">摘要</h3>
+            <p id="detail-abstract"></p>
+          </section>
+
+          <details class="detail-section relation-section" open>
+            <summary id="outgoing-heading"><span>引用的库内论文</span><strong id="outgoing-count">0</strong></summary>
+            <ul id="detail-outgoing" class="relation-list" aria-labelledby="outgoing-heading"></ul>
+          </details>
+
+          <details class="detail-section relation-section" open>
+            <summary id="incoming-heading"><span>库内引用本文的论文</span><strong id="incoming-count">0</strong></summary>
+            <ul id="detail-incoming" class="relation-list" aria-labelledby="incoming-heading"></ul>
+          </details>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="page-footer">
+      <span>LOCAL-FIRST · PDF 文件始终保留在本地</span>
+      <span>时间编码采用三维球壳半径</span>
     </footer>
   </main>
 
-  <script src="data/graph-data.js"></script>
-  <script src="app.js"></script>
+  <script src="data/graph-data.js?v=20260811b"></script>
+  <script src="app.js?v=20260811b"></script>
 </body>
 </html>
