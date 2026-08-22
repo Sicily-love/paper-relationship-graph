@@ -14,7 +14,7 @@ import library_health
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def check_release(papers_dir: Path) -> list[str]:
+def check_release(papers_dir: Path | None) -> list[str]:
     errors: list[str] = []
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -46,9 +46,10 @@ def check_release(papers_dir: Path) -> list[str]:
         if not bundled.exists() or source.read_bytes() != bundled.read_bytes():
             errors.append(f"应用内运行资源不同步：{relative}")
 
-    health = library_health.validate_library(papers_dir)
-    if health["status"] != "healthy":
-        errors.extend(f"论文库：{item['title']}" for item in health["issues"])
+    if papers_dir is not None:
+        health = library_health.validate_library(papers_dir)
+        if health["status"] != "healthy":
+            errors.extend(f"论文库：{item['title']}" for item in health["issues"])
 
     graph = library_health.load_json(library_health.DEFAULT_GRAPH, {})
     if any("confidence" not in edge or "evidence" not in edge for edge in (graph.get("edges") or {}).get("citation", [])):
@@ -68,11 +69,18 @@ def check_release(papers_dir: Path) -> list[str]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--papers-dir", type=Path, default=ROOT.parent)
+    parser.add_argument(
+        "--skip-library",
+        action="store_true",
+        help="只检查仓库和应用包；用于没有本地论文 PDF 的 CI 环境",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
-    errors = check_release(parse_args().papers_dir.expanduser().resolve())
+    args = parse_args()
+    papers_dir = None if args.skip_library else args.papers_dir.expanduser().resolve()
+    errors = check_release(papers_dir)
     if errors:
         for error in errors:
             print(f"ERROR\t{error}")

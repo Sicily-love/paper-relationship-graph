@@ -32,7 +32,7 @@ jobs:
       - run: make mac-app
       - run: codesign --verify --deep --strict "Paper Atlas.app"
       - run: make release
-      - run: make release-check
+      - run: python scripts/release_check.py --skip-library
       - uses: actions/upload-artifact@v4
         with:
           name: Paper-Atlas-1.0.0-macos
