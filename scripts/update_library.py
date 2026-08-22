@@ -46,6 +46,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--papers-dir", type=Path, default=build_graph.DEFAULT_PAPERS_DIR)
     parser.add_argument("--output-json", type=Path, default=build_graph.DEFAULT_JSON)
     parser.add_argument("--output-js", type=Path, default=build_graph.DEFAULT_JS)
+    parser.add_argument(
+        "--allow-unclassified",
+        action="store_true",
+        help="Rebuild categorized papers while reporting unrelated files that still await classification.",
+    )
     return parser.parse_args()
 
 
@@ -57,7 +62,8 @@ def main() -> None:
         print("发现尚未归入标准类别的论文文件：")
         for path in unclassified:
             print(f"UNCLASSIFIED\t{path.relative_to(papers_dir)}")
-        raise SystemExit("请先完成论文分类，再重新运行 make update")
+        if not args.allow_unclassified:
+            raise SystemExit("请先完成论文分类，再重新运行 make update")
 
     before = previous_hashes(args.output_json)
     graph = build_graph.build_graph(papers_dir)
