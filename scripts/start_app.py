@@ -67,7 +67,7 @@ def refresh_graph_if_needed(python: Path, papers_dir: Path) -> None:
     needs_refresh = not graph_path.exists() or max(path.stat().st_mtime for path in sources) > graph_path.stat().st_mtime
     if not needs_refresh:
         return
-    print("检测到论文库变化，正在自动更新星图…")
+    print("检测到论文库变化，正在自动更新图谱…")
     result = subprocess.run(
         [str(python), str(REPO_ROOT / "scripts" / "update_library.py"), "--papers-dir", str(papers_dir)],
         cwd=REPO_ROOT,
@@ -82,12 +82,12 @@ def refresh_graph_if_needed(python: Path, papers_dir: Path) -> None:
             if line.startswith("UNCLASSIFIED\t")
         ]
         if unclassified:
-            print(f"发现 {len(unclassified)} 篇待分类论文，暂时使用上一次星图：")
+            print(f"发现 {len(unclassified)} 篇待分类论文，暂时使用上一次图谱：")
             for path in unclassified:
                 print(f"  · {path}")
             print("每日分类任务处理后，下次启动会自动更新，无需手动构建。")
         else:
-            print("自动更新未完成，暂时使用上一次生成的星图。")
+            print("自动更新未完成，暂时使用上一次生成的图谱。")
     elif result.stdout.strip():
         print(result.stdout.strip())
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the local paper citation graph and radial time metadata for the web app."""
+"""Build the local paper citation graph and timeline metadata for the web app."""
 
 from __future__ import annotations
 
@@ -327,7 +327,7 @@ def build_graph(papers_dir: Path) -> dict:
             "year_min": min(years) if years else None,
             "year_max": max(years) if years else None,
             "citation_direction": "citing_paper -> cited_paper",
-            "time_encoding": "distance_from_center: older -> newer",
+            "time_encoding": "horizontal_timeline: older -> newer",
         },
         "categories": categories,
         "nodes": nodes,

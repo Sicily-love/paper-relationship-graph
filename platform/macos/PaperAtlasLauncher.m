@@ -257,7 +257,7 @@
     title.font = [NSFont systemFontOfSize:28 weight:NSFontWeightSemibold];
     title.alignment = NSTextAlignmentCenter;
 
-    self.statusLabel = [NSTextField labelWithString:@"正在准备论文星图…"];
+    self.statusLabel = [NSTextField labelWithString:@"正在准备论文图谱…"];
     self.statusLabel.font = [NSFont systemFontOfSize:15];
     self.statusLabel.textColor = NSColor.secondaryLabelColor;
     self.statusLabel.alignment = NSTextAlignmentCenter;

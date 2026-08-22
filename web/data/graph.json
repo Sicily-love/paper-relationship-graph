@@ -7,7 +7,7 @@
     "year_min": 2017,
     "year_max": 2026,
     "citation_direction": "citing_paper -> cited_paper",
-    "time_encoding": "distance_from_center: older -> newer"
+    "time_encoding": "horizontal_timeline: older -> newer"
   },
   "categories": [
     {
