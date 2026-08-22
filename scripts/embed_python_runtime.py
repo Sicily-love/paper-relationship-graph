@@ -148,6 +148,7 @@ def embed_runtime(source: Path, destination: Path, package_python: Path, source_
     manifest = {
         "python_version": version,
         "pypdf_version": packages["pypdf_version"],
+        "typing_extensions_version": packages.get("typing_extensions_version"),
         "architectures": architectures,
         "source": source_label,
         "offline_ready": True,

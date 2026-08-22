@@ -101,7 +101,11 @@ def check_release(papers_dir: Path | None, public_release: bool = False) -> list
             errors.append("应用内置 pypdf 缺少许可证文件")
     try:
         manifest = json.loads(python_manifest.read_text(encoding="utf-8"))
-        if not manifest.get("offline_ready") or not manifest.get("pypdf_version"):
+        if (
+            not manifest.get("offline_ready")
+            or not manifest.get("pypdf_version")
+            or not manifest.get("typing_extensions_version")
+        ):
             raise ValueError
     except (OSError, ValueError, json.JSONDecodeError):
         errors.append("应用内置 Python 清单缺失或无效")
