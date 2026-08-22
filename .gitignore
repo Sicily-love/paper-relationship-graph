@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 .cache/
 dist/
+Paper Atlas.app/

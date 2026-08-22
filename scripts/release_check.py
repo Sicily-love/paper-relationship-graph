@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import plistlib
 import subprocess
 from pathlib import Path
@@ -40,6 +42,7 @@ def check_release(papers_dir: Path | None, public_release: bool = False) -> list
     required = [
         "VERSION", "requirements.txt", "scripts/app_backend.py", "scripts/library_health.py",
         "scripts/task_center.py", "scripts/prepare_release_seed.py",
+        "scripts/embed_python_runtime.py",
         "web/index.html", "web/app.js", "config/tasks.json",
     ]
     for relative in required:
@@ -49,6 +52,59 @@ def check_release(papers_dir: Path | None, public_release: bool = False) -> list
             errors.append(f"应用内运行资源不同步：{relative}")
 
     errors.extend(prepare_release_seed.privacy_issues(runtime))
+
+    embedded_python = ROOT / "Paper Atlas.app" / "Contents" / "Resources" / "python" / "bin" / "python3"
+    python_root = embedded_python.parents[1]
+    python_manifest = python_root / "paper-atlas-runtime.json"
+    if not embedded_python.is_file() or not os.access(embedded_python, os.X_OK):
+        errors.append("应用没有内置 Python 运行时")
+    else:
+        probe = subprocess.run(
+            [
+                str(embedded_python), "-I", "-B", "-c",
+                "import ssl, pypdf; assert ssl.create_default_context().cert_store_stats()['x509_ca'] > 0; print(pypdf.__version__)",
+            ],
+            cwd="/tmp",
+            env={
+                "HOME": "/tmp", "PATH": "/usr/bin:/bin",
+                "PYTHONNOUSERSITE": "1", "SSL_CERT_FILE": "/etc/ssl/cert.pem",
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if probe.returncode:
+            errors.append("应用内置 Python 或 pypdf 无法独立启动")
+        architectures = subprocess.run(
+            ["lipo", "-archs", str(embedded_python)],
+            capture_output=True, text=True, check=False,
+        ).stdout.split()
+        if not {"x86_64", "arm64"}.issubset(set(architectures)):
+            errors.append("应用内置 Python 不是 Intel 与 Apple Silicon 通用版本")
+        for item in python_root.rglob("*"):
+            if not item.is_file() or item.is_symlink():
+                continue
+            kind = subprocess.run(
+                ["file", "-b", str(item)], capture_output=True, text=True, check=False,
+            ).stdout
+            if "Mach-O" not in kind:
+                continue
+            dependencies = subprocess.run(
+                ["otool", "-L", str(item)], capture_output=True, text=True, check=False,
+            ).stdout
+            if "/Library/Frameworks/Python.framework" in dependencies:
+                errors.append(f"内置 Python 仍包含不可移动的系统路径：{item.relative_to(python_root)}")
+                break
+        if not any(python_root.glob("lib/python3.*/LICENSE.txt")):
+            errors.append("应用内置 Python 缺少许可证文件")
+        if not any(python_root.glob("lib/python3.*/site-packages/pypdf-*.dist-info/licenses/LICENSE")):
+            errors.append("应用内置 pypdf 缺少许可证文件")
+    try:
+        manifest = json.loads(python_manifest.read_text(encoding="utf-8"))
+        if not manifest.get("offline_ready") or not manifest.get("pypdf_version"):
+            raise ValueError
+    except (OSError, ValueError, json.JSONDecodeError):
+        errors.append("应用内置 Python 清单缺失或无效")
 
     if papers_dir is not None:
         health = library_health.validate_library(papers_dir)

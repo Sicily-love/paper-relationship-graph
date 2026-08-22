@@ -9,7 +9,6 @@ import socket
 import subprocess
 import sys
 import threading
-import venv
 import webbrowser
 from pathlib import Path
 
@@ -28,6 +27,8 @@ def runtime_python() -> Path:
 
 
 def ensure_runtime() -> Path:
+    import venv
+
     python = runtime_python()
     if not python.exists():
         print("首次启动：正在准备本地运行环境…")

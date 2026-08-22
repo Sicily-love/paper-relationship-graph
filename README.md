@@ -16,7 +16,7 @@ Paper Atlas 是一个本地论文库工具。它按研究方向和年份组织�
 ~/Library/Application Support/Paper Atlas/runtime
 ```
 
-应用安装到 `/Applications` 后不再依赖克隆仓库，也不需要浏览器或常驻终端。如果 macOS 阻止首次打开，请在 Finder 中右键应用并选择“打开”。
+应用已经内置通用架构 Python 和 PDF 读取组件。安装到 `/Applications` 后不再依赖克隆仓库、系统 Python、浏览器、常驻终端或首次联网安装依赖。如果 macOS 阻止首次打开，请在 Finder 中右键应用并选择“打开”。
 
 本地测试包位于 `dist/Paper-Atlas-1.0.0.dmg`。公开 Release 只接受经过 Developer ID 签名和 Apple 公证的构建；在证书准备好之前不上传 DMG。
 
@@ -99,7 +99,8 @@ macOS 使用 `launchd`，关闭 Paper Atlas 后任务仍可按时运行。保存
 | `make discover` | 搜索最新 arXiv 论文 |
 | `make discover-shared` | 生成共同引用候选 |
 | `make test` | 运行自动测试 |
-| `make mac-app` | 生成通用架构 macOS 应用 |
+| `make python-runtime` | 下载并校验官方通用架构 Python 构建运行时 |
+| `make mac-app` | 生成内置 Python 与 PDF 组件的通用架构 macOS 应用 |
 | `make release` | 生成临时签名的本地测试 DMG 和 SHA-256 |
 | `make release-public` | 生成正式 DMG；强制要求 Developer ID 和 Apple 公证 |
 | `make release-check` | 执行发布一致性检查 |
@@ -108,7 +109,7 @@ macOS 使用 `launchd`，关闭 Paper Atlas 后任务仍可按时运行。保存
 
 论文标题、摘要、作者和 arXiv 链接来自 arXiv；外部引用和引用量来自 OpenAlex；库内引用由本地 PDF 参考文献标题匹配得到。候选仍应在归档前人工核对。
 
-论文 PDF 不会上传到仓库或第三方。执行论文发现时，论文标题会发送给 OpenAlex 用于匹配，搜索关键词会发送给 arXiv。应用没有用户账户、遥测或云同步。
+论文 PDF 不会上传到仓库或第三方。论文整理、图谱浏览和已下载 PDF 解析可以完全离线运行；执行论文发现时仍需联网，论文标题会发送给 OpenAlex 用于匹配，搜索关键词会发送给 arXiv。应用没有用户账户、遥测或云同步。
 
 打包时会为应用内运行目录生成干净的初始状态：自定义搜索主题、推荐候选和审核记录全部清空，并检查是否残留用户绝对路径。这个过程只修改应用包，不会删除本地论文库或 `Application Support` 中的现有状态。
 
@@ -144,7 +145,9 @@ make test
 make mac-app
 ```
 
-前端不需要 npm 构建。修改 `web/` 后刷新页面即可。
+`make mac-app` 首次运行会下载并验证 Python.org 的通用架构 Python 3.12 运行时，之后复用 `.cache/python-runtime`。前端不需要 npm 构建。修改 `web/` 后刷新页面即可。
+
+`Paper Atlas.app` 和 `dist/` 都是本机构建产物，不提交到仓库。GitHub Actions 只验证源码能否通过测试、构建和发布检查，不保存临时签名安装包。
 
 生成本地测试 DMG：
 

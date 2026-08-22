@@ -1,4 +1,5 @@
 import sys
+import os
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -98,6 +99,16 @@ class AppBackendTests(unittest.TestCase):
         result = app_backend.clear_candidates(modules)
         self.assertEqual(result["removed_count"], 1)
         self.assertEqual(result["discovery"]["candidates"], [])
+
+    def test_prepare_uses_embedded_python_without_bootstrapping(self):
+        embedded = Path(sys.executable).resolve()
+        with patch.dict(os.environ, {"PAPER_ATLAS_USE_CURRENT_PYTHON": "1"}):
+            with patch("start_app.ensure_runtime") as ensure_runtime:
+                with patch("start_app.refresh_graph_if_needed") as refresh:
+                    result = app_backend.prepare(Path("papers"))
+        ensure_runtime.assert_not_called()
+        refresh.assert_called_once_with(embedded, Path("papers"))
+        self.assertTrue(result["offline_runtime"])
 
 
 if __name__ == "__main__":

@@ -10,8 +10,18 @@ ICON_SOURCE="$ROOT/assets/paper-atlas-icon.png"
 ICON_MASTER="$CACHE/paper-atlas-icon-1024.png"
 ICON_PREPARER="$CACHE/PrepareIcon"
 RUNTIME="$APP/Contents/Resources/runtime"
+PYTHON_RUNTIME="$APP/Contents/Resources/python"
 SIGN_IDENTITY="${PAPER_ATLAS_SIGN_IDENTITY:--}"
-BUILD_PYTHON="${PAPER_ATLAS_BUILD_PYTHON:-python3}"
+if [[ -n "${PAPER_ATLAS_BUILD_PYTHON:-}" ]]; then
+  BUILD_PYTHON="$PAPER_ATLAS_BUILD_PYTHON"
+elif [[ -x "$ROOT/.venv/bin/python" ]]; then
+  BUILD_PYTHON="$ROOT/.venv/bin/python"
+else
+  BUILD_PYTHON="python3"
+fi
+EMBED_PYTHON="${PAPER_ATLAS_EMBED_PYTHON:-1}"
+PYTHON_RUNTIME_SOURCE="${PAPER_ATLAS_PYTHON_RUNTIME_SOURCE:-}"
+PYTHON_RUNTIME_LABEL="${PAPER_ATLAS_PYTHON_RUNTIME_LABEL:-Python.org macOS universal2}"
 
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$CACHE"
 cp "$ROOT/platform/macos/Info.plist" "$APP/Contents/Info.plist"
@@ -22,6 +32,26 @@ rsync -a "$ROOT/web" "$RUNTIME/"
 rsync -a "$ROOT/config" "$RUNTIME/"
 cp "$ROOT/requirements.txt" "$ROOT/VERSION" "$RUNTIME/"
 "$BUILD_PYTHON" "$ROOT/scripts/prepare_release_seed.py" "$RUNTIME"
+
+if [[ "$EMBED_PYTHON" == "1" ]]; then
+  if [[ -z "$PYTHON_RUNTIME_SOURCE" ]]; then
+    PYTHON_RUNTIME_SOURCE="$ROOT/.cache/python-runtime/Python.framework/Versions/3.12"
+    if [[ ! -d "$PYTHON_RUNTIME_SOURCE" ]]; then
+      "$ROOT/platform/macos/prepare_python_runtime.sh"
+    fi
+  fi
+  if [[ ! -d "$PYTHON_RUNTIME_SOURCE" ]]; then
+    echo "缺少可嵌入 Python：$PYTHON_RUNTIME_SOURCE" >&2
+    exit 2
+  fi
+  "$BUILD_PYTHON" "$ROOT/scripts/embed_python_runtime.py" \
+    --source "$PYTHON_RUNTIME_SOURCE" \
+    --destination "$PYTHON_RUNTIME" \
+    --package-python "$BUILD_PYTHON" \
+    --source-label "$PYTHON_RUNTIME_LABEL"
+else
+  rm -rf "$PYTHON_RUNTIME"
+fi
 
 CLANG_MODULE_CACHE_PATH="$CACHE" xcrun clang \
   -fobjc-arc \

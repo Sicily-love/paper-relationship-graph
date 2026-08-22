@@ -166,6 +166,11 @@ def launch_agent_payload(task_id: str, item: dict, papers_dir: Path) -> dict:
         ],
         "StartCalendarInterval": {"Hour": hour, "Minute": minute},
         "ProcessType": "Background",
+        "EnvironmentVariables": {
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONNOUSERSITE": "1",
+            "SSL_CERT_FILE": "/etc/ssl/cert.pem",
+        },
         "StandardOutPath": str(REPO_ROOT / ".cache" / f"{task_id}.log"),
         "StandardErrorPath": str(REPO_ROOT / ".cache" / f"{task_id}.log"),
     }

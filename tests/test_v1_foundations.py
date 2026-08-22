@@ -160,6 +160,9 @@ class TaskCenterTests(unittest.TestCase):
         )
         self.assertEqual(payload["StartCalendarInterval"], {"Hour": 10, "Minute": 30})
         self.assertIn("/papers", payload["ProgramArguments"])
+        self.assertEqual(payload["EnvironmentVariables"]["PYTHONDONTWRITEBYTECODE"], "1")
+        self.assertEqual(payload["EnvironmentVariables"]["PYTHONNOUSERSITE"], "1")
+        self.assertEqual(payload["EnvironmentVariables"]["SSL_CERT_FILE"], "/etc/ssl/cert.pem")
 
 
 class ClassificationTests(unittest.TestCase):

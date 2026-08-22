@@ -23,17 +23,21 @@
 @interface PaperAtlasSchemeHandler : NSObject <WKURLSchemeHandler>
 @property(nonatomic, strong) NSURL *projectRoot;
 @property(nonatomic, strong) NSURL *papersDirectory;
+@property(nonatomic, strong) NSURL *pythonExecutable;
 - (NSData *)runBackendCommand:(NSString *)command body:(NSData *)body;
 @end
 
 
 @implementation PaperAtlasSchemeHandler
 
-- (instancetype)initWithProjectRoot:(NSURL *)projectRoot papersDirectory:(NSURL *)papersDirectory {
+- (instancetype)initWithProjectRoot:(NSURL *)projectRoot
+                    papersDirectory:(NSURL *)papersDirectory
+                   pythonExecutable:(NSURL *)pythonExecutable {
     self = [super init];
     if (self) {
         _projectRoot = projectRoot;
         _papersDirectory = papersDirectory;
+        _pythonExecutable = pythonExecutable;
     }
     return self;
 }
@@ -55,12 +59,16 @@
 }
 
 - (NSData *)runBackendCommand:(NSString *)command body:(NSData *)body {
-    NSURL *python = [[self.projectRoot URLByAppendingPathComponent:@".venv/bin/python"] URLByStandardizingPath];
     NSURL *backend = [self.projectRoot URLByAppendingPathComponent:@"scripts/app_backend.py"];
     NSTask *task = [[NSTask alloc] init];
-    task.executableURL = python;
+    task.executableURL = self.pythonExecutable;
     task.arguments = @[backend.path, command, @"--papers-dir", self.papersDirectory.path];
     task.currentDirectoryURL = self.projectRoot;
+    NSMutableDictionary *environment = [NSProcessInfo.processInfo.environment mutableCopy];
+    environment[@"PYTHONDONTWRITEBYTECODE"] = @"1";
+    environment[@"PYTHONNOUSERSITE"] = @"1";
+    environment[@"SSL_CERT_FILE"] = @"/etc/ssl/cert.pem";
+    task.environment = environment;
 
     NSPipe *output = [NSPipe pipe];
     task.standardOutput = output;
@@ -188,6 +196,17 @@
     return [NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"runtime" isDirectory:YES];
 }
 
+- (NSURL *)pythonExecutable {
+    NSURL *bundled = [NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"python/bin/python3"];
+    if ([NSFileManager.defaultManager isExecutableFileAtPath:bundled.path]) return bundled;
+    return [[[self projectRoot] URLByAppendingPathComponent:@".venv/bin/python"] URLByStandardizingPath];
+}
+
+- (BOOL)usesBundledPython {
+    NSString *bundledRoot = [NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"python"].path;
+    return [[[self pythonExecutable] path] hasPrefix:[bundledRoot stringByAppendingString:@"/"]];
+}
+
 - (BOOL)copyBundledItem:(NSString *)relative replace:(BOOL)replace error:(NSError **)error {
     NSURL *source = [[self bundledRuntimeRoot] URLByAppendingPathComponent:relative];
     NSURL *destination = [[self projectRoot] URLByAppendingPathComponent:relative];
@@ -281,7 +300,8 @@
     configuration.websiteDataStore = WKWebsiteDataStore.defaultDataStore;
     self.schemeHandler = [[PaperAtlasSchemeHandler alloc]
         initWithProjectRoot:[self projectRoot]
-        papersDirectory:self.papersDirectory];
+        papersDirectory:self.papersDirectory
+        pythonExecutable:[self pythonExecutable]];
     [configuration setURLSchemeHandler:self.schemeHandler forURLScheme:@"paperatlas"];
     [configuration.userContentController addScriptMessageHandler:self name:@"paperAtlas"];
     self.webView = [[WKWebView alloc] initWithFrame:NSZeroRect configuration:configuration];
@@ -389,12 +409,22 @@
     [logHandle seekToEndOfFile];
 
     NSTask *task = [[NSTask alloc] init];
-    task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/python3"];
+    task.executableURL = [self usesBundledPython]
+        ? [self pythonExecutable]
+        : [NSURL fileURLWithPath:@"/usr/bin/python3"];
     task.arguments = @[
         [[[self projectRoot] URLByAppendingPathComponent:@"scripts/app_backend.py"] path],
         @"prepare", @"--papers-dir", self.papersDirectory.path,
     ];
     task.currentDirectoryURL = [self projectRoot];
+    if ([self usesBundledPython]) {
+        NSMutableDictionary *environment = [NSProcessInfo.processInfo.environment mutableCopy];
+        environment[@"PAPER_ATLAS_USE_CURRENT_PYTHON"] = @"1";
+        environment[@"PYTHONDONTWRITEBYTECODE"] = @"1";
+        environment[@"PYTHONNOUSERSITE"] = @"1";
+        environment[@"SSL_CERT_FILE"] = @"/etc/ssl/cert.pem";
+        task.environment = environment;
+    }
     task.standardOutput = logHandle;
     task.standardError = logHandle;
     __weak PaperAtlasDelegate *weakSelf = self;

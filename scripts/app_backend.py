@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -261,9 +262,17 @@ def run_discovery(modules: dict, body: dict) -> dict:
 def prepare(papers_dir: Path) -> dict:
     import start_app
 
-    python = start_app.ensure_runtime()
+    python = (
+        Path(sys.executable).resolve()
+        if os.environ.get("PAPER_ATLAS_USE_CURRENT_PYTHON") == "1"
+        else start_app.ensure_runtime()
+    )
     start_app.refresh_graph_if_needed(python, papers_dir)
-    return {"ready": True, "runtime_python": str(python)}
+    return {
+        "ready": True,
+        "runtime_python": str(python),
+        "offline_runtime": os.environ.get("PAPER_ATLAS_USE_CURRENT_PYTHON") == "1",
+    }
 
 
 def parse_args() -> argparse.Namespace:
