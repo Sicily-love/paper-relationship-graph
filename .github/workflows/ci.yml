@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
   pull_request:
@@ -14,4 +17,25 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
+      - run: python -m compileall -q scripts
       - run: make test
+
+  macos-package:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: make mac-app
+      - run: codesign --verify --deep --strict "Paper Atlas.app"
+      - run: make release
+      - run: make release-check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Paper-Atlas-1.0.0-macos
+          path: |
+            dist/Paper-Atlas-1.0.0.dmg
+            dist/Paper-Atlas-1.0.0.dmg.sha256

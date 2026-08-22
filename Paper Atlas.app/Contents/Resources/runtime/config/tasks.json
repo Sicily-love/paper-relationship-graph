@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "tasks": {
+    "classification": {
+      "enabled": true,
+      "time": "10:30"
+    },
+    "arxiv": {
+      "enabled": true,
+      "time": "11:00"
+    }
+  }
+}

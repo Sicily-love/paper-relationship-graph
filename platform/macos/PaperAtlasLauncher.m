@@ -116,6 +116,9 @@
                 @"/api/discover": @"discover",
                 @"/api/candidates/action": @"candidate",
                 @"/api/candidates/clear": @"clear",
+                @"/api/maintenance/rebuild": @"maintenance",
+                @"/api/tasks": @"tasks",
+                @"/api/backup": @"backup",
             };
             NSString *command = commands[path];
             NSData *data;
@@ -174,7 +177,50 @@
 }
 
 - (NSURL *)projectRoot {
-    return [[[NSBundle mainBundle] bundleURL] URLByDeletingLastPathComponent];
+    NSArray<NSURL *> *locations = [NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory
+                                                                        inDomains:NSUserDomainMask];
+    NSURL *base = locations.firstObject ?: [NSURL fileURLWithPath:[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support"]];
+    return [[base URLByAppendingPathComponent:@"Paper Atlas" isDirectory:YES]
+        URLByAppendingPathComponent:@"runtime" isDirectory:YES];
+}
+
+- (NSURL *)bundledRuntimeRoot {
+    return [NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"runtime" isDirectory:YES];
+}
+
+- (BOOL)copyBundledItem:(NSString *)relative replace:(BOOL)replace error:(NSError **)error {
+    NSURL *source = [[self bundledRuntimeRoot] URLByAppendingPathComponent:relative];
+    NSURL *destination = [[self projectRoot] URLByAppendingPathComponent:relative];
+    NSFileManager *manager = NSFileManager.defaultManager;
+    if (![manager fileExistsAtPath:source.path]) return YES;
+    if ([manager fileExistsAtPath:destination.path]) {
+        if (!replace) return YES;
+        if (![manager removeItemAtURL:destination error:error]) return NO;
+    }
+    if (![manager createDirectoryAtURL:destination.URLByDeletingLastPathComponent
+            withIntermediateDirectories:YES attributes:nil error:error]) return NO;
+    return [manager copyItemAtURL:source toURL:destination error:error];
+}
+
+- (BOOL)installRuntimeFiles:(NSError **)error {
+    if (![NSFileManager.defaultManager createDirectoryAtURL:[self projectRoot]
+            withIntermediateDirectories:YES attributes:nil error:error]) return NO;
+    NSArray<NSString *> *programFiles = @[
+        @"scripts", @"requirements.txt", @"VERSION",
+        @"web/index.html", @"web/app.js", @"web/styles.css",
+    ];
+    for (NSString *relative in programFiles) {
+        if (![self copyBundledItem:relative replace:YES error:error]) return NO;
+    }
+    NSArray<NSString *> *initialState = @[
+        @"config/discovery.json", @"config/tasks.json",
+        @"web/data/graph.json", @"web/data/graph-data.js",
+        @"web/data/discovery.json", @"web/data/discovery-data.js",
+    ];
+    for (NSString *relative in initialState) {
+        if (![self copyBundledItem:relative replace:NO error:error]) return NO;
+    }
+    return YES;
 }
 
 - (NSURL *)cacheDirectory {
@@ -187,6 +233,15 @@
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
     [NSApp setApplicationIconImage:[self bundledApplicationIcon]];
+    NSError *runtimeError = nil;
+    if (![self installRuntimeFiles:&runtimeError]) {
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = @"Paper Atlas 无法准备本地运行目录";
+        alert.informativeText = runtimeError.localizedDescription ?: @"请检查 Application Support 目录权限。";
+        [alert runModal];
+        [NSApp terminate:nil];
+        return;
+    }
     self.papersDirectory = [self choosePapersDirectoryIfNeeded];
     if (self.papersDirectory == nil) {
         [NSApp terminate:nil];
@@ -311,12 +366,12 @@
 
     NSOpenPanel *panel = [NSOpenPanel openPanel];
     panel.title = @"选择 Paper Atlas 论文库";
-    panel.message = @"请选择包含论文分类文件夹和 paper-relationship-graph 的 paper 文件夹。首次选择用于授予 macOS 访问权限。";
+    panel.message = @"请选择用于保存 10 个分类目录和论文 PDF 的文件夹。首次选择用于授予 macOS 访问权限。";
     panel.prompt = @"选择论文库";
     panel.canChooseDirectories = YES;
     panel.canChooseFiles = NO;
     panel.allowsMultipleSelection = NO;
-    panel.directoryURL = [[self projectRoot] URLByDeletingLastPathComponent];
+    panel.directoryURL = [NSURL fileURLWithPath:[NSHomeDirectory() stringByAppendingPathComponent:@"Downloads/paper"] isDirectory:YES];
     if ([panel runModal] != NSModalResponseOK || panel.URL == nil) return nil;
     [defaults setObject:panel.URL.path forKey:@"papersDirectory"];
     return panel.URL;
@@ -382,6 +437,9 @@
         @"/api/discover": @"discover",
         @"/api/candidates/action": @"candidate",
         @"/api/candidates/clear": @"clear",
+        @"/api/maintenance/rebuild": @"maintenance",
+        @"/api/tasks": @"tasks",
+        @"/api/backup": @"backup",
     };
     NSString *command = commands[path];
     if (identifier.length == 0) return;

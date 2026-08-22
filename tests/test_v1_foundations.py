@@ -1,0 +1,191 @@
+import json
+import sys
+import tempfile
+import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+from unittest.mock import patch
+
+from pypdf import PdfWriter
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+
+import backup_restore  # noqa: E402
+import build_graph  # noqa: E402
+import classify_library  # noqa: E402
+import discover_papers  # noqa: E402
+import library_health  # noqa: E402
+import manage_candidate  # noqa: E402
+import task_center  # noqa: E402
+from discovery_utils import write_discovery  # noqa: E402
+
+
+class TransactionTests(unittest.TestCase):
+    def make_pdf(self, path: Path) -> None:
+        writer = PdfWriter()
+        writer.add_blank_page(width=100, height=100)
+        with path.open("wb") as output:
+            writer.write(output)
+
+    def test_archive_rolls_back_when_decision_persistence_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.pdf"
+            self.make_pdf(source)
+            papers = root / "papers"
+            data = {"candidates": [{
+                "id": "arxiv:1", "title": "Transactional Paper",
+                "pdf_url": source.as_uri(), "status": "new",
+            }]}
+            before = json.loads(json.dumps(data))
+            with patch.object(manage_candidate, "write_discovery", side_effect=OSError("disk full")):
+                with self.assertRaisesRegex(OSError, "disk full"):
+                    manage_candidate.commit_decision(
+                        data, "arxiv:1", "accept", papers,
+                        "06_GPU内核_编译器与性能工程", root / "d.json", root / "d.js",
+                    )
+            self.assertEqual(data, before)
+            self.assertFalse(any(papers.rglob("*.pdf")))
+
+    def test_committed_archive_is_marked_pending_then_complete(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.pdf"
+            self.make_pdf(source)
+            papers = root / "papers"
+            json_path, js_path = root / "d.json", root / "d.js"
+            data = {"candidates": [{
+                "id": "arxiv:1", "title": "Transactional Paper",
+                "pdf_url": source.as_uri(), "status": "new",
+            }]}
+            candidate = manage_candidate.commit_decision(
+                data, "arxiv:1", "accept", papers,
+                "06_GPU内核_编译器与性能工程", json_path, js_path,
+            )
+            self.assertEqual(candidate["graph_status"], "pending")
+            manage_candidate.mark_graph_status(data, "arxiv:1", "complete", json_path, js_path)
+            self.assertEqual(data["decisions"]["arxiv:1"]["graph_status"], "complete")
+
+
+class RelevanceTests(unittest.TestCase):
+    topic = {
+        "id": "category-04-quantization",
+        "label": "量化与低精度计算",
+        "keywords": ["quantization", "low precision"],
+    }
+
+    def test_physics_keyword_collision_is_filtered(self):
+        result = discover_papers.candidate_relevance({
+            "title": "Quantization of a scalar field in de Sitter space",
+            "abstract": "We study Hilbert spaces and reflection positivity in quantum field theory.",
+        }, self.topic)
+        self.assertFalse(result["relevant"])
+
+    def test_machine_learning_quantization_is_retained_with_evidence(self):
+        result = discover_papers.candidate_relevance({
+            "title": "INT4 Quantization for Transformer Inference",
+            "abstract": "A low precision method for efficient large language model inference on GPU accelerators.",
+        }, self.topic)
+        self.assertTrue(result["relevant"])
+        self.assertGreaterEqual(result["relevance_score"], 40)
+        self.assertTrue(result["relevance_evidence"])
+
+
+class HealthAndBackupTests(unittest.TestCase):
+    def test_health_matches_files_json_and_browser_payload(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            papers = root / "papers"
+            for category in build_graph.STANDARD_CATEGORIES:
+                (papers / category).mkdir(parents=True)
+            category = build_graph.STANDARD_CATEGORIES[0]
+            pdf = papers / category / "Example.pdf"
+            pdf.write_bytes(b"test")
+            graph = {
+                "metadata": {"unique_papers": 1, "citation_edges": 0},
+                "categories": [{"id": category, "main_node": "p00", "paper_count": 1}],
+                "nodes": [{"id": "p00", "path": f"{category}/Example.pdf", "category": category}],
+                "edges": {"citation": []}, "duplicates": [],
+            }
+            graph_json, graph_js = root / "g.json", root / "g.js"
+            graph_json.write_text(json.dumps(graph), encoding="utf-8")
+            graph_js.write_text("window.PAPER_GRAPH=" + json.dumps(graph) + ";\n", encoding="utf-8")
+            discovery = {"metadata": {}, "candidates": [], "decisions": {}}
+            discovery_json, discovery_js = root / "d.json", root / "d.js"
+            write_discovery(discovery, discovery_json, discovery_js)
+            health = library_health.validate_library(
+                papers, graph_json, graph_js, discovery_json, discovery_js,
+            )
+            self.assertEqual(health["status"], "healthy")
+
+    def test_backup_roundtrip_preserves_topics_decisions_and_tasks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_path, tasks_path = root / "config.json", root / "tasks.json"
+            discovery_path, discovery_js = root / "discovery.json", root / "discovery.js"
+            graph_path = root / "graph.json"
+            config = {"topics": [{"label": "GPU", "keywords": ["GPU kernel"]}]}
+            tasks = task_center.default_config()
+            discovery = {"candidates": [], "decisions": {"x": {"status": "rejected"}}}
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            tasks_path.write_text(json.dumps(tasks), encoding="utf-8")
+            discovery_path.write_text(json.dumps(discovery), encoding="utf-8")
+            graph_path.write_text(json.dumps({"metadata": {}, "categories": []}), encoding="utf-8")
+            backup = backup_restore.create_backup(config_path, discovery_path, graph_path, tasks_path)
+            backup_restore.restore_backup(
+                backup, config, tasks, config_path, discovery_path, discovery_js, tasks_path,
+            )
+            self.assertEqual(json.loads(discovery_path.read_text())["decisions"]["x"]["status"], "rejected")
+
+
+class TaskCenterTests(unittest.TestCase):
+    def test_task_times_are_validated_and_next_run_is_future(self):
+        config = task_center.validate_config({"tasks": {
+            "classification": {"enabled": True, "time": "10:30"},
+            "arxiv": {"enabled": True, "time": "11:00"},
+        }})
+        self.assertEqual(config["tasks"]["arxiv"]["time"], "11:00")
+        now = datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
+        self.assertGreater(datetime.fromisoformat(task_center.next_run("10:30", now)), now)
+        with self.assertRaises(ValueError):
+            task_center.validate_time("25:00")
+
+    def test_launch_agent_contains_calendar_and_selected_library(self):
+        payload = task_center.launch_agent_payload(
+            "classification", {"enabled": True, "time": "10:30"}, Path("/papers")
+        )
+        self.assertEqual(payload["StartCalendarInterval"], {"Hour": 10, "Minute": 30})
+        self.assertIn("/papers", payload["ProgramArguments"])
+
+
+class ClassificationTests(unittest.TestCase):
+    def test_matching_presentation_follows_existing_paper_category(self):
+        with tempfile.TemporaryDirectory() as directory:
+            papers = Path(directory)
+            category = build_graph.STANDARD_CATEGORIES[1]
+            (papers / category).mkdir()
+            (papers / category / "UltraAttn Efficient Attention.pdf").write_bytes(b"pdf")
+            presentation = papers / "ultraattn.pptx"
+            presentation.write_bytes(b"pptx")
+            result = classify_library.classify_files(papers)
+            self.assertEqual(len(result["classified"]), 1)
+            self.assertTrue((papers / category / "ultraattn.pptx").exists())
+
+
+class WebContractTests(unittest.TestCase):
+    def test_v1_controls_and_default_relation_mode_are_present(self):
+        html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+        script = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("Paper Atlas 1.0.0", html)
+        self.assertIn('id="task-list"', html)
+        self.assertIn('id="export-backup"', html)
+        self.assertIn('id="show-citations">', html)
+        self.assertNotIn('id="show-citations" checked', html)
+        self.assertIn("const visible = focused || citationsExpanded", script)
+
+
+if __name__ == "__main__":
+    unittest.main()
