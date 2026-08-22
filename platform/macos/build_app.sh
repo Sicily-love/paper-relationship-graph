@@ -11,6 +11,7 @@ ICON_MASTER="$CACHE/paper-atlas-icon-1024.png"
 ICON_PREPARER="$CACHE/PrepareIcon"
 RUNTIME="$APP/Contents/Resources/runtime"
 SIGN_IDENTITY="${PAPER_ATLAS_SIGN_IDENTITY:--}"
+BUILD_PYTHON="${PAPER_ATLAS_BUILD_PYTHON:-python3}"
 
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$CACHE"
 cp "$ROOT/platform/macos/Info.plist" "$APP/Contents/Info.plist"
@@ -20,6 +21,7 @@ rsync -a --exclude '__pycache__' --exclude '*.pyc' "$ROOT/scripts" "$RUNTIME/"
 rsync -a "$ROOT/web" "$RUNTIME/"
 rsync -a "$ROOT/config" "$RUNTIME/"
 cp "$ROOT/requirements.txt" "$ROOT/VERSION" "$RUNTIME/"
+"$BUILD_PYTHON" "$ROOT/scripts/prepare_release_seed.py" "$RUNTIME"
 
 CLANG_MODULE_CACHE_PATH="$CACHE" xcrun clang \
   -fobjc-arc \
@@ -44,7 +46,11 @@ CLANG_MODULE_CACHE_PATH="$CACHE" xcrun clang \
   "$APP/Contents/Resources/AppIcon.icns"
 cp "$ICON_MASTER" "$APP/Contents/Resources/AppIcon.png"
 
-codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" "$APP"
+if [[ "$SIGN_IDENTITY" == "-" ]]; then
+  codesign --force --deep --options runtime --sign - "$APP"
+else
+  codesign --force --deep --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP"
+fi
 codesign --verify --deep --strict "$APP"
 
 # Refresh Launch Services so Stage Manager and Finder do not retain an icon

@@ -19,6 +19,7 @@ import classify_library  # noqa: E402
 import discover_papers  # noqa: E402
 import library_health  # noqa: E402
 import manage_candidate  # noqa: E402
+import prepare_release_seed  # noqa: E402
 import task_center  # noqa: E402
 from discovery_utils import write_discovery  # noqa: E402
 
@@ -185,6 +186,54 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('id="show-citations">', html)
         self.assertNotIn('id="show-citations" checked', html)
         self.assertIn("const visible = focused || citationsExpanded", script)
+
+
+class ReleasePrivacyTests(unittest.TestCase):
+    def make_runtime(self, root: Path) -> Path:
+        runtime = root / "runtime"
+        (runtime / "config").mkdir(parents=True)
+        (runtime / "web" / "data").mkdir(parents=True)
+        (runtime / "config" / "discovery.json").write_text(json.dumps({
+            "topics": [{"label": "private topic"}],
+            "arxiv": {"max_age_days": 14},
+        }), encoding="utf-8")
+        (runtime / "config" / "tasks.json").write_text("{}", encoding="utf-8")
+        discovery = {
+            "metadata": {},
+            "topics": [{"label": "private topic"}],
+            "decisions": {"paper": {"status": "accepted"}},
+            "candidates": [{"id": "paper", "title": "private candidate"}],
+        }
+        write_discovery(
+            discovery,
+            runtime / "web" / "data" / "discovery.json",
+            runtime / "web" / "data" / "discovery-data.js",
+        )
+        (runtime / "web" / "data" / "graph.json").write_text("{}", encoding="utf-8")
+        (runtime / "web" / "data" / "graph-data.js").write_text(
+            "window.PAPER_GRAPH={};", encoding="utf-8",
+        )
+        return runtime
+
+    def test_release_runtime_removes_mutable_personal_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = self.make_runtime(Path(directory))
+            self.assertTrue(prepare_release_seed.privacy_issues(runtime))
+            prepare_release_seed.sanitize_runtime(runtime)
+            self.assertEqual(prepare_release_seed.privacy_issues(runtime), [])
+            config = json.loads((runtime / "config" / "discovery.json").read_text())
+            discovery = json.loads((runtime / "web" / "data" / "discovery.json").read_text())
+            self.assertEqual(config["topics"], [])
+            self.assertEqual(discovery["candidates"], [])
+            self.assertEqual(discovery["decisions"], {})
+            (runtime / "web" / "data" / "discovery-data.js").write_text(
+                "window.PAPER_DISCOVERY={\"candidates\":[{\"id\":\"leak\"}]};\n",
+                encoding="utf-8",
+            )
+            self.assertIn(
+                "发布包的候选 JSON 与页面数据不一致",
+                prepare_release_seed.privacy_issues(runtime),
+            )
 
 
 if __name__ == "__main__":

@@ -8,6 +8,18 @@ DIST="$ROOT/dist"
 STAGING="${TMPDIR:-/tmp}/paper-atlas-dmg-$VERSION"
 DMG="$DIST/Paper-Atlas-$VERSION.dmg"
 SIGN_IDENTITY="${PAPER_ATLAS_SIGN_IDENTITY:--}"
+PUBLIC_RELEASE="${PAPER_ATLAS_PUBLIC_RELEASE:-0}"
+
+if [[ "$PUBLIC_RELEASE" == "1" ]]; then
+  if [[ "$SIGN_IDENTITY" == "-" ]]; then
+    echo "公开发布需要 PAPER_ATLAS_SIGN_IDENTITY 指向 Developer ID Application 证书。" >&2
+    exit 2
+  fi
+  if [[ -z "${PAPER_ATLAS_NOTARY_PROFILE:-}" ]]; then
+    echo "公开发布需要 PAPER_ATLAS_NOTARY_PROFILE 完成 Apple 公证。" >&2
+    exit 2
+  fi
+fi
 
 "$ROOT/platform/macos/build_app.sh"
 rm -rf "$STAGING"
@@ -19,12 +31,13 @@ hdiutil create -volname "Paper Atlas" -srcfolder "$STAGING" -ov -format UDZO "$D
 rm -rf "$STAGING"
 
 if [[ "$SIGN_IDENTITY" != "-" ]]; then
-  codesign --force --sign "$SIGN_IDENTITY" "$DMG"
+  codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
 fi
 
 if [[ -n "${PAPER_ATLAS_NOTARY_PROFILE:-}" ]]; then
   xcrun notarytool submit "$DMG" --keychain-profile "$PAPER_ATLAS_NOTARY_PROFILE" --wait
   xcrun stapler staple "$DMG"
+  xcrun stapler validate "$DMG"
 fi
 
 shasum -a 256 "$DMG" > "$DMG.sha256"

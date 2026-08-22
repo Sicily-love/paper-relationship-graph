@@ -18,7 +18,7 @@ Paper Atlas 是一个本地论文库工具。它按研究方向和年份组织�
 
 应用安装到 `/Applications` 后不再依赖克隆仓库，也不需要浏览器或常驻终端。如果 macOS 阻止首次打开，请在 Finder 中右键应用并选择“打开”。
 
-正式安装包位于 GitHub Release 或本地 `dist/Paper-Atlas-1.0.0.dmg`。
+本地测试包位于 `dist/Paper-Atlas-1.0.0.dmg`。公开 Release 只接受经过 Developer ID 签名和 Apple 公证的构建；在证书准备好之前不上传 DMG。
 
 ### Windows 与 Linux
 
@@ -100,7 +100,8 @@ macOS 使用 `launchd`，关闭 Paper Atlas 后任务仍可按时运行。保存
 | `make discover-shared` | 生成共同引用候选 |
 | `make test` | 运行自动测试 |
 | `make mac-app` | 生成通用架构 macOS 应用 |
-| `make release` | 生成 DMG 和 SHA-256 校验文件 |
+| `make release` | 生成临时签名的本地测试 DMG 和 SHA-256 |
+| `make release-public` | 生成正式 DMG；强制要求 Developer ID 和 Apple 公证 |
 | `make release-check` | 执行发布一致性检查 |
 
 ## 数据来源与隐私
@@ -109,13 +110,15 @@ macOS 使用 `launchd`，关闭 Paper Atlas 后任务仍可按时运行。保存
 
 论文 PDF 不会上传到仓库或第三方。执行论文发现时，论文标题会发送给 OpenAlex 用于匹配，搜索关键词会发送给 arXiv。应用没有用户账户、遥测或云同步。
 
+打包时会为应用内运行目录生成干净的初始状态：自定义搜索主题、推荐候选和审核记录全部清空，并检查是否残留用户绝对路径。这个过程只修改应用包，不会删除本地论文库或 `Application Support` 中的现有状态。
+
 仓库包含应用代码、公开论文元数据、候选记录和示例图谱，不包含论文 PDF。
 
 ## 常见问题
 
 ### 应用打不开
 
-在 Finder 中右键 `Paper Atlas.app` 并选择“打开”。正式发布包需要 Developer ID 签名和 Apple 公证；本地构建默认使用临时签名。
+本地测试包使用临时签名，可能需要在 Finder 中右键应用并选择“打开”。公开发布包必须通过 Developer ID 签名和 Apple 公证。
 
 ### 页面提示管理功能未连接
 
@@ -149,14 +152,14 @@ make mac-app
 make release
 ```
 
-使用 Developer ID 签名并提交 Apple 公证：
+生成允许公开上传的 Developer ID 签名、公证版本：
 
 ```bash
 PAPER_ATLAS_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
 PAPER_ATLAS_NOTARY_PROFILE="paper-atlas-notary" \
-make release
+make release-public
 ```
 
-`PAPER_ATLAS_NOTARY_PROFILE` 需要先用 `xcrun notarytool store-credentials` 保存。没有 Apple Developer 证书时仍可生成本地测试 DMG，但不能完成 Apple 公证。
+`PAPER_ATLAS_NOTARY_PROFILE` 需要先用 `xcrun notarytool store-credentials` 保存。`make release-public` 会在缺少证书、公证配置或公证票据时直接失败；没有 Apple Developer 证书时只能使用 `make release` 生成不对外发布的测试包。
 
 项目采用 MIT License，版本变化见 [CHANGELOG.md](CHANGELOG.md)。

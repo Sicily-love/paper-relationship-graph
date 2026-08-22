@@ -35,7 +35,7 @@ jobs:
       - run: python scripts/release_check.py --skip-library
       - uses: actions/upload-artifact@v6
         with:
-          name: Paper-Atlas-1.0.0-macos
+          name: Paper-Atlas-1.0.0-unsigned-test
           path: |
             dist/Paper-Atlas-1.0.0.dmg
             dist/Paper-Atlas-1.0.0.dmg.sha256

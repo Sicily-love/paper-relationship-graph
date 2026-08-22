@@ -9,12 +9,13 @@ import subprocess
 from pathlib import Path
 
 import library_health
+import prepare_release_seed
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def check_release(papers_dir: Path | None) -> list[str]:
+def check_release(papers_dir: Path | None, public_release: bool = False) -> list[str]:
     errors: list[str] = []
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -38,13 +39,16 @@ def check_release(papers_dir: Path | None) -> list[str]:
     runtime = ROOT / "Paper Atlas.app" / "Contents" / "Resources" / "runtime"
     required = [
         "VERSION", "requirements.txt", "scripts/app_backend.py", "scripts/library_health.py",
-        "scripts/task_center.py", "web/index.html", "web/app.js", "config/tasks.json",
+        "scripts/task_center.py", "scripts/prepare_release_seed.py",
+        "web/index.html", "web/app.js", "config/tasks.json",
     ]
     for relative in required:
         source = ROOT / relative
         bundled = runtime / relative
         if not bundled.exists() or source.read_bytes() != bundled.read_bytes():
             errors.append(f"应用内运行资源不同步：{relative}")
+
+    errors.extend(prepare_release_seed.privacy_issues(runtime))
 
     if papers_dir is not None:
         health = library_health.validate_library(papers_dir)
@@ -63,6 +67,24 @@ def check_release(papers_dir: Path | None) -> list[str]:
     )
     if signature.returncode:
         errors.append("Paper Atlas.app 签名校验失败")
+    if public_release:
+        signature_details = subprocess.run(
+            ["codesign", "-dv", "--verbose=4", str(ROOT / "Paper Atlas.app")],
+            capture_output=True, text=True, check=False,
+        )
+        details = signature_details.stdout + signature_details.stderr
+        if "Authority=Developer ID Application:" not in details or "Signature=adhoc" in details:
+            errors.append("公开发布包没有使用 Developer ID Application 签名")
+        dmg = ROOT / "dist" / f"Paper-Atlas-{version}.dmg"
+        if not dmg.exists():
+            errors.append("缺少公开发布 DMG")
+        else:
+            ticket = subprocess.run(
+                ["xcrun", "stapler", "validate", str(dmg)],
+                capture_output=True, text=True, check=False,
+            )
+            if ticket.returncode:
+                errors.append("DMG 没有有效的 Apple 公证票据")
     return errors
 
 
@@ -74,13 +96,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="只检查仓库和应用包；用于没有本地论文 PDF 的 CI 环境",
     )
+    parser.add_argument(
+        "--public-release",
+        action="store_true",
+        help="同时要求 Developer ID 签名和 Apple 公证票据",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     papers_dir = None if args.skip_library else args.papers_dir.expanduser().resolve()
-    errors = check_release(papers_dir)
+    errors = check_release(papers_dir, public_release=args.public_release)
     if errors:
         for error in errors:
             print(f"ERROR\t{error}")

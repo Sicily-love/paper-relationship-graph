@@ -1,19 +1,5 @@
 {
-  "topics": [
-    {
-      "id": "category-07-kernel-agents",
-      "label": "GPU 内核智能体与自动调优",
-      "keywords": [
-        "GPU kernel agent",
-        "CUDA agent",
-        "LLM kernel optimization",
-        "automatic kernel generation"
-      ],
-      "exclude_keywords": [],
-      "enabled": true,
-      "max_results": 5
-    }
-  ],
+  "topics": [],
   "arxiv": {
     "max_age_days": 14,
     "request_delay_seconds": 3
