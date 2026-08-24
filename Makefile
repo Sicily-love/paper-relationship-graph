@@ -1,7 +1,7 @@
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 PAPERS_DIR ?= ..
 
-.PHONY: start build update update-preview classify discover discover-highly-cited discover-shared accept reject preview serve health test python-runtime mac-app release release-public release-check
+.PHONY: start build update update-preview classify discover discover-highly-cited discover-shared accept reject preview serve health test release-notes python-runtime mac-app release release-public release-check
 
 start:
 	$(PYTHON) scripts/start_app.py
@@ -45,6 +45,9 @@ health:
 
 test:
 	$(PYTHON) -m unittest discover -s tests -v
+
+release-notes:
+	$(PYTHON) scripts/generate_release_notes.py
 
 python-runtime:
 	platform/macos/prepare_python_runtime.sh

@@ -209,6 +209,7 @@
     NSArray<NSString *> *programFiles = @[
         @"scripts", @"requirements.txt", @"VERSION",
         @"web/index.html", @"web/app.js", @"web/styles.css",
+        @"web/data/releases.json", @"web/data/releases-data.js",
     ];
     for (NSString *relative in programFiles) {
         if (![self copyBundledItem:relative replace:YES error:error]) return NO;

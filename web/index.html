@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#090c13" media="(prefers-color-scheme: dark)">
   <title>Paper Atlas · 论文关系图谱</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=202">
+  <link rel="stylesheet" href="styles.css?v=203">
 </head>
 <body>
   <main class="app-shell">
@@ -60,7 +60,12 @@
           <dd id="metric-years">—</dd>
         </div>
       </dl>
-      <footer class="app-footer">Paper Atlas 1.1.0<br>数据保存在本地</footer>
+      <footer class="app-footer">
+        <button type="button" id="version-history" class="version-history-button" aria-haspopup="dialog">
+          <strong>Paper Atlas 1.2.0</strong>
+          <span>查看更新记录</span>
+        </button>
+      </footer>
     </header>
 
     <div class="workspace app-view active" data-view-panel="graph">
@@ -200,6 +205,18 @@
       </footer>
     </section>
 
+    <div id="release-notes-backdrop" class="detail-backdrop" hidden></div>
+    <section id="release-notes-dialog" class="topics-dialog release-notes-dialog" role="dialog" aria-modal="true" aria-labelledby="release-notes-title" hidden>
+      <header class="topics-dialog-header">
+        <div>
+          <span class="release-current-badge">当前版本 · 1.2.0</span>
+          <h2 id="release-notes-title">更新记录</h2>
+        </div>
+        <button type="button" id="release-notes-close" class="detail-close" aria-label="关闭更新记录">×</button>
+      </header>
+      <div id="release-notes-list" class="release-notes-list"></div>
+    </section>
+
     <div id="app-toast" class="app-toast" role="status" aria-live="polite" hidden></div>
 
     <section class="discovery-card app-view" data-view-panel="discovery" aria-labelledby="discovery-heading" hidden>
@@ -280,6 +297,7 @@
 
   <script src="data/graph-data.js?v=202"></script>
   <script src="data/discovery-data.js?v=202"></script>
-  <script src="app.js?v=203"></script>
+  <script src="data/releases-data.js?v=120"></script>
+  <script src="app.js?v=204"></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 (() => {
   const graph = window.PAPER_GRAPH;
   let discovery = window.PAPER_DISCOVERY || {metadata: {}, topics: [], candidates: []};
+  const releases = window.PAPER_RELEASES || {current_version: '', releases: []};
   if (!graph) {
     console.error('未找到 web/data/graph-data.js，请先运行 make build。');
     return;
@@ -76,6 +77,11 @@
   const candidatePreviewEmpty = document.getElementById('candidate-preview-empty');
   const navDiscoveryCount = document.getElementById('nav-discovery-count');
   const navHealthDot = document.getElementById('nav-health-dot');
+  const versionHistoryButton = document.getElementById('version-history');
+  const releaseNotesDialog = document.getElementById('release-notes-dialog');
+  const releaseNotesBackdrop = document.getElementById('release-notes-backdrop');
+  const releaseNotesClose = document.getElementById('release-notes-close');
+  const releaseNotesList = document.getElementById('release-notes-list');
   const viewButtons = [...document.querySelectorAll('[data-view]')];
   const viewPanels = [...document.querySelectorAll('[data-view-panel]')];
   const ns = 'http://www.w3.org/2000/svg';
@@ -529,6 +535,43 @@
     appToast.dataset.tone = tone;
     appToast.hidden = false;
     toastTimer = setTimeout(() => { appToast.hidden = true; }, 4200);
+  }
+
+  function renderReleaseNotes() {
+    releaseNotesList.replaceChildren(...(releases.releases || []).map(release => {
+      const article = document.createElement('article');
+      article.className = 'release-note';
+      const version = document.createElement('div');
+      version.className = 'release-note-version';
+      const name = document.createElement('strong');
+      name.textContent = `v${release.version}`;
+      const date = document.createElement('time');
+      date.textContent = release.date || '开发中';
+      version.append(name, date);
+      const changes = document.createElement('ul');
+      (release.changes || []).forEach(change => {
+        const item = document.createElement('li');
+        item.textContent = change;
+        changes.appendChild(item);
+      });
+      article.append(version, changes);
+      return article;
+    }));
+  }
+
+  function openReleaseNotes() {
+    renderReleaseNotes();
+    releaseNotesDialog.hidden = false;
+    releaseNotesBackdrop.hidden = false;
+    document.body.classList.add('topics-open');
+    requestAnimationFrame(() => releaseNotesClose.focus({preventScroll: true}));
+  }
+
+  function closeReleaseNotes() {
+    releaseNotesDialog.hidden = true;
+    releaseNotesBackdrop.hidden = true;
+    document.body.classList.remove('topics-open');
+    versionHistoryButton.focus({preventScroll: true});
   }
 
   async function apiRequest(path, options = {}) {
@@ -1546,6 +1589,9 @@
   });
   topicsClose.addEventListener('click', closeTopicsDialog);
   topicsBackdrop.addEventListener('click', closeTopicsDialog);
+  versionHistoryButton.addEventListener('click', openReleaseNotes);
+  releaseNotesClose.addEventListener('click', closeReleaseNotes);
+  releaseNotesBackdrop.addEventListener('click', closeReleaseNotes);
   addTopicButton.addEventListener('click', () => {
     const row = topicRow({enabled: true, max_results: 10});
     topicsList.appendChild(row);
@@ -1557,6 +1603,7 @@
     if (event.key !== 'Escape') return;
     const openLog = document.querySelector('.task-log[open]');
     if (openLog) openLog.removeAttribute('open');
+    else if (!releaseNotesDialog.hidden) closeReleaseNotes();
     else if (!topicsDialog.hidden) closeTopicsDialog();
     else if (!paperDetail.hidden) closePaperDetail();
   });

@@ -24,6 +24,7 @@ PYTHON_RUNTIME_SOURCE="${PAPER_ATLAS_PYTHON_RUNTIME_SOURCE:-}"
 PYTHON_RUNTIME_LABEL="${PAPER_ATLAS_PYTHON_RUNTIME_LABEL:-Python.org macOS universal2}"
 
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$CACHE"
+"$BUILD_PYTHON" "$ROOT/scripts/generate_release_notes.py"
 cp "$ROOT/platform/macos/Info.plist" "$APP/Contents/Info.plist"
 rm -rf "$RUNTIME"
 mkdir -p "$RUNTIME"

@@ -1336,7 +1336,26 @@ textarea { font-family: inherit; }
 }
 .metric-strip dt { margin: 0 0 3px; color: var(--muted); font-size: 11px; font-weight: 550; }
 .metric-strip dd { overflow: hidden; font-size: 14px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.app-footer { padding: 0 4px; color: var(--muted); text-align: left; font-size: 11px; line-height: 1.5; }
+.app-footer { padding: 0; }
+.version-history-button {
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  padding: 7px 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+.version-history-button strong { color: var(--muted-strong); font-size: 11px; font-weight: 650; }
+.version-history-button span { font-size: 10px; }
+.version-history-button:hover,
+.version-history-button:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
+.version-history-button:hover strong,
+.version-history-button:focus-visible strong { color: var(--accent); }
 
 .app-view {
   grid-area: 1 / 2;
@@ -1727,6 +1746,31 @@ button.command-row:hover,
 .paper-detail { width: min(820px, calc(100vw - 40px)); padding: 24px; }
 .detail-backdrop { background: rgba(0, 0, 0, 0.32); backdrop-filter: none; }
 .topics-dialog { padding: 24px; }
+.release-notes-dialog { width: min(680px, calc(100vw - 40px)); }
+.release-current-badge {
+  display: inline-flex;
+  margin-bottom: 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 650;
+}
+.release-notes-list { display: grid; gap: 0; margin-top: 18px; }
+.release-note {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 18px;
+  border-top: 1px solid var(--border);
+  padding: 18px 0;
+}
+.release-note:first-child { border-top: 0; padding-top: 0; }
+.release-note-version { display: grid; align-content: start; gap: 4px; }
+.release-note-version strong { color: var(--foreground); font-size: 14px; }
+.release-note-version time { color: var(--muted); font-size: 11px; }
+.release-note ul { display: grid; gap: 7px; margin: 0; padding-left: 18px; }
+.release-note li { color: var(--muted-strong); font-size: 13px; line-height: 1.5; }
 .topic-row { border-radius: 12px; background: var(--surface-soft); }
 .topics-actions { background: var(--surface-strong); backdrop-filter: none; }
 .app-toast { border-radius: 11px; box-shadow: var(--shadow-soft); }
@@ -1799,4 +1843,7 @@ button.command-row:hover,
   .task-status,
   .task-actions { grid-area: auto; justify-content: flex-start; }
   .paper-detail { width: calc(100vw - 20px); padding: 18px; }
+  .release-notes-dialog { width: calc(100vw - 20px); }
+  .release-note { grid-template-columns: 1fr; gap: 9px; }
+  .release-note-version { grid-template-columns: auto 1fr; align-items: baseline; }
 }

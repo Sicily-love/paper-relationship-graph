@@ -2,13 +2,13 @@
 
 Paper Atlas 是一个本地论文库工具。它用时间泳道展示分类、年份和库内引用关系，并把最新 arXiv、领域高被引与共同引用论文放进同一个待审核列表。
 
-![Paper Atlas v1.1.0 时间泳道界面](preview.png)
+![Paper Atlas v1.2.0 时间泳道界面](preview.png)
 
-最新标签：[v1.1.0](https://github.com/Sicily-love/paper-relationship-graph/releases/tag/v1.1.0)。`main` 还包含标签发布后的修复，详见 [CHANGELOG.md](CHANGELOG.md) 的 Unreleased 部分。
+当前源码与本地构建版本是 v1.2.0；最新公开标签仍是 [v1.1.0](https://github.com/Sicily-love/paper-relationship-graph/releases/tag/v1.1.0)。点击 App 侧栏底部的版本号，可以直接查看由 [CHANGELOG.md](CHANGELOG.md) 生成的历次更新内容。
 
 ## 当前发布状态
 
-v1.1.0 Release 目前只有 GitHub 自动生成的源码归档，没有可下载的 DMG 或 SHA-256 附件。仓库根目录下的 `Paper Atlas.app` 和 `dist/` 是本机构建产物，不会提交到 Git。
+v1.1.0 Release 目前只有 GitHub 自动生成的源码归档，没有可下载的 DMG 或 SHA-256 附件。v1.2.0 目前是源码和本地测试构建，尚未创建公开 Release。仓库根目录下的 `Paper Atlas.app` 和 `dist/` 是本机构建产物，不会提交到 Git。
 
 本地执行 `make release` 可以生成临时签名的测试 DMG；它没有 Developer ID 签名和 Apple 公证，只适合自己使用。正式公开安装包仍需完成签名和公证后再上传。
 
@@ -16,7 +16,7 @@ v1.1.0 Release 目前只有 GitHub 自动生成的源码归档，没有可下载
 
 ### macOS 原生 App
 
-如果已经在本地构建了 `Paper Atlas.app`，将它移动到固定位置后再打开。首次运行会要求选择论文库根目录。v1.1.0 尚未提供“新建空论文库”向导；所选目录应当已经包含下文列出的 10 个分类目录和至少一篇已分类 PDF。
+如果已经在本地构建了 `Paper Atlas.app`，将它移动到固定位置后再打开。首次运行会要求选择论文库根目录。v1.2.0 尚未提供“新建空论文库”向导；所选目录应当已经包含下文列出的 10 个分类目录和至少一篇已分类 PDF。
 
 原生 App 使用内置 WebKit 直接显示界面，不启动 localhost 服务，也不需要默认浏览器或常驻终端。它内置通用架构 Python 与 PDF 读取组件，运行时不会再安装 Python 依赖。程序代码和可变配置保存在：
 
@@ -125,6 +125,7 @@ macOS 原生 App 使用 `launchd`，关闭 Paper Atlas 后任务仍可按时运�
 | `make discover` | 搜索最新 arXiv 与领域高被引论文 |
 | `make discover-highly-cited` | 只生成领域高被引候选 |
 | `make discover-shared` | 生成共同引用候选 |
+| `make release-notes` | 从 CHANGELOG 生成 App 内更新记录 |
 | `make test` | 运行自动测试 |
 | `make python-runtime` | 下载并校验官方通用架构 Python 构建运行时 |
 | `make mac-app` | 生成内置 Python 与 PDF 组件的通用架构 macOS 应用 |
@@ -146,7 +147,7 @@ macOS 原生 App 使用 `launchd`，关闭 Paper Atlas 后任务仍可按时运�
 
 ### 应用打不开
 
-确认打开的是本机构建的 `Paper Atlas.app`，而不是 GitHub 源码压缩包。临时签名构建可能需要在 Finder 中右键 App 并选择“打开”。当前 v1.1.0 Release 没有公开 DMG；公开安装包必须先通过 Developer ID 签名和 Apple 公证。
+确认打开的是本机构建的 `Paper Atlas.app`，而不是 GitHub 源码压缩包。临时签名构建可能需要在 Finder 中右键 App 并选择“打开”。当前公开的 v1.1.0 Release 没有 DMG；公开安装包必须先通过 Developer ID 签名和 Apple 公证。
 
 ### 页面提示管理功能未连接
 
@@ -178,7 +179,7 @@ make test
 make mac-app
 ```
 
-`make mac-app` 首次运行会下载并验证 Python.org 的通用架构 Python 3.12 运行时，之后复用 `.cache/python-runtime`。前端不需要 npm 构建。修改 `web/` 后刷新页面即可。
+`make mac-app` 首次运行会下载并验证 Python.org 的通用架构 Python 3.12 运行时，之后复用 `.cache/python-runtime`。前端不需要 npm 构建。修改 `web/` 后刷新页面即可；修改 `CHANGELOG.md` 或 `VERSION` 后先运行 `make release-notes`，生成的更新记录会同时进入源码页面和 App。
 
 `Paper Atlas.app` 和 `dist/` 都是本机构建产物，不提交到仓库。GitHub Actions 只验证源码能否通过测试、构建和发布检查，不保存临时签名安装包。
 

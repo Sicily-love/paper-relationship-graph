@@ -17,6 +17,7 @@ import backup_restore  # noqa: E402
 import build_graph  # noqa: E402
 import classify_library  # noqa: E402
 import discover_papers  # noqa: E402
+import generate_release_notes  # noqa: E402
 import library_health  # noqa: E402
 import manage_candidate  # noqa: E402
 import prepare_release_seed  # noqa: E402
@@ -184,7 +185,10 @@ class WebContractTests(unittest.TestCase):
         html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
         script = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
         styles = (ROOT / "web" / "styles.css").read_text(encoding="utf-8")
-        self.assertIn("Paper Atlas 1.1.0", html)
+        self.assertIn("Paper Atlas 1.2.0", html)
+        self.assertIn('id="version-history"', html)
+        self.assertIn('id="release-notes-dialog"', html)
+        self.assertIn("window.PAPER_RELEASES", script)
         self.assertIn('id="task-list"', html)
         self.assertIn('id="export-backup"', html)
         self.assertNotIn('id="show-citations"', html)
@@ -227,6 +231,15 @@ class WebContractTests(unittest.TestCase):
         self.assertNotIn("Chromium", capture)
         self.assertIn("CapturePreview.m", capture)
         self.assertIn("WKWebView", native_capture)
+
+    def test_release_notes_are_generated_from_changelog(self):
+        payload = json.loads(
+            (ROOT / "web" / "data" / "releases.json").read_text(encoding="utf-8")
+        )
+        version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        self.assertEqual(generate_release_notes.check_generated_files(), [])
+        self.assertEqual(payload["current_version"], version)
+        self.assertEqual(payload["releases"][0]["version"], version)
 
 
 class ReleasePrivacyTests(unittest.TestCase):

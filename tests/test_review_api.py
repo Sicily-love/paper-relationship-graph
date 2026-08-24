@@ -12,6 +12,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import manage_candidate  # noqa: E402
+import app_services  # noqa: E402
 import serve_graph  # noqa: E402
 
 
@@ -59,8 +60,8 @@ class ReviewApiTests(unittest.TestCase):
             "cited_by_count": 77,
             "highly_cited_threshold": 50,
         }
-        with patch.object(serve_graph, "load_json", return_value={"candidates": [candidate]}):
-            result = serve_graph.validated_discovery()
+        with patch.object(app_services, "load_json", return_value={"candidates": [candidate]}):
+            result = app_services.validated_discovery()
         self.assertEqual(
             result["candidates"][0]["suggested_category"],
             "06_GPU内核_编译器与性能工程",

@@ -12,6 +12,7 @@ from pathlib import Path
 
 import library_health
 import prepare_release_seed
+import generate_release_notes
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +27,7 @@ def check_release(papers_dir: Path | None, public_release: bool = False) -> list
         errors.append("README 版本号与 VERSION 不一致")
     if f"Paper Atlas {version}" not in html:
         errors.append("网页版本号与 VERSION 不一致")
+    errors.extend(generate_release_notes.check_generated_files())
 
     source_plist = plistlib.loads((ROOT / "platform" / "macos" / "Info.plist").read_bytes())
     app_plist_path = ROOT / "Paper Atlas.app" / "Contents" / "Info.plist"
@@ -40,10 +42,12 @@ def check_release(papers_dir: Path | None, public_release: bool = False) -> list
 
     runtime = ROOT / "Paper Atlas.app" / "Contents" / "Resources" / "runtime"
     required = [
-        "VERSION", "requirements.txt", "scripts/app_backend.py", "scripts/library_health.py",
+        "VERSION", "requirements.txt", "scripts/app_backend.py", "scripts/app_services.py",
+        "scripts/generate_release_notes.py", "scripts/library_health.py",
         "scripts/task_center.py", "scripts/prepare_release_seed.py",
         "scripts/embed_python_runtime.py",
-        "web/index.html", "web/app.js", "config/tasks.json",
+        "web/index.html", "web/app.js", "web/data/releases.json",
+        "web/data/releases-data.js", "config/tasks.json",
     ]
     for relative in required:
         source = ROOT / relative
