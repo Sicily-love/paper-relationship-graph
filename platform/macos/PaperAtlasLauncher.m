@@ -2,24 +2,6 @@
 #import <WebKit/WebKit.h>
 
 
-@interface PaperAtlasDragRegion : NSView
-@end
-
-@implementation PaperAtlasDragRegion
-- (BOOL)acceptsFirstMouse:(NSEvent *)event {
-    return YES;
-}
-
-- (BOOL)mouseDownCanMoveWindow {
-    return YES;
-}
-
-- (void)mouseDown:(NSEvent *)event {
-    [self.window performWindowDragWithEvent:event];
-}
-@end
-
-
 @interface PaperAtlasSchemeHandler : NSObject <WKURLSchemeHandler>
 @property(nonatomic, strong) NSURL *projectRoot;
 @property(nonatomic, strong) NSURL *papersDirectory;
@@ -284,8 +266,7 @@
     self.window = [[NSWindow alloc]
         initWithContentRect:NSMakeRect(0, 0, 1320, 860)
         styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
-                   NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable |
-                   NSWindowStyleMaskFullSizeContentView)
+                   NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable)
         backing:NSBackingStoreBuffered
         defer:NO];
     self.window.title = @"Paper Atlas";
@@ -314,13 +295,6 @@
     self.loadingView = [[NSView alloc] initWithFrame:NSZeroRect];
     self.loadingView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.window.contentView addSubview:self.loadingView];
-
-    // Keep a compact native title-bar hit target beside the traffic lights.
-    // It must not extend over WebKit's toolbar controls, otherwise the native
-    // view intercepts clicks intended for the graph and discovery actions.
-    PaperAtlasDragRegion *dragRegion = [[PaperAtlasDragRegion alloc] initWithFrame:NSZeroRect];
-    dragRegion.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.window.contentView addSubview:dragRegion positioned:NSWindowAbove relativeTo:nil];
 
     NSImageView *icon = [[NSImageView alloc] initWithFrame:NSZeroRect];
     icon.image = [self bundledApplicationIcon];
@@ -359,10 +333,6 @@
         [self.loadingView.trailingAnchor constraintEqualToAnchor:self.window.contentView.trailingAnchor],
         [self.loadingView.topAnchor constraintEqualToAnchor:self.window.contentView.topAnchor],
         [self.loadingView.bottomAnchor constraintEqualToAnchor:self.window.contentView.bottomAnchor],
-        [dragRegion.leadingAnchor constraintEqualToAnchor:self.window.contentView.leadingAnchor constant:76],
-        [dragRegion.widthAnchor constraintEqualToConstant:140],
-        [dragRegion.topAnchor constraintEqualToAnchor:self.window.contentView.topAnchor],
-        [dragRegion.heightAnchor constraintEqualToConstant:48],
         [loadingStack.centerXAnchor constraintEqualToAnchor:self.loadingView.centerXAnchor],
         [loadingStack.centerYAnchor constraintEqualToAnchor:self.loadingView.centerYAnchor],
         [self.statusLabel.widthAnchor constraintEqualToConstant:360],

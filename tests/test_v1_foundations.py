@@ -207,10 +207,11 @@ class WebContractTests(unittest.TestCase):
         self.assertIn(".edge.focused.outgoing { stroke: #f08a3e; }", styles)
         self.assertIn(".edge.focused.incoming { stroke: var(--citation); }", styles)
 
-    def test_native_drag_region_does_not_cover_toolbar_actions(self):
+    def test_native_titlebar_is_draggable_without_covering_web_actions(self):
         launcher = (ROOT / "platform" / "macos" / "PaperAtlasLauncher.m").read_text(encoding="utf-8")
-        self.assertIn("[dragRegion.widthAnchor constraintEqualToConstant:140]", launcher)
-        self.assertNotIn("[dragRegion.trailingAnchor constraintEqualToAnchor:self.window.contentView.trailingAnchor]", launcher)
+        self.assertIn("NSWindowStyleMaskTitled", launcher)
+        self.assertNotIn("NSWindowStyleMaskFullSizeContentView", launcher)
+        self.assertNotIn("PaperAtlasDragRegion", launcher)
 
     def test_automatic_update_does_not_launch_browser_preview(self):
         makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
