@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Discover new arXiv papers and shared external references for the paper library."""
+"""Discover recent, highly cited, and shared-reference papers for the library."""
 
 from __future__ import annotations
 
@@ -365,6 +365,14 @@ def candidate_validation(candidate: dict, now: datetime | None = None) -> dict:
             warnings.append("共同引用支撑不足")
         if int(candidate.get("cited_by_count") or 0) > 0:
             score += 4
+    if "highly_cited" in sources:
+        cited_by_count = int(candidate.get("cited_by_count") or 0)
+        threshold = int(candidate.get("highly_cited_threshold") or 0)
+        if cited_by_count >= threshold > 0:
+            score += 12
+            checks.append(f"OpenAlex 被引 {cited_by_count:,} 次")
+        else:
+            warnings.append("被引次数未达到高被引阈值")
     if len(sources) > 1:
         score += 8
         checks.append("多个发现来源相互印证")
@@ -574,6 +582,111 @@ def fetch_openalex_works(work_ids: list[str], mailto: str) -> list[dict]:
     return works
 
 
+def openalex_topic_query(topic: dict) -> str:
+    """Build a broad Boolean query whose results can then be ranked by citations."""
+    keywords = [compact_text(str(value)) for value in topic.get("keywords", []) if compact_text(str(value))]
+    if not keywords:
+        raise ValueError(f"主题“{topic.get('label') or '未命名'}”没有关键词")
+
+    def quoted(value: str) -> str:
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"' if " " in escaped else escaped
+
+    query = "(" + " OR ".join(quoted(value) for value in keywords) + ")"
+    excluded = [
+        compact_text(str(value)) for value in topic.get("exclude_keywords", [])
+        if compact_text(str(value))
+    ]
+    if excluded:
+        query += " NOT (" + " OR ".join(quoted(value) for value in excluded) + ")"
+    return query
+
+
+def discover_highly_cited(config: dict) -> tuple[list[dict], list[str]]:
+    """Find established topic papers, independently of their publication date."""
+    settings = config.get("highly_cited", {})
+    if not settings.get("enabled", True):
+        return [], []
+    minimum = max(1, int(settings.get("min_citations", 50)))
+    maximum_per_topic = min(20, max(1, int(settings.get("max_per_topic", 5))))
+    maximum = min(100, max(1, int(settings.get("max_candidates", 20))))
+    delay = max(0.0, float(settings.get("request_delay_seconds", 0.12)))
+    mailto = str(
+        os.environ.get("OPENALEX_MAILTO")
+        or settings.get("mailto")
+        or config.get("shared_references", {}).get("mailto")
+        or "paper-atlas@example.com"
+    )
+    topics = [topic for topic in config.get("topics", []) if topic.get("enabled", True)]
+    candidates: list[dict] = []
+    errors: list[str] = []
+    for index, topic in enumerate(topics):
+        try:
+            query = openalex_topic_query(topic)
+            params = {
+                "search": query,
+                "sort": "cited_by_count:desc",
+                "per-page": min(100, max(25, maximum_per_topic * 5)),
+                "select": (
+                    "id,display_name,publication_year,publication_date,ids,cited_by_count,"
+                    "authorships,primary_location,abstract_inverted_index"
+                ),
+                "mailto": mailto,
+            }
+            works = request_json(f"{OPENALEX_API}?{urllib.parse.urlencode(params)}").get("results") or []
+        except (ValueError, urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
+            errors.append(f"OpenAlex 高被引 / {topic.get('label', '未命名主题')}: {error}")
+            continue
+
+        retained = 0
+        for work in works:
+            cited_by_count = int(work.get("cited_by_count") or 0)
+            title = compact_text(str(work.get("display_name") or ""))
+            work_id = str(work.get("id") or "")
+            if not work_id or not title or cited_by_count < minimum:
+                continue
+            arxiv_id = arxiv_id_from_work(work)
+            location = work.get("primary_location") or {}
+            ids = work.get("ids") or {}
+            url = location.get("landing_page_url") or ids.get("doi") or work_id
+            pdf_url = location.get("pdf_url") or (f"https://arxiv.org/pdf/{arxiv_id}" if arxiv_id else None)
+            candidate = {
+                "id": f"openalex:{work_id.rsplit('/', 1)[-1]}",
+                "openalex_id": work_id,
+                "arxiv_id": arxiv_id,
+                "title": title,
+                "authors": author_names(work),
+                "abstract": abstract_from_inverted_index(work.get("abstract_inverted_index")),
+                "year": work.get("publication_year"),
+                "published": work.get("publication_date"),
+                "url": url,
+                "pdf_url": pdf_url,
+                "cited_by_count": cited_by_count,
+                "highly_cited_threshold": minimum,
+                "sources": ["highly_cited"],
+                "topics": [topic["label"]],
+                "reason": f"领域高被引 · OpenAlex 被引 {cited_by_count:,} 次 · 匹配 {topic['label']}",
+                "score": 70 + min(40, math.log10(max(1, cited_by_count)) * 10),
+                "status": "new",
+            }
+            relevance = candidate_relevance(candidate, topic)
+            if not relevance.pop("relevant"):
+                continue
+            candidate.update(relevance)
+            candidate["score"] += relevance["relevance_score"] / 4
+            candidates.append(candidate)
+            retained += 1
+            if retained >= maximum_per_topic:
+                break
+        if index < len(topics) - 1 and delay > 0:
+            time.sleep(delay)
+
+    candidates.sort(
+        key=lambda item: (-int(item.get("cited_by_count") or 0), -float(item.get("score") or 0), item["title"])
+    )
+    return candidates[:maximum], errors
+
+
 def load_openalex_cache(path: Path) -> dict:
     return load_json(path, {"version": 1, "nodes": {}})  # type: ignore[return-value]
 
@@ -713,6 +826,15 @@ def merge_candidates(
             combined_score = max(float(existing.get("score", 0)), float(candidate.get("score", 0))) + 10
             if candidate.get("support_count", 0) > existing.get("support_count", 0):
                 existing.update({k: v for k, v in candidate.items() if v is not None})
+            for field in ("abstract", "authors", "url", "pdf_url", "openalex_id", "published", "year"):
+                if not existing.get(field) and candidate.get(field):
+                    existing[field] = candidate[field]
+            existing["cited_by_count"] = max(
+                int(existing.get("cited_by_count") or 0),
+                int(candidate.get("cited_by_count") or 0),
+            )
+            if candidate.get("highly_cited_threshold"):
+                existing["highly_cited_threshold"] = candidate["highly_cited_threshold"]
             existing["sources"] = combined_sources
             existing["topics"] = combined_topics
             existing["score"] = combined_score
@@ -724,6 +846,9 @@ def merge_candidates(
                     for reason in (
                         f"被 {existing.get('support_count', 0)} 篇库内论文共同引用"
                         if existing.get("support_count")
+                        else None,
+                        f"领域高被引 · OpenAlex 被引 {int(existing.get('cited_by_count') or 0):,} 次"
+                        if "highly_cited" in combined_sources
                         else None,
                         f"匹配每日主题：{'、'.join(combined_topics)}" if combined_topics else None,
                     )
@@ -788,16 +913,20 @@ def apply_shared_reference_minimum(candidates: list[dict], minimum: int) -> list
         if "shared_reference" not in sources or int(original.get("support_count") or 0) >= minimum:
             filtered.append(original)
             continue
-        if "arxiv_topic" not in sources:
+        remaining_sources = [source for source in sources if source != "shared_reference"]
+        if not remaining_sources:
             continue
         candidate = dict(original)
-        candidate["sources"] = [source for source in sources if source != "shared_reference"]
+        candidate["sources"] = remaining_sources
         candidate.pop("support_count", None)
         candidate.pop("supporting_papers", None)
         topics = candidate.get("topics", [])
-        candidate["reason"] = (
-            f"匹配每日主题：{'、'.join(topics)}" if topics else "匹配 arXiv 搜索主题"
-        )
+        reasons = []
+        if "highly_cited" in remaining_sources:
+            reasons.append(f"领域高被引 · OpenAlex 被引 {int(candidate.get('cited_by_count') or 0):,} 次")
+        if topics:
+            reasons.append(f"匹配每日主题：{'、'.join(topics)}")
+        candidate["reason"] = "；".join(reasons) or "匹配 arXiv 搜索主题"
         filtered.append(candidate)
     return filtered
 
@@ -810,6 +939,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-js", type=Path, default=DEFAULT_DISCOVERY_JS)
     parser.add_argument("--cache", type=Path, default=DEFAULT_CONFIG.parents[1] / ".cache" / "openalex-library.json")
     parser.add_argument("--skip-arxiv", action="store_true")
+    parser.add_argument("--skip-highly-cited", action="store_true")
     parser.add_argument("--skip-shared", action="store_true")
     return parser.parse_args()
 
@@ -824,6 +954,9 @@ def main() -> None:
     cutoff = now - timedelta(days=max_age)
 
     arxiv_candidates, arxiv_errors = ([], []) if args.skip_arxiv else discover_arxiv(config, cutoff)
+    highly_cited_candidates, highly_cited_errors = (
+        ([], []) if args.skip_highly_cited else discover_highly_cited(config)
+    )
     shared_candidates, shared_errors, shared_stats = (
         ([], [], {"matched_library_papers": 0, "unmatched_library_papers": 0})
         if args.skip_shared
@@ -833,7 +966,7 @@ def main() -> None:
     maximum = int(config.get("output", {}).get("max_candidates", 60))
     retention_days = int(config.get("output", {}).get("retention_days", 60))
     candidates = merge_candidates(
-        arxiv_candidates + shared_candidates,
+        arxiv_candidates + highly_cited_candidates + shared_candidates,
         previous,
         library_titles,
         maximum,
@@ -860,12 +993,19 @@ def main() -> None:
     output = {
         "metadata": {
             "updated_at": now.isoformat(),
-            "run_mode": "arxiv" if args.skip_shared else "shared" if args.skip_arxiv else "combined",
+            "run_mode": "+".join(
+                mode for mode, skipped in (
+                    ("arxiv", args.skip_arxiv),
+                    ("highly_cited", args.skip_highly_cited),
+                    ("shared", args.skip_shared),
+                ) if not skipped
+            ),
             "candidate_count": len(candidates),
             "new_count": sum(item.get("status") == "new" for item in candidates),
             "shared_reference_count": sum("shared_reference" in item.get("sources", []) for item in candidates),
             "arxiv_topic_count": sum("arxiv_topic" in item.get("sources", []) for item in candidates),
-            "errors": arxiv_errors + shared_errors,
+            "highly_cited_count": sum("highly_cited" in item.get("sources", []) for item in candidates),
+            "errors": arxiv_errors + highly_cited_errors + shared_errors,
             **shared_stats,
         },
         "topics": enabled_topics,
@@ -875,7 +1015,8 @@ def main() -> None:
     write_discovery(output, args.output_json, args.output_js)
     print(
         f"发现完成：候选 {len(candidates)}，共同引用 {output['metadata']['shared_reference_count']}，"
-        f"arXiv 主题 {output['metadata']['arxiv_topic_count']}，错误 {len(output['metadata']['errors'])}。"
+        f"arXiv 主题 {output['metadata']['arxiv_topic_count']}，"
+        f"领域高被引 {output['metadata']['highly_cited_count']}，错误 {len(output['metadata']['errors'])}。"
     )
     for candidate in candidates[:10]:
         print(f"CANDIDATE\t{candidate['id']}\t{candidate['reason']}\t{candidate['title']}")

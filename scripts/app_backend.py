@@ -232,7 +232,9 @@ def run_discovery(modules: dict, body: dict) -> dict:
     mode = modules["serve_graph"].discovery_mode(body.get("mode"))
     arguments = [sys.executable, str(REPO_ROOT / "scripts" / "discover_papers.py")]
     if mode == "arxiv":
-        arguments.append("--skip-shared")
+        arguments.extend(("--skip-shared", "--skip-highly-cited"))
+    elif mode == "highly_cited":
+        arguments.extend(("--skip-arxiv", "--skip-shared"))
     else:
         config = modules["load_json"](modules["DEFAULT_CONFIG"], {})
         minimum = modules["serve_graph"].validate_shared_reference_minimum(
@@ -240,7 +242,7 @@ def run_discovery(modules: dict, body: dict) -> dict:
         )
         config.setdefault("shared_references", {})["min_library_citations"] = minimum
         modules["serve_graph"].write_json_atomic(modules["DEFAULT_CONFIG"], config)
-        arguments.append("--skip-arxiv")
+        arguments.extend(("--skip-arxiv", "--skip-highly-cited"))
     result = subprocess.run(
         arguments,
         cwd=REPO_ROOT,
@@ -253,7 +255,11 @@ def run_discovery(modules: dict, body: dict) -> dict:
         message = (result.stderr or result.stdout or "论文发现失败").strip().splitlines()[-1]
         raise ValueError(message)
     return {
-        "message": "arXiv 搜索已完成" if mode == "arxiv" else "共同引用计算已完成",
+        "message": (
+            "arXiv 搜索已完成" if mode == "arxiv"
+            else "领域高被引搜索已完成" if mode == "highly_cited"
+            else "共同引用计算已完成"
+        ),
         "mode": mode,
         "discovery": modules["serve_graph"].validated_discovery(),
     }

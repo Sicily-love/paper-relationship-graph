@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#090c13" media="(prefers-color-scheme: dark)">
   <title>Paper Atlas · 论文关系图谱</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=100">
+  <link rel="stylesheet" href="styles.css?v=101">
 </head>
 <body>
   <main class="app-shell">
@@ -127,8 +127,8 @@
 
       <div class="task-center">
         <header class="task-center-header">
-          <h3>每日任务</h3>
-          <button type="button" id="save-tasks" class="toolbar-action primary-action">保存时间</button>
+          <h3>App 本机每日任务</h3>
+          <button type="button" id="save-tasks" class="toolbar-action primary-action">保存并启用</button>
         </header>
         <div id="task-list" class="task-list"></div>
       </div>
@@ -179,7 +179,7 @@
       <header class="topics-dialog-header">
         <div>
           <h2 id="topics-title">每日搜索主题</h2>
-          <p>用关键词决定每天 11:00 搜索哪些最新 arXiv 论文。</p>
+          <p>用关键词决定每天 11:00 搜索哪些最新 arXiv 与领域高被引论文。</p>
         </div>
         <button type="button" id="topics-close" class="detail-close" aria-label="关闭搜索主题">×</button>
       </header>
@@ -209,6 +209,7 @@
           </div>
           <button type="button" id="manage-topics" class="toolbar-action">搜索主题</button>
           <button type="button" id="run-discovery" class="toolbar-action primary-action">搜索 arXiv</button>
+          <button type="button" id="run-highly-cited" class="toolbar-action">领域高被引</button>
           <div class="shared-discovery-action">
             <label for="shared-reference-minimum">共同引用下限</label>
             <input id="shared-reference-minimum" type="number" min="2" max="20" step="1" value="2" aria-label="共同引用次数下限">
@@ -239,6 +240,7 @@
           <button type="button" class="filter-pill active" data-source="all">全部</button>
           <button type="button" class="filter-pill" data-source="shared_reference">共同引用</button>
           <button type="button" class="filter-pill" data-source="arxiv_topic">arXiv 最新</button>
+          <button type="button" class="filter-pill" data-source="highly_cited">领域高被引</button>
         </div>
         <p id="search-status" class="search-status" aria-live="polite" hidden></p>
       </div>
@@ -257,8 +259,8 @@
     <footer class="app-footer">Paper Atlas 1.0.0 · 数据保存在本地</footer>
   </main>
 
-  <script src="data/graph-data.js?v=100"></script>
-  <script src="data/discovery-data.js?v=100"></script>
-  <script src="app.js?v=100"></script>
+  <script src="data/graph-data.js?v=101"></script>
+  <script src="data/discovery-data.js?v=101"></script>
+  <script src="app.js?v=101"></script>
 </body>
 </html>

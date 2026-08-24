@@ -38,6 +38,7 @@
   const discoveryUpdated = document.getElementById('discovery-updated');
   const manageTopics = document.getElementById('manage-topics');
   const runDiscoveryButton = document.getElementById('run-discovery');
+  const runHighlyCitedButton = document.getElementById('run-highly-cited');
   const runSharedDiscoveryButton = document.getElementById('run-shared-discovery');
   const clearCandidatesButton = document.getElementById('clear-candidates');
   const sharedReferenceMinimum = document.getElementById('shared-reference-minimum');
@@ -460,7 +461,13 @@
   }
 
   function candidateSourceLabel(source) {
-    return source === 'shared_reference' ? '共同引用' : source === 'arxiv_topic' ? 'arXiv 最新' : source;
+    return source === 'shared_reference'
+      ? '共同引用'
+      : source === 'arxiv_topic'
+        ? 'arXiv 最新'
+        : source === 'highly_cited'
+          ? '领域高被引'
+          : source;
   }
 
   function makeExternalLink(label, href, className = '') {
@@ -665,7 +672,8 @@
     const meta = document.createElement('p');
     meta.className = 'candidate-meta';
     const authors = (candidate.authors || []).slice(0, 4).join('、') || '作者未知';
-    meta.textContent = `${candidate.year || '年份未知'} · ${authors}${(candidate.authors || []).length > 4 ? ' 等' : ''}`;
+    const citations = Number(candidate.cited_by_count);
+    meta.textContent = `${candidate.year || '年份未知'} · ${authors}${(candidate.authors || []).length > 4 ? ' 等' : ''}${Number.isFinite(citations) && citations > 0 ? ` · 被引 ${citations.toLocaleString('zh-CN')} 次` : ''}`;
 
     const reason = document.createElement('p');
     reason.className = 'candidate-reason';
@@ -818,7 +826,11 @@
 
   function discoveryRunSummary(currentDiscovery, mode) {
     const updatedAt = currentDiscovery.metadata?.updated_at;
-    const expectedSource = mode === 'shared' ? 'shared_reference' : 'arxiv_topic';
+    const expectedSource = mode === 'shared'
+      ? 'shared_reference'
+      : mode === 'highly_cited'
+        ? 'highly_cited'
+        : 'arxiv_topic';
     const activeCandidates = (currentDiscovery.candidates || []).filter(candidate => candidate.status === 'new');
     const found = activeCandidates.filter(candidate => (
       sameDiscoveryTime(candidate.last_seen, updatedAt)
@@ -830,6 +842,7 @@
       found: found.length,
       added: added.length,
       arxiv: found.filter(candidate => (candidate.sources || []).includes('arxiv_topic')).length,
+      highlyCited: found.filter(candidate => (candidate.sources || []).includes('highly_cited')).length,
       shared: found.filter(candidate => (candidate.sources || []).includes('shared_reference')).length,
     };
   }
@@ -843,8 +856,8 @@
 
   function showDiscoveryOutcome(currentDiscovery, mode) {
     const summary = discoveryRunSummary(currentDiscovery, mode);
-    const sourceLabel = mode === 'shared' ? '共同引用' : 'arXiv 搜索';
-    selectDiscoverySource(mode === 'shared' ? 'shared_reference' : 'arxiv_topic');
+    const sourceLabel = mode === 'shared' ? '共同引用' : mode === 'highly_cited' ? '领域高被引' : 'arXiv 搜索';
+    selectDiscoverySource(mode === 'shared' ? 'shared_reference' : mode === 'highly_cited' ? 'highly_cited' : 'arxiv_topic');
     clearTimeout(discoveryHighlightTimer);
     highlightedCandidateIds = new Set(summary.ids);
     discoveryResult.hidden = false;
@@ -856,6 +869,8 @@
       ? `其中新增 ${summary.added} 篇；下方对应结果已高亮`
       : mode === 'shared'
         ? '可以降低共同引用次数下限后再次计算'
+        : mode === 'highly_cited'
+          ? '可以增加搜索关键词，或降低配置中的最低被引次数'
         : '可以调整搜索主题或扩大时间范围后再次尝试';
     renderDiscovery();
     showToast(
@@ -976,13 +991,15 @@
   }
 
   function setDiscoveryBusy(busy, label = '正在搜索 arXiv…') {
-    [runDiscoveryButton, runSharedDiscoveryButton, clearCandidatesButton, saveTopicsButton, saveAndDiscoverButton, addTopicButton, ...topicTemplateButtons.values()].forEach(button => {
+    [runDiscoveryButton, runHighlyCitedButton, runSharedDiscoveryButton, clearCandidatesButton, saveTopicsButton, saveAndDiscoverButton, addTopicButton, ...topicTemplateButtons.values()].forEach(button => {
       button.disabled = busy;
     });
     sharedReferenceMinimum.disabled = busy;
     const isArxiv = label.includes('arXiv');
+    const isHighlyCited = label.includes('高被引');
     const isShared = label.includes('共同引用');
     runDiscoveryButton.textContent = busy && isArxiv ? '搜索中…' : '搜索 arXiv';
+    runHighlyCitedButton.textContent = busy && isHighlyCited ? '搜索中…' : '领域高被引';
     runSharedDiscoveryButton.textContent = busy && isShared ? '计算中…' : '共同引用';
     clearInterval(discoveryBusyTimer);
     discoveryBusyTimer = null;
@@ -994,6 +1011,8 @@
     discoveryBusyStarted = Date.now();
     discoveryProgressTitle.textContent = isShared
       ? '正在计算共同引用'
+      : isHighlyCited
+        ? '正在搜索领域高被引论文'
       : isArxiv
         ? '正在搜索最新 arXiv 论文'
         : label.includes('清空')
@@ -1005,6 +1024,8 @@
       const seconds = String(elapsed % 60).padStart(2, '0');
       discoveryProgressMeta.textContent = isShared
         ? `下限 ${sharedReferenceMinimum.value} 次 · 正在分析库内论文引用 · 已用时 ${minutes}:${seconds}`
+        : isHighlyCited
+          ? `正在按搜索主题获取高被引论文 · 已用时 ${minutes}:${seconds}`
         : isArxiv
           ? `正在按搜索主题获取 arXiv 论文 · 已用时 ${minutes}:${seconds}`
           : label.includes('清空')
@@ -1049,7 +1070,10 @@
       showToast('共同引用次数下限需要是 2–20 之间的整数', 'error');
       return;
     }
-    setDiscoveryBusy(true, mode === 'shared' ? '正在计算共同引用…' : '正在搜索 arXiv…');
+    setDiscoveryBusy(
+      true,
+      mode === 'shared' ? '正在计算共同引用…' : mode === 'highly_cited' ? '正在搜索领域高被引…' : '正在搜索 arXiv…',
+    );
     try {
       const result = await apiRequest('/api/discover', {
         method: 'POST',
@@ -1409,6 +1433,7 @@
   detailBackdrop.addEventListener('click', closePaperDetail);
   manageTopics.addEventListener('click', openTopicsDialog);
   runDiscoveryButton.addEventListener('click', () => runDiscoveryNow('arxiv'));
+  runHighlyCitedButton.addEventListener('click', () => runDiscoveryNow('highly_cited'));
   runSharedDiscoveryButton.addEventListener('click', () => runDiscoveryNow('shared'));
   clearCandidatesButton.addEventListener('click', clearCandidates);
   rebuildGraphButton.addEventListener('click', rebuildGraph);

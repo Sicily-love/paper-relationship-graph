@@ -95,7 +95,7 @@ def validate_shared_reference_minimum(value: object) -> int:
 
 def discovery_mode(value: object) -> str:
     mode = str(value or "arxiv")
-    if mode not in {"arxiv", "shared"}:
+    if mode not in {"arxiv", "highly_cited", "shared"}:
         raise ValueError("未知的论文发现方式")
     return mode
 
@@ -113,6 +113,7 @@ def clear_new_candidates(data: dict) -> int:
             "shared_reference" in candidate.get("sources", []) for candidate in retained
         ),
         "arxiv_topic_count": sum("arxiv_topic" in candidate.get("sources", []) for candidate in retained),
+        "highly_cited_count": sum("highly_cited" in candidate.get("sources", []) for candidate in retained),
         "cleared_at": datetime.now(timezone.utc).isoformat(),
     })
     return removed
@@ -374,13 +375,15 @@ class GraphRequestHandler(SimpleHTTPRequestHandler):
         mode = discovery_mode(body.get("mode"))
         arguments = [sys.executable, str(REPO_ROOT / "scripts" / "discover_papers.py")]
         if mode == "arxiv":
-            arguments.append("--skip-shared")
+            arguments.extend(("--skip-shared", "--skip-highly-cited"))
+        elif mode == "highly_cited":
+            arguments.extend(("--skip-arxiv", "--skip-shared"))
         else:
             config = load_json(DEFAULT_CONFIG, {})
             minimum = validate_shared_reference_minimum(body.get("min_library_citations", 2))
             config.setdefault("shared_references", {})["min_library_citations"] = minimum
             write_json_atomic(DEFAULT_CONFIG, config)
-            arguments.append("--skip-arxiv")
+            arguments.extend(("--skip-arxiv", "--skip-highly-cited"))
         result = subprocess.run(
             arguments,
             cwd=REPO_ROOT,
@@ -393,7 +396,11 @@ class GraphRequestHandler(SimpleHTTPRequestHandler):
             message = (result.stderr or result.stdout or "论文发现失败").strip().splitlines()[-1]
             raise ValueError(message)
         return {
-            "message": "arXiv 搜索已完成" if mode == "arxiv" else "共同引用计算已完成",
+            "message": (
+                "arXiv 搜索已完成" if mode == "arxiv"
+                else "领域高被引搜索已完成" if mode == "highly_cited"
+                else "共同引用计算已完成"
+            ),
             "mode": mode,
             "discovery": validated_discovery(),
         }

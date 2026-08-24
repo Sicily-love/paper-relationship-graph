@@ -26,7 +26,7 @@ TASK_DEFINITIONS = {
         "command": "classify",
     },
     "arxiv": {
-        "label": "arXiv 论文发现",
+        "label": "主题论文发现",
         "time": "11:00",
         "command": "discover",
     },

@@ -1,7 +1,7 @@
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 PAPERS_DIR ?= ..
 
-.PHONY: start build update classify discover discover-shared accept reject preview serve health test python-runtime mac-app release release-public release-check
+.PHONY: start build update update-preview classify discover discover-highly-cited discover-shared accept reject preview serve health test python-runtime mac-app release release-public release-check
 
 start:
 	$(PYTHON) scripts/start_app.py
@@ -11,6 +11,8 @@ build:
 
 update:
 	$(PYTHON) scripts/update_library.py --papers-dir "$(PAPERS_DIR)"
+
+update-preview: update
 	$(PYTHON) scripts/capture_preview.py
 
 classify:
@@ -19,8 +21,11 @@ classify:
 discover:
 	$(PYTHON) scripts/discover_papers.py --skip-shared
 
+discover-highly-cited:
+	$(PYTHON) scripts/discover_papers.py --skip-arxiv --skip-shared
+
 discover-shared:
-	$(PYTHON) scripts/discover_papers.py --skip-arxiv
+	$(PYTHON) scripts/discover_papers.py --skip-arxiv --skip-highly-cited
 
 accept:
 	$(PYTHON) scripts/manage_candidate.py accept --id "$(ID)" --category "$(CATEGORY)" --papers-dir "$(PAPERS_DIR)"

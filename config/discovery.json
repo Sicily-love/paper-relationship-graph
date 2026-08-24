@@ -18,6 +18,13 @@
     "max_age_days": 14,
     "request_delay_seconds": 3
   },
+  "highly_cited": {
+    "enabled": true,
+    "min_citations": 50,
+    "max_per_topic": 5,
+    "max_candidates": 20,
+    "request_delay_seconds": 0.12
+  },
   "shared_references": {
     "enabled": true,
     "min_library_citations": 3,

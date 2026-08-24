@@ -188,7 +188,16 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('id="export-backup"', html)
         self.assertIn('id="show-citations">', html)
         self.assertNotIn('id="show-citations" checked', html)
+        self.assertIn('id="run-highly-cited"', html)
+        self.assertIn('data-source="highly_cited"', html)
         self.assertIn("const visible = focused || citationsExpanded", script)
+
+    def test_automatic_update_does_not_launch_browser_preview(self):
+        makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+        update_recipe = makefile.split("\nupdate:\n", 1)[1].split("\n\n", 1)[0]
+        preview_recipe = makefile.split("\nupdate-preview: update\n", 1)[1].split("\n\n", 1)[0]
+        self.assertNotIn("capture_preview.py", update_recipe)
+        self.assertIn("capture_preview.py", preview_recipe)
 
 
 class ReleasePrivacyTests(unittest.TestCase):

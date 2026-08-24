@@ -1,7 +1,9 @@
 import sys
 import unittest
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
@@ -162,6 +164,78 @@ class DiscoveryTests(unittest.TestCase):
         self.assertIn('abs:"Triton"', query)
         self.assertIn('ANDNOT (all:"survey")', query)
 
+    def test_openalex_topic_query_uses_boolean_search(self):
+        query = discover_papers.openalex_topic_query({
+            "label": "GPU",
+            "keywords": ["GPU kernel", "Triton"],
+            "exclude_keywords": ["survey"],
+        })
+        self.assertEqual(query, '("GPU kernel" OR Triton) NOT (survey)')
+
+    def test_highly_cited_discovery_is_ranked_and_thresholded(self):
+        works = [
+            {
+                "id": "https://openalex.org/W1",
+                "display_name": "Highly Cited GPU Kernel Optimization",
+                "publication_year": 2022,
+                "publication_date": "2022-04-01",
+                "ids": {"doi": "https://doi.org/10.1/example"},
+                "cited_by_count": 420,
+                "authorships": [{"author": {"display_name": "Ada Example"}}],
+                "primary_location": {"landing_page_url": "https://example.org/work"},
+                "abstract_inverted_index": {"GPU": [0], "kernel": [1], "optimization": [2]},
+            },
+            {
+                "id": "https://openalex.org/W2",
+                "display_name": "GPU Kernel Note",
+                "publication_year": 2024,
+                "cited_by_count": 9,
+                "authorships": [],
+                "primary_location": {},
+            },
+        ]
+        requested = []
+
+        def fake_request(url):
+            requested.append(urllib.parse.urlsplit(url))
+            return {"results": works}
+
+        config = {
+            "topics": [{
+                "id": "category-06-gpu-performance",
+                "label": "GPU 性能",
+                "keywords": ["GPU kernel"],
+            }],
+            "highly_cited": {"min_citations": 100, "max_per_topic": 5, "max_candidates": 20},
+        }
+        with patch.object(discover_papers, "request_json", side_effect=fake_request):
+            candidates, errors = discover_papers.discover_highly_cited(config)
+
+        self.assertEqual(errors, [])
+        self.assertEqual([candidate["id"] for candidate in candidates], ["openalex:W1"])
+        self.assertEqual(candidates[0]["sources"], ["highly_cited"])
+        self.assertEqual(candidates[0]["cited_by_count"], 420)
+        params = urllib.parse.parse_qs(requested[0].query)
+        self.assertEqual(params["sort"], ["cited_by_count:desc"])
+
+    def test_highly_cited_and_arxiv_sources_merge(self):
+        arxiv = {
+            "id": "arxiv:2608.12345", "arxiv_id": "2608.12345",
+            "title": "Faster GPU Kernels", "sources": ["arxiv_topic"],
+            "topics": ["GPU"], "score": 50, "status": "new",
+        }
+        highly_cited = {
+            "id": "openalex:W1", "openalex_id": "https://openalex.org/W1",
+            "arxiv_id": "2608.12345", "title": "Faster GPU Kernels",
+            "sources": ["highly_cited"], "topics": ["GPU"],
+            "cited_by_count": 400, "highly_cited_threshold": 100,
+            "score": 100, "status": "new",
+        }
+        result = discover_papers.merge_candidates([arxiv, highly_cited], {}, set(), 10)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["sources"], ["arxiv_topic", "highly_cited"])
+        self.assertEqual(result[0]["cited_by_count"], 400)
+
     def test_candidate_validation_flags_arxiv_year_conflict(self):
         result = discover_papers.candidate_validation({
             "title": "A Valid Paper Title",
@@ -175,6 +249,18 @@ class DiscoveryTests(unittest.TestCase):
         }, datetime(2026, 8, 20, tzinfo=timezone.utc))
         self.assertEqual(result["confidence_label"], "需核验")
         self.assertTrue(any("不一致" in warning for warning in result["metadata_warnings"]))
+
+    def test_shared_threshold_preserves_highly_cited_source(self):
+        candidate = {
+            "id": "openalex:W1", "title": "Established Paper",
+            "sources": ["highly_cited", "shared_reference"],
+            "topics": ["GPU"], "support_count": 2,
+            "cited_by_count": 500,
+        }
+        result = discover_papers.apply_shared_reference_minimum([candidate], 3)
+        self.assertEqual(result[0]["sources"], ["highly_cited"])
+        self.assertNotIn("support_count", result[0])
+        self.assertIn("被引 500 次", result[0]["reason"])
 
     def test_candidate_is_automatically_classified_from_title_and_abstract(self):
         result = discover_papers.classify_candidate({

@@ -871,6 +871,7 @@ select:disabled { opacity: 0.55; cursor: wait; }
 .source-badge { border-radius: 999px; padding: 0.32rem 0.58rem; font-size: 0.9rem; font-weight: 650; }
 .source-shared_reference { background: color-mix(in srgb, var(--cat-2) 15%, transparent); color: var(--cat-2); }
 .source-arxiv_topic { background: color-mix(in srgb, var(--cat-4) 15%, transparent); color: var(--cat-4); }
+.source-highly_cited { background: color-mix(in srgb, var(--cat-6) 16%, transparent); color: var(--cat-6); }
 .confidence-badge { border-radius: 999px; padding: 0.32rem 0.58rem; font-size: 0.9rem; font-weight: 650; }
 .confidence-high { background: color-mix(in srgb, var(--cat-2) 15%, transparent); color: var(--cat-2); }
 .confidence-medium { background: color-mix(in srgb, var(--cat-6) 16%, transparent); color: var(--cat-6); }
