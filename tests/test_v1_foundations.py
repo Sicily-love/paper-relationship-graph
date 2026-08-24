@@ -191,6 +191,13 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('id="run-highly-cited"', html)
         self.assertIn('id="highly-cited-minimum"', html)
         self.assertIn('data-source="highly_cited"', html)
+        self.assertIn('data-view-panel="graph"', html)
+        self.assertIn('data-view-panel="discovery"', html)
+        self.assertIn('data-view-panel="system"', html)
+        self.assertIn('class="review-workspace"', html)
+        self.assertIn('id="candidate-preview"', html)
+        self.assertIn("function activateView", script)
+        self.assertIn("function renderCandidateRow", script)
         self.assertIn("const visible = focused || citationsExpanded", script)
 
     def test_automatic_update_does_not_launch_browser_preview(self):

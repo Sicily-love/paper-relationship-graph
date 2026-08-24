@@ -72,6 +72,12 @@
   const exportBackupButton = document.getElementById('export-backup');
   const importBackupButton = document.getElementById('import-backup');
   const backupFile = document.getElementById('backup-file');
+  const candidatePreview = document.getElementById('candidate-preview');
+  const candidatePreviewEmpty = document.getElementById('candidate-preview-empty');
+  const navDiscoveryCount = document.getElementById('nav-discovery-count');
+  const navHealthDot = document.getElementById('nav-health-dot');
+  const viewButtons = [...document.querySelectorAll('[data-view]')];
+  const viewPanels = [...document.querySelectorAll('[data-view-panel]')];
   const ns = 'http://www.w3.org/2000/svg';
 
   const nodesById = Object.fromEntries(graph.nodes.map(node => [node.id, node]));
@@ -144,6 +150,8 @@
   let citationsExpanded = false;
   let searchTerm = '';
   let discoverySource = 'all';
+  let selectedCandidateId = null;
+  let activeView = 'graph';
   let apiTopics = (discovery.topics || []).map(topic => ({enabled: true, max_results: 10, ...topic}));
   let reviewCategories = graph.categories.map(category => ({id: category.id, label: category.label}));
   let toastTimer = null;
@@ -207,6 +215,25 @@
   metricCitations.textContent = String(graph.metadata.citation_edges);
   metricCategories.textContent = String(graph.categories.length);
   metricYears.textContent = `${yearMin}–${yearMax}`;
+
+  function activateView(view, remember = true) {
+    if (!viewPanels.some(panel => panel.dataset.viewPanel === view)) view = 'graph';
+    activeView = view;
+    viewButtons.forEach(button => {
+      const active = button.dataset.view === view;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    viewPanels.forEach(panel => {
+      const active = panel.dataset.viewPanel === view;
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    });
+    if (remember) {
+      try { sessionStorage.setItem('paper-atlas-view', view); } catch (_error) { /* optional */ }
+    }
+    if (view === 'graph') requestAnimationFrame(render);
+  }
 
   const grouped = graph.nodes.reduce((result, node) => {
     (result[node.category] ??= []).push(node);
@@ -630,137 +657,50 @@
     }
   }
 
+  function renderCandidateRow(candidate) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'candidate-row';
+    button.dataset.candidateId = candidate.id;
+    button.classList.toggle('active', candidate.id === selectedCandidateId);
+    button.classList.toggle('is-discovery-result', highlightedCandidateIds.has(candidate.id));
+    button.setAttribute('aria-pressed', String(candidate.id === selectedCandidateId));
+
+    const source = document.createElement('span');
+    source.className = `candidate-row-source source-${(candidate.sources || [])[0] || 'unknown'}`;
+    source.textContent = candidateSourceLabel((candidate.sources || [])[0] || '推荐');
+    const title = document.createElement('strong');
+    title.textContent = candidate.title;
+    const category = document.createElement('span');
+    category.className = 'candidate-row-category';
+    category.textContent = candidate.category_label || '待确认类别';
+    const meta = document.createElement('span');
+    meta.className = 'candidate-row-meta';
+    const citations = Number(candidate.cited_by_count);
+    meta.textContent = `${candidate.year || '年份未知'}${Number.isFinite(citations) && citations > 0 ? ` · 被引 ${citations.toLocaleString('zh-CN')}` : ''}`;
+    button.append(source, title, category, meta);
+    button.addEventListener('click', () => {
+      selectedCandidateId = candidate.id;
+      renderDiscovery();
+    });
+    return button;
+  }
+
   function renderCandidate(candidate) {
     const article = document.createElement('article');
-    article.className = 'candidate-card';
+    article.className = 'candidate-detail-card';
     article.dataset.candidateId = candidate.id;
-    article.classList.toggle('is-discovery-result', highlightedCandidateIds.has(candidate.id));
 
-    const top = document.createElement('div');
-    top.className = 'candidate-top';
+    const header = document.createElement('header');
+    header.className = 'candidate-detail-header';
     const badges = document.createElement('div');
     badges.className = 'candidate-badges';
-    (candidate.sources || []).forEach(source => {
+    (candidate.sources || []).forEach(sourceName => {
       const badge = document.createElement('span');
-      badge.className = `source-badge source-${source}`;
-      badge.textContent = candidateSourceLabel(source);
+      badge.className = `source-badge source-${sourceName}`;
+      badge.textContent = candidateSourceLabel(sourceName);
       badges.appendChild(badge);
     });
-
-    const confidence = document.createElement('span');
-    const confidenceLabel = candidate.confidence_label || '需核验';
-    confidence.className = `confidence-badge confidence-${confidenceLabel === '高' ? 'high' : confidenceLabel === '中' ? 'medium' : 'review'}`;
-    confidence.textContent = `可信度 ${confidenceLabel}${Number.isFinite(Number(candidate.confidence)) ? ` ${candidate.confidence}` : ''}`;
-    let relevance = null;
-    if (Number.isFinite(Number(candidate.relevance_score))) {
-      relevance = document.createElement('span');
-      const relevanceLabel = candidate.relevance_label || '需确认';
-      relevance.className = `relevance-badge relevance-${relevanceLabel === '高' ? 'high' : relevanceLabel === '中' ? 'medium' : 'review'}`;
-      relevance.textContent = `主题相关 ${candidate.relevance_score}`;
-      relevance.title = (candidate.relevance_evidence || []).join('；');
-    }
-
-    const inspectors = document.createElement('div');
-    inspectors.className = 'candidate-inspectors';
-    const abstract = document.createElement('details');
-    abstract.className = 'candidate-inspector candidate-abstract';
-    const abstractSummary = document.createElement('summary');
-    abstractSummary.textContent = '摘要';
-    const abstractPanel = document.createElement('div');
-    abstractPanel.className = 'candidate-inspector-panel';
-    const abstractText = document.createElement('p');
-    abstractText.textContent = candidate.abstract || '暂未从公开元数据中获得摘要，可打开来源页进一步查看。';
-    abstractPanel.appendChild(abstractText);
-    abstract.append(abstractSummary, abstractPanel);
-    inspectors.appendChild(abstract);
-
-    const validation = document.createElement('details');
-    validation.className = 'candidate-inspector candidate-validation';
-    const validationSummary = document.createElement('summary');
-    validationSummary.textContent = (candidate.metadata_warnings || []).length ? '需核验' : '元数据';
-    const validationPanel = document.createElement('div');
-    validationPanel.className = 'candidate-inspector-panel';
-    const quality = document.createElement('div');
-    quality.className = 'candidate-quality';
-    quality.appendChild(confidence);
-    if (relevance) quality.appendChild(relevance);
-    const validationList = document.createElement('ul');
-    (candidate.metadata_warnings || []).forEach(message => {
-      const item = document.createElement('li');
-      item.className = 'validation-warning';
-      item.textContent = message;
-      validationList.appendChild(item);
-    });
-    (candidate.metadata_checks || []).forEach(message => {
-      const item = document.createElement('li');
-      item.textContent = message;
-      validationList.appendChild(item);
-    });
-    validationPanel.append(quality, validationList);
-    validation.append(validationSummary, validationPanel);
-    inspectors.appendChild(validation);
-
-    const categoryBadge = document.createElement('span');
-    categoryBadge.className = `category-badge category-${candidate.category_confidence === '高' ? 'high' : candidate.category_confidence === '中' ? 'medium' : 'review'}`;
-    categoryBadge.textContent = candidate.category_label
-      ? `自动分类 · ${candidate.category_label}`
-      : '自动分类 · 待确认';
-    categoryBadge.title = candidate.category_reason || '请在加入论文库前确认类别';
-    top.append(badges, inspectors);
-
-    const heading = document.createElement('div');
-    heading.className = 'candidate-heading';
-    const title = document.createElement('h3');
-    title.textContent = candidate.title;
-    title.title = candidate.title;
-    const meta = document.createElement('p');
-    meta.className = 'candidate-meta';
-    const authors = (candidate.authors || []).slice(0, 4).join('、') || '作者未知';
-    const citations = Number(candidate.cited_by_count);
-    meta.textContent = `${candidate.year || '年份未知'} · ${authors}${(candidate.authors || []).length > 4 ? ' 等' : ''}${Number.isFinite(citations) && citations > 0 ? ` · 被引 ${citations.toLocaleString('zh-CN')} 次` : ''}`;
-    heading.append(title, meta);
-
-    const classification = document.createElement('div');
-    classification.className = 'candidate-classification';
-    classification.appendChild(categoryBadge);
-
-    const reason = document.createElement('p');
-    reason.className = 'candidate-reason';
-    reason.textContent = candidate.reason || '匹配论文发现规则';
-
-    article.append(top, heading, classification, reason);
-
-    if ((candidate.relevance_evidence || []).length) {
-      const relevanceEvidence = document.createElement('p');
-      relevanceEvidence.className = 'candidate-relevance';
-      relevanceEvidence.textContent = candidate.relevance_evidence.join(' · ');
-      article.appendChild(relevanceEvidence);
-    }
-
-    if ((candidate.supporting_papers || []).length) {
-      const support = document.createElement('details');
-      support.className = 'candidate-support';
-      const summary = document.createElement('summary');
-      summary.textContent = `${candidate.supporting_papers.length} 篇库内论文共同引用`;
-      const list = document.createElement('ul');
-      candidate.supporting_papers.forEach(paper => {
-        const item = document.createElement('li');
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.textContent = paper.title;
-        button.addEventListener('click', () => {
-          selectNode(paper.id);
-          document.querySelector('.graph-card').scrollIntoView({behavior: 'smooth', block: 'start'});
-        });
-        item.appendChild(button);
-        list.appendChild(item);
-      });
-      support.append(summary, list);
-      article.appendChild(support);
-    }
-
-    const footer = document.createElement('div');
-    footer.className = 'candidate-footer';
     const links = document.createElement('div');
     links.className = 'candidate-links';
     if (candidate.url) {
@@ -771,8 +711,115 @@
       const pdfLink = makeExternalLink('PDF ↗', candidate.pdf_url);
       if (pdfLink) links.appendChild(pdfLink);
     }
-    const review = document.createElement('div');
-    review.className = 'candidate-review';
+    header.append(badges, links);
+
+    const title = document.createElement('h3');
+    title.textContent = candidate.title;
+    const meta = document.createElement('p');
+    meta.className = 'candidate-meta';
+    const authors = (candidate.authors || []).slice(0, 6).join('、') || '作者未知';
+    const citations = Number(candidate.cited_by_count);
+    meta.textContent = `${candidate.year || '年份未知'} · ${authors}${(candidate.authors || []).length > 6 ? ' 等' : ''}${Number.isFinite(citations) && citations > 0 ? ` · 被引 ${citations.toLocaleString('zh-CN')} 次` : ''}`;
+
+    const classification = document.createElement('div');
+    classification.className = 'candidate-classification-summary';
+    const categoryBadge = document.createElement('span');
+    categoryBadge.className = `category-badge category-${candidate.category_confidence === '高' ? 'high' : candidate.category_confidence === '中' ? 'medium' : 'review'}`;
+    categoryBadge.textContent = candidate.category_label ? `自动分类 · ${candidate.category_label}` : '自动分类 · 待确认';
+    const reason = document.createElement('span');
+    reason.textContent = candidate.reason || '匹配论文发现规则';
+    classification.append(categoryBadge, reason);
+
+    const tabs = document.createElement('div');
+    tabs.className = 'candidate-detail-tabs';
+    tabs.setAttribute('role', 'tablist');
+    const panels = document.createElement('div');
+    panels.className = 'candidate-detail-panels';
+    const tabSpecs = [
+      ['abstract', '摘要'],
+      ['metadata', (candidate.metadata_warnings || []).length ? '校验提醒' : '元数据'],
+      ['evidence', '推荐依据'],
+    ];
+    const tabButtons = [];
+    const tabPanels = [];
+    tabSpecs.forEach(([id, label], index) => {
+      const tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'candidate-detail-tab';
+      tab.textContent = label;
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', String(index === 0));
+      tab.dataset.tab = id;
+      const panel = document.createElement('section');
+      panel.className = 'candidate-detail-panel';
+      panel.dataset.panel = id;
+      panel.hidden = index !== 0;
+      tabButtons.push(tab);
+      tabPanels.push(panel);
+      tabs.appendChild(tab);
+      panels.appendChild(panel);
+    });
+
+    const abstractText = document.createElement('p');
+    abstractText.textContent = candidate.abstract || '暂未从公开元数据中获得摘要，可打开来源页进一步查看。';
+    tabPanels[0].appendChild(abstractText);
+
+    const quality = document.createElement('div');
+    quality.className = 'candidate-quality';
+    const confidence = document.createElement('span');
+    const confidenceLabel = candidate.confidence_label || '需核验';
+    confidence.className = `confidence-badge confidence-${confidenceLabel === '高' ? 'high' : confidenceLabel === '中' ? 'medium' : 'review'}`;
+    confidence.textContent = `可信度 ${confidenceLabel}${Number.isFinite(Number(candidate.confidence)) ? ` ${candidate.confidence}` : ''}`;
+    quality.appendChild(confidence);
+    if (Number.isFinite(Number(candidate.relevance_score))) {
+      const relevance = document.createElement('span');
+      const relevanceLabel = candidate.relevance_label || '需确认';
+      relevance.className = `relevance-badge relevance-${relevanceLabel === '高' ? 'high' : relevanceLabel === '中' ? 'medium' : 'review'}`;
+      relevance.textContent = `主题相关 ${candidate.relevance_score}`;
+      quality.appendChild(relevance);
+    }
+    const validationList = document.createElement('ul');
+    validationList.className = 'candidate-validation-list';
+    [...(candidate.metadata_warnings || []).map(message => ({message, warning: true})),
+      ...(candidate.metadata_checks || []).map(message => ({message, warning: false}))].forEach(entry => {
+      const item = document.createElement('li');
+      item.classList.toggle('validation-warning', entry.warning);
+      item.textContent = entry.message;
+      validationList.appendChild(item);
+    });
+    tabPanels[1].append(quality, validationList);
+
+    const evidenceReason = document.createElement('p');
+    evidenceReason.className = 'candidate-evidence-reason';
+    evidenceReason.textContent = candidate.category_reason || candidate.reason || '匹配论文发现规则';
+    tabPanels[2].appendChild(evidenceReason);
+    if ((candidate.relevance_evidence || []).length) {
+      const evidence = document.createElement('p');
+      evidence.textContent = candidate.relevance_evidence.join(' · ');
+      tabPanels[2].appendChild(evidence);
+    }
+    if ((candidate.supporting_papers || []).length) {
+      const supportList = document.createElement('div');
+      supportList.className = 'candidate-support-list';
+      candidate.supporting_papers.forEach(paper => {
+        const supportButton = document.createElement('button');
+        supportButton.type = 'button';
+        supportButton.textContent = paper.title;
+        supportButton.addEventListener('click', () => {
+          activateView('graph');
+          selectNode(paper.id);
+        });
+        supportList.appendChild(supportButton);
+      });
+      tabPanels[2].appendChild(supportList);
+    }
+    tabButtons.forEach(tab => tab.addEventListener('click', () => {
+      tabButtons.forEach(button => button.setAttribute('aria-selected', String(button === tab)));
+      tabPanels.forEach(panel => { panel.hidden = panel.dataset.panel !== tab.dataset.tab; });
+    }));
+
+    const footer = document.createElement('footer');
+    footer.className = 'candidate-detail-footer';
     const category = document.createElement('select');
     category.setAttribute('aria-label', `为 ${candidate.title} 选择类别`);
     const placeholder = document.createElement('option');
@@ -786,8 +833,6 @@
       category.appendChild(option);
     });
     category.value = suggestedCategory(candidate);
-    const actions = document.createElement('div');
-    actions.className = 'candidate-review-actions';
     const ignore = document.createElement('button');
     ignore.type = 'button';
     ignore.className = 'candidate-action secondary-action';
@@ -798,10 +843,9 @@
     accept.className = 'candidate-action primary-action';
     accept.textContent = '加入论文库';
     accept.addEventListener('click', () => reviewCandidate(candidate, 'accept', category, article));
-    actions.append(ignore, accept);
-    review.append(category, actions);
-    footer.append(links, review);
-    article.appendChild(footer);
+    footer.append(category, ignore, accept);
+
+    article.append(header, title, meta, classification, tabs, panels, footer);
     return article;
   }
 
@@ -820,9 +864,17 @@
         return sourceMatch && candidateMatchesSearch(candidate);
       })
       .sort((a, b) => candidateTimestamp(b) - candidateTimestamp(a) || a.title.localeCompare(b.title));
-    discoveryList.replaceChildren(...visible.map(renderCandidate));
+    if (!visible.some(candidate => candidate.id === selectedCandidateId)) {
+      selectedCandidateId = visible[0]?.id || null;
+    }
+    const selectedCandidate = visible.find(candidate => candidate.id === selectedCandidateId);
+    discoveryList.replaceChildren(...visible.map(renderCandidateRow));
     discoveryEmpty.hidden = visible.length > 0;
+    candidatePreviewEmpty.hidden = Boolean(selectedCandidate);
+    candidatePreview.replaceChildren(selectedCandidate ? renderCandidate(selectedCandidate) : candidatePreviewEmpty);
     discoveryCount.textContent = String(activeCandidates.length);
+    navDiscoveryCount.textContent = String(activeCandidates.length);
+    navDiscoveryCount.hidden = activeCandidates.length === 0;
     if (discovery.metadata.updated_at) {
       const updated = new Date(discovery.metadata.updated_at);
       discoveryUpdated.textContent = Number.isNaN(updated.valueOf())
@@ -879,6 +931,7 @@
     selectDiscoverySource(mode === 'shared' ? 'shared_reference' : mode === 'highly_cited' ? 'highly_cited' : 'arxiv_topic');
     clearTimeout(discoveryHighlightTimer);
     highlightedCandidateIds = new Set(summary.ids);
+    selectedCandidateId = summary.ids[0] || selectedCandidateId;
     discoveryResult.hidden = false;
     discoveryResult.dataset.tone = summary.found ? 'success' : 'empty';
     discoveryResultTitle.textContent = summary.found
@@ -899,12 +952,12 @@
     );
 
     requestAnimationFrame(() => {
-      const firstHighlighted = discoveryList.querySelector('.candidate-card.is-discovery-result');
+      const firstHighlighted = discoveryList.querySelector('.candidate-row.is-discovery-result');
       if (firstHighlighted) firstHighlighted.scrollIntoView({behavior: 'smooth', block: 'nearest'});
     });
     discoveryHighlightTimer = setTimeout(() => {
       highlightedCandidateIds.clear();
-      discoveryList.querySelectorAll('.candidate-card.is-discovery-result').forEach(card => {
+      discoveryList.querySelectorAll('.candidate-row.is-discovery-result').forEach(card => {
         card.classList.remove('is-discovery-result');
       });
     }, 10000);
@@ -1096,6 +1149,7 @@
       showToast('高被引次数下限需要是 1–1,000,000 之间的整数', 'error');
       return;
     }
+    runDiscoveryButton.closest('details')?.removeAttribute('open');
     setDiscoveryBusy(
       true,
       mode === 'shared' ? '正在计算共同引用…' : mode === 'highly_cited' ? '正在搜索领域高被引…' : '正在搜索 arXiv…',
@@ -1124,6 +1178,7 @@
       showToast('当前没有待清空的候选');
       return;
     }
+    clearCandidatesButton.closest('details')?.removeAttribute('open');
     setDiscoveryBusy(true, '正在清空…');
     try {
       const result = await apiRequest('/api/candidates/clear', {method: 'POST', body: '{}'});
@@ -1150,6 +1205,7 @@
   function renderHealth(health) {
     apiHealth = health || {status: 'error', summary: '无法读取论文库状态', issues: []};
     healthPanel.dataset.status = apiHealth.status;
+    navHealthDot.dataset.status = apiHealth.status;
     healthSummary.textContent = apiHealth.summary || '论文库状态未知';
     healthIssues.replaceChildren();
     if (!(apiHealth.issues || []).length) {
@@ -1500,6 +1556,10 @@
     });
   });
 
+  viewButtons.forEach(button => {
+    button.addEventListener('click', () => activateView(button.dataset.view));
+  });
+
   document.getElementById('reset-view').addEventListener('click', () => {
     selectedNode = null;
     clearPaperDetail();
@@ -1514,7 +1574,9 @@
     }
   });
 
-  render();
+  let initialView = 'graph';
+  try { initialView = sessionStorage.getItem('paper-atlas-view') || 'graph'; } catch (_error) { /* optional */ }
+  activateView(initialView, false);
   renderDiscovery();
   loadApiState();
 })();

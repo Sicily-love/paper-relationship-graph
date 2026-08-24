@@ -8,11 +8,11 @@
   <meta name="theme-color" content="#090c13" media="(prefers-color-scheme: dark)">
   <title>Paper Atlas · 论文关系图谱</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=103">
+  <link rel="stylesheet" href="styles.css?v=200">
 </head>
 <body>
   <main class="app-shell">
-    <header class="hero">
+    <header class="hero app-sidebar">
       <div class="brand-lockup">
         <div class="brand-mark" aria-hidden="true">
           <span class="brand-orbit orbit-one"></span>
@@ -20,9 +20,27 @@
           <span class="brand-core"></span>
         </div>
         <div>
-          <h1>论文关系图谱</h1>
+          <h1>Paper Atlas</h1>
+          <strong class="brand-subtitle">论文关系图谱</strong>
         </div>
       </div>
+
+      <nav class="sidebar-nav" aria-label="主导航">
+        <button type="button" class="sidebar-nav-item active" data-view="graph" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2"></circle><circle cx="18" cy="6" r="2"></circle><circle cx="18" cy="18" r="2"></circle><path d="m8 11 8-4M8 13l8 4"></path></svg>
+          <span>论文图谱</span>
+        </button>
+        <button type="button" class="sidebar-nav-item" data-view="discovery" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"></path><circle cx="12" cy="12" r="8"></circle></svg>
+          <span>待审核</span>
+          <b id="nav-discovery-count" class="nav-count">0</b>
+        </button>
+        <button type="button" class="sidebar-nav-item" data-view="system" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="8" cy="7" r="1.5"></circle><circle cx="16" cy="12" r="1.5"></circle><circle cx="10" cy="17" r="1.5"></circle></svg>
+          <span>自动化与数据</span>
+          <i id="nav-health-dot" class="nav-health-dot" aria-hidden="true"></i>
+        </button>
+      </nav>
 
       <dl class="metric-strip" aria-label="论文库统计">
         <div>
@@ -42,9 +60,10 @@
           <dd id="metric-years">—</dd>
         </div>
       </dl>
+      <footer class="app-footer">Paper Atlas 1.0.0<br>数据保存在本地</footer>
     </header>
 
-    <div class="workspace">
+    <div class="workspace app-view active" data-view-panel="graph">
       <section class="graph-card" aria-labelledby="graph-heading">
         <header class="graph-card-header">
           <div class="graph-header-copy">
@@ -107,7 +126,7 @@
       </section>
     </div>
 
-    <section class="system-card" aria-labelledby="system-heading">
+    <section class="system-card app-view" data-view-panel="system" aria-labelledby="system-heading" hidden>
       <header class="system-header">
         <div>
           <h2 id="system-heading">运行与数据</h2>
@@ -197,29 +216,32 @@
 
     <div id="app-toast" class="app-toast" role="status" aria-live="polite" hidden></div>
 
-    <section class="discovery-card" aria-labelledby="discovery-heading">
+    <section class="discovery-card app-view" data-view-panel="discovery" aria-labelledby="discovery-heading" hidden>
       <header class="discovery-header">
         <div>
-          <h2 id="discovery-heading">推荐候选</h2>
-        </div>
-        <div class="discovery-header-actions">
+          <h2 id="discovery-heading">待审核论文</h2>
           <div class="discovery-summary" aria-label="候选统计">
-            <span><strong id="discovery-count">0</strong> 待审核</span>
+            <span><strong id="discovery-count">0</strong> 篇待处理</span>
             <span id="discovery-updated" hidden>尚未运行发现任务</span>
           </div>
+        </div>
+        <div class="discovery-header-actions">
           <button type="button" id="manage-topics" class="toolbar-action">搜索主题</button>
-          <button type="button" id="run-discovery" class="toolbar-action primary-action">搜索 arXiv</button>
-          <div class="threshold-discovery-action">
-            <label for="highly-cited-minimum">高被引下限</label>
-            <input id="highly-cited-minimum" type="number" min="1" max="1000000" step="1" value="50" aria-label="高被引次数下限">
-            <button type="button" id="run-highly-cited" class="toolbar-action">领域高被引</button>
-          </div>
-          <div class="threshold-discovery-action">
-            <label for="shared-reference-minimum">共同引用下限</label>
-            <input id="shared-reference-minimum" type="number" min="2" max="20" step="1" value="2" aria-label="共同引用次数下限">
-            <button type="button" id="run-shared-discovery" class="toolbar-action">共同引用</button>
-          </div>
-          <button type="button" id="clear-candidates" class="toolbar-action clear-action">清空候选</button>
+          <details class="discovery-command-menu">
+            <summary class="toolbar-action primary-action">发现论文⌄</summary>
+            <div class="discovery-command-panel">
+              <button type="button" id="run-discovery" class="command-row"><span>最新 arXiv</span><b>按主题</b></button>
+              <div class="command-row command-row-with-input">
+                <button type="button" id="run-highly-cited"><span>领域高被引</span></button>
+                <label for="highly-cited-minimum">下限 <input id="highly-cited-minimum" type="number" min="1" max="1000000" step="1" value="50" aria-label="高被引次数下限"></label>
+              </div>
+              <div class="command-row command-row-with-input">
+                <button type="button" id="run-shared-discovery"><span>共同引用</span></button>
+                <label for="shared-reference-minimum">下限 <input id="shared-reference-minimum" type="number" min="2" max="20" step="1" value="2" aria-label="共同引用次数下限"></label>
+              </div>
+              <button type="button" id="clear-candidates" class="command-row command-danger"><span>清空待审核</span></button>
+            </div>
+          </details>
         </div>
       </header>
 
@@ -239,32 +261,39 @@
         </div>
       </div>
 
-      <div class="discovery-toolbar">
-        <div class="filter-pills" role="group" aria-label="候选来源">
-          <button type="button" class="filter-pill active" data-source="all">全部</button>
-          <button type="button" class="filter-pill" data-source="shared_reference">共同引用</button>
-          <button type="button" class="filter-pill" data-source="arxiv_topic">arXiv 最新</button>
-          <button type="button" class="filter-pill" data-source="highly_cited">领域高被引</button>
-        </div>
-        <p id="search-status" class="search-status" aria-live="polite" hidden></p>
-      </div>
-
       <div id="service-notice" class="service-notice" hidden>
         <strong>应用管理功能暂未连接</strong>
         <span>请退出并重新打开 Paper Atlas.app。</span>
       </div>
 
-      <div id="discovery-list" class="discovery-list"></div>
-      <div id="discovery-empty" class="discovery-empty" hidden>
-        <span aria-hidden="true">✦</span>
-        <h3>当前没有匹配的推荐</h3>
+      <div class="review-workspace">
+        <aside class="candidate-master" aria-label="候选论文列表">
+          <div class="discovery-toolbar">
+            <div class="filter-pills" role="group" aria-label="候选来源">
+              <button type="button" class="filter-pill active" data-source="all">全部</button>
+              <button type="button" class="filter-pill" data-source="shared_reference">共同引用</button>
+              <button type="button" class="filter-pill" data-source="arxiv_topic">arXiv</button>
+              <button type="button" class="filter-pill" data-source="highly_cited">高被引</button>
+            </div>
+            <p id="search-status" class="search-status" aria-live="polite" hidden></p>
+          </div>
+          <div id="discovery-list" class="discovery-list"></div>
+          <div id="discovery-empty" class="discovery-empty" hidden>
+            <h3>当前没有匹配的推荐</h3>
+          </div>
+        </aside>
+        <section id="candidate-preview" class="candidate-preview" aria-live="polite">
+          <div id="candidate-preview-empty" class="candidate-preview-empty">
+            <span aria-hidden="true">◌</span>
+            <h3>选择一篇论文</h3>
+          </div>
+        </section>
       </div>
     </section>
-    <footer class="app-footer">Paper Atlas 1.0.0 · 数据保存在本地</footer>
   </main>
 
-  <script src="data/graph-data.js?v=103"></script>
-  <script src="data/discovery-data.js?v=103"></script>
-  <script src="app.js?v=103"></script>
+  <script src="data/graph-data.js?v=200"></script>
+  <script src="data/discovery-data.js?v=200"></script>
+  <script src="app.js?v=200"></script>
 </body>
 </html>
