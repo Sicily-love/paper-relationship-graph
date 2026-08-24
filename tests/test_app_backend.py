@@ -77,6 +77,7 @@ class AppBackendTests(unittest.TestCase):
         }
         completed = SimpleNamespace(returncode=0, stdout="", stderr="")
         with patch.object(app_backend.subprocess, "run", return_value=completed) as run:
+            topics = app_backend.run_discovery(modules, {"mode": "topics"})
             arxiv = app_backend.run_discovery(modules, {"mode": "arxiv"})
             highly_cited = app_backend.run_discovery(
                 modules, {"mode": "highly_cited", "min_citations": 75}
@@ -85,15 +86,20 @@ class AppBackendTests(unittest.TestCase):
                 modules, {"mode": "shared", "min_library_citations": 4}
             )
 
+        self.assertEqual(topics["mode"], "topics")
+        self.assertEqual(topics["message"], "主题论文发现已完成")
         self.assertEqual(arxiv["mode"], "arxiv")
         self.assertEqual(highly_cited["mode"], "highly_cited")
         self.assertEqual(shared["mode"], "shared")
         self.assertIn("--skip-shared", run.call_args_list[0].args[0])
-        self.assertIn("--skip-highly-cited", run.call_args_list[0].args[0])
-        self.assertIn("--skip-arxiv", run.call_args_list[1].args[0])
+        self.assertNotIn("--skip-arxiv", run.call_args_list[0].args[0])
+        self.assertNotIn("--skip-highly-cited", run.call_args_list[0].args[0])
         self.assertIn("--skip-shared", run.call_args_list[1].args[0])
+        self.assertIn("--skip-highly-cited", run.call_args_list[1].args[0])
         self.assertIn("--skip-arxiv", run.call_args_list[2].args[0])
-        self.assertIn("--skip-highly-cited", run.call_args_list[2].args[0])
+        self.assertIn("--skip-shared", run.call_args_list[2].args[0])
+        self.assertIn("--skip-arxiv", run.call_args_list[3].args[0])
+        self.assertIn("--skip-highly-cited", run.call_args_list[3].args[0])
         self.assertEqual(config["highly_cited"]["min_citations"], 75)
         self.assertEqual(config["shared_references"]["min_library_citations"], 4)
         self.assertEqual(len(writes), 2)

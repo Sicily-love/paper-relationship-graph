@@ -198,6 +198,7 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('id="candidate-preview"', html)
         self.assertIn("function activateView", script)
         self.assertIn("function renderCandidateRow", script)
+        self.assertIn("JSON.stringify({mode: 'topics'})", script)
         self.assertNotIn("citationsExpanded", script)
         self.assertIn("const visible = focused;", script)
         self.assertIn("log.className = 'task-log'", script)

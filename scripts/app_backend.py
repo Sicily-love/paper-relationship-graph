@@ -234,7 +234,9 @@ def clear_candidates(modules: dict) -> dict:
 def run_discovery(modules: dict, body: dict) -> dict:
     mode = modules["serve_graph"].discovery_mode(body.get("mode"))
     arguments = [sys.executable, str(REPO_ROOT / "scripts" / "discover_papers.py")]
-    if mode == "arxiv":
+    if mode == "topics":
+        arguments.append("--skip-shared")
+    elif mode == "arxiv":
         arguments.extend(("--skip-shared", "--skip-highly-cited"))
     elif mode == "highly_cited":
         config = modules["load_json"](modules["DEFAULT_CONFIG"], {})
@@ -244,7 +246,7 @@ def run_discovery(modules: dict, body: dict) -> dict:
         config.setdefault("highly_cited", {})["min_citations"] = minimum
         modules["serve_graph"].write_json_atomic(modules["DEFAULT_CONFIG"], config)
         arguments.extend(("--skip-arxiv", "--skip-shared"))
-    else:
+    elif mode == "shared":
         config = modules["load_json"](modules["DEFAULT_CONFIG"], {})
         minimum = modules["serve_graph"].validate_shared_reference_minimum(
             body.get("min_library_citations", 2)
@@ -265,7 +267,8 @@ def run_discovery(modules: dict, body: dict) -> dict:
         raise ValueError(message)
     return {
         "message": (
-            "arXiv 搜索已完成" if mode == "arxiv"
+            "主题论文发现已完成" if mode == "topics"
+            else "arXiv 搜索已完成" if mode == "arxiv"
             else "领域高被引搜索已完成" if mode == "highly_cited"
             else "共同引用计算已完成"
         ),

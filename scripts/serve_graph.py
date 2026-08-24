@@ -105,7 +105,7 @@ def validate_highly_cited_minimum(value: object) -> int:
 
 def discovery_mode(value: object) -> str:
     mode = str(value or "arxiv")
-    if mode not in {"arxiv", "highly_cited", "shared"}:
+    if mode not in {"arxiv", "highly_cited", "shared", "topics"}:
         raise ValueError("未知的论文发现方式")
     return mode
 
@@ -389,7 +389,9 @@ class GraphRequestHandler(SimpleHTTPRequestHandler):
     def run_discovery(self, body: dict) -> dict:
         mode = discovery_mode(body.get("mode"))
         arguments = [sys.executable, str(REPO_ROOT / "scripts" / "discover_papers.py")]
-        if mode == "arxiv":
+        if mode == "topics":
+            arguments.append("--skip-shared")
+        elif mode == "arxiv":
             arguments.extend(("--skip-shared", "--skip-highly-cited"))
         elif mode == "highly_cited":
             config = load_json(DEFAULT_CONFIG, {})
@@ -399,7 +401,7 @@ class GraphRequestHandler(SimpleHTTPRequestHandler):
             config.setdefault("highly_cited", {})["min_citations"] = minimum
             write_json_atomic(DEFAULT_CONFIG, config)
             arguments.extend(("--skip-arxiv", "--skip-shared"))
-        else:
+        elif mode == "shared":
             config = load_json(DEFAULT_CONFIG, {})
             minimum = validate_shared_reference_minimum(body.get("min_library_citations", 2))
             config.setdefault("shared_references", {})["min_library_citations"] = minimum
@@ -418,7 +420,8 @@ class GraphRequestHandler(SimpleHTTPRequestHandler):
             raise ValueError(message)
         return {
             "message": (
-                "arXiv 搜索已完成" if mode == "arxiv"
+                "主题论文发现已完成" if mode == "topics"
+                else "arXiv 搜索已完成" if mode == "arxiv"
                 else "领域高被引搜索已完成" if mode == "highly_cited"
                 else "共同引用计算已完成"
             ),

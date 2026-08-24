@@ -44,6 +44,9 @@ class ReviewApiTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "1–1,000,000"):
             serve_graph.validate_highly_cited_minimum(1_000_001)
 
+    def test_topic_discovery_mode_combines_arxiv_and_highly_cited(self):
+        self.assertEqual(serve_graph.discovery_mode("topics"), "topics")
+
     def test_existing_unclassified_candidate_is_classified_when_loaded(self):
         candidate = {
             "id": "openalex:W1",

@@ -905,15 +905,13 @@
 
   function discoveryRunSummary(currentDiscovery, mode) {
     const updatedAt = currentDiscovery.metadata?.updated_at;
-    const expectedSource = mode === 'shared'
-      ? 'shared_reference'
-      : mode === 'highly_cited'
-        ? 'highly_cited'
-        : 'arxiv_topic';
+    const expectedSources = mode === 'topics'
+      ? ['arxiv_topic', 'highly_cited']
+      : [mode === 'shared' ? 'shared_reference' : mode === 'highly_cited' ? 'highly_cited' : 'arxiv_topic'];
     const activeCandidates = (currentDiscovery.candidates || []).filter(candidate => candidate.status === 'new');
     const found = activeCandidates.filter(candidate => (
       sameDiscoveryTime(candidate.last_seen, updatedAt)
-      && (candidate.sources || []).includes(expectedSource)
+      && expectedSources.some(source => (candidate.sources || []).includes(source))
     ));
     const added = found.filter(candidate => sameDiscoveryTime(candidate.first_seen, updatedAt));
     return {
@@ -935,8 +933,12 @@
 
   function showDiscoveryOutcome(currentDiscovery, mode) {
     const summary = discoveryRunSummary(currentDiscovery, mode);
-    const sourceLabel = mode === 'shared' ? '共同引用' : mode === 'highly_cited' ? '领域高被引' : 'arXiv 搜索';
-    selectDiscoverySource(mode === 'shared' ? 'shared_reference' : mode === 'highly_cited' ? 'highly_cited' : 'arxiv_topic');
+    const sourceLabel = mode === 'topics'
+      ? '主题发现'
+      : mode === 'shared' ? '共同引用' : mode === 'highly_cited' ? '领域高被引' : 'arXiv 搜索';
+    selectDiscoverySource(
+      mode === 'topics' ? 'all' : mode === 'shared' ? 'shared_reference' : mode === 'highly_cited' ? 'highly_cited' : 'arxiv_topic',
+    );
     clearTimeout(discoveryHighlightTimer);
     highlightedCandidateIds = new Set(summary.ids);
     selectedCandidateId = summary.ids[0] || selectedCandidateId;
@@ -946,11 +948,15 @@
       ? `${sourceLabel}找到 ${summary.found} 篇论文`
       : `${sourceLabel}没有找到符合条件的论文`;
     discoveryResultMeta.textContent = summary.found
-      ? `其中新增 ${summary.added} 篇；下方对应结果已高亮`
+      ? mode === 'topics'
+        ? `arXiv ${summary.arxiv} 篇 · 高被引 ${summary.highlyCited} 篇 · 新增 ${summary.added} 篇；下方结果已高亮`
+        : `其中新增 ${summary.added} 篇；下方对应结果已高亮`
       : mode === 'shared'
         ? '可以降低共同引用次数下限后再次计算'
         : mode === 'highly_cited'
           ? '可以增加搜索关键词，或降低配置中的最低被引次数'
+          : mode === 'topics'
+            ? '可以调整搜索主题、扩大 arXiv 时间范围或降低高被引下限'
         : '可以调整搜索主题或扩大时间范围后再次尝试';
     renderDiscovery();
     showToast(
@@ -1079,6 +1085,7 @@
     const isArxiv = label.includes('arXiv');
     const isHighlyCited = label.includes('高被引');
     const isShared = label.includes('共同引用');
+    const isTopicDiscovery = label.includes('主题发现');
     runDiscoveryButton.textContent = busy && isArxiv ? '搜索中…' : '搜索 arXiv';
     runHighlyCitedButton.textContent = busy && isHighlyCited ? '搜索中…' : '领域高被引';
     runSharedDiscoveryButton.textContent = busy && isShared ? '计算中…' : '共同引用';
@@ -1090,7 +1097,9 @@
     highlightedCandidateIds.clear();
     clearTimeout(discoveryHighlightTimer);
     discoveryBusyStarted = Date.now();
-    discoveryProgressTitle.textContent = isShared
+    discoveryProgressTitle.textContent = isTopicDiscovery
+      ? '正在搜索 arXiv 与领域高被引论文'
+      : isShared
       ? '正在计算共同引用'
       : isHighlyCited
         ? '正在搜索领域高被引论文'
@@ -1103,7 +1112,9 @@
       const elapsed = Math.max(0, Math.floor((Date.now() - discoveryBusyStarted) / 1000));
       const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
       const seconds = String(elapsed % 60).padStart(2, '0');
-      discoveryProgressMeta.textContent = isShared
+      discoveryProgressMeta.textContent = isTopicDiscovery
+        ? `正在按搜索主题合并两类结果 · 已用时 ${minutes}:${seconds}`
+        : isShared
         ? `下限 ${sharedReferenceMinimum.value} 次 · 正在分析库内论文引用 · 已用时 ${minutes}:${seconds}`
         : isHighlyCited
           ? `下限 ${highlyCitedMinimum.value} 次 · 正在按搜索主题获取高被引论文 · 已用时 ${minutes}:${seconds}`
@@ -1118,7 +1129,7 @@
   }
 
   async function saveTopics(runAfterSave = false) {
-    setDiscoveryBusy(true, runAfterSave ? '正在搜索 arXiv…' : '正在保存…');
+    setDiscoveryBusy(true, runAfterSave ? '正在进行主题发现…' : '正在保存…');
     try {
       const saved = await apiRequest('/api/topics', {
         method: 'PUT',
@@ -1126,13 +1137,13 @@
       });
       apiTopics = saved.topics;
       if (runAfterSave) {
+        closeTopicsDialog();
         const result = await apiRequest('/api/discover', {
           method: 'POST',
-          body: JSON.stringify({mode: 'arxiv'}),
+          body: JSON.stringify({mode: 'topics'}),
         });
         discovery = result.discovery;
-        closeTopicsDialog();
-        showDiscoveryOutcome(discovery, 'arxiv');
+        showDiscoveryOutcome(discovery, 'topics');
       } else {
         showToast(saved.message);
         closeTopicsDialog();
