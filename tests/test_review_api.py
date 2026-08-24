@@ -44,6 +44,25 @@ class ReviewApiTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "1–1,000,000"):
             serve_graph.validate_highly_cited_minimum(1_000_001)
 
+    def test_existing_unclassified_candidate_is_classified_when_loaded(self):
+        candidate = {
+            "id": "openalex:W1",
+            "title": "AKG: Automatic Kernel Generation for Neural Processing Units",
+            "abstract": "Polyhedral transformations generate efficient kernels.",
+            "sources": ["highly_cited"],
+            "authors": ["Example Author"],
+            "year": 2021,
+            "url": "https://openalex.org/W1",
+            "cited_by_count": 77,
+            "highly_cited_threshold": 50,
+        }
+        with patch.object(serve_graph, "load_json", return_value={"candidates": [candidate]}):
+            result = serve_graph.validated_discovery()
+        self.assertEqual(
+            result["candidates"][0]["suggested_category"],
+            "06_GPU内核_编译器与性能工程",
+        )
+
     def test_clear_candidates_keeps_archived_records_and_decisions(self):
         data = {
             "candidates": [

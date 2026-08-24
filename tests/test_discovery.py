@@ -299,6 +299,23 @@ class DiscoveryTests(unittest.TestCase):
         })
         self.assertEqual(result["suggested_category"], "06_GPU内核_编译器与性能工程")
 
+    def test_automatic_kernel_generation_is_classified_as_performance_engineering(self):
+        result = discover_papers.classify_candidate({
+            "title": "AKG: Automatic Kernel Generation for Neural Processing Units",
+            "abstract": "We use polyhedral transformations to generate efficient kernels.",
+            "topic_ids": ["category-07-kernel-agents"],
+        })
+        self.assertEqual(result["suggested_category"], "06_GPU内核_编译器与性能工程")
+
+    def test_search_topic_is_used_as_low_confidence_classification_fallback(self):
+        result = discover_papers.classify_candidate({
+            "title": "A Specialized Method with an Unfamiliar Name",
+            "abstract": "No known category phrase is available.",
+            "topic_ids": ["category-07-kernel-agents"],
+        })
+        self.assertEqual(result["suggested_category"], "07_GPU内核智能体与自动调优")
+        self.assertEqual(result["category_confidence"], "需确认")
+
     def test_openalex_abstract_is_restored_in_word_order(self):
         abstract = discover_papers.abstract_from_inverted_index({
             "GPU": [2], "Fast": [0], "kernels": [3], "builds": [1],

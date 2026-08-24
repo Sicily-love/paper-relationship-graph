@@ -132,6 +132,8 @@ def clear_new_candidates(data: dict) -> int:
 def validated_discovery() -> dict:
     data = load_json(DEFAULT_DISCOVERY_JSON, {"metadata": {}, "candidates": []})
     for candidate in data.get("candidates", []):
+        if not candidate.get("suggested_category"):
+            candidate.update(discover_papers.classify_candidate(candidate))
         candidate.update(discover_papers.candidate_validation(candidate))
     return data
 

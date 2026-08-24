@@ -90,6 +90,7 @@ CATEGORY_RULES = {
         "cuda optimization", "ptx", "gpu benchmark", "code generation for gpu",
         "compiler optimization", "operator fusion", "kernel scheduling", "gpu kernels",
         "triton", "gpu programming", "gpu compilation", "gpu offload",
+        "automatic kernel generation", "polyhedral transformation", "polyhedral transformations",
     ),
     "07_GPU内核智能体与自动调优": (
         "gpu kernel agent", "cuda agent", "kernel agent", "kernel agents",
@@ -131,6 +132,19 @@ TOPIC_DOMAIN_ANCHORS = {
     "category-08-general-agents": ("agent", "llm", "language model", "tool use", "autonomous"),
     "category-09-generative-video": ("video", "diffusion", "generative", "frame", "transformer"),
     "category-10-model-reports": ("language model", "llm", "reasoning", "foundation model", "training"),
+}
+
+TOPIC_CATEGORY_MAP = {
+    "category-01-model-architecture": "01_模型架构与训练优化",
+    "category-02-attention-context": "02_注意力机制与长上下文",
+    "category-03-moe-sparse": "03_MoE与稀疏模型",
+    "category-04-quantization": "04_量化与低精度计算",
+    "category-05-distributed-data": "05_分布式训练与数据基础设施",
+    "category-06-gpu-performance": "06_GPU内核_编译器与性能工程",
+    "category-07-kernel-agents": "07_GPU内核智能体与自动调优",
+    "category-08-general-agents": "08_通用智能体与自主学习",
+    "category-09-generative-video": "09_生成模型与视频系统",
+    "category-10-model-reports": "10_大模型技术报告与推理训练",
 }
 
 
@@ -182,6 +196,19 @@ def classify_candidate(candidate: dict) -> dict:
     category, top_score = ranked[0]
     runner_up = ranked[1][1]
     if top_score <= 0:
+        topic_categories = [
+            TOPIC_CATEGORY_MAP[topic_id]
+            for topic_id in candidate.get("topic_ids") or []
+            if topic_id in TOPIC_CATEGORY_MAP
+        ]
+        if topic_categories:
+            category = topic_categories[0]
+            return {
+                "suggested_category": category,
+                "category_label": category_label(category),
+                "category_confidence": "需确认",
+                "category_reason": "根据命中的搜索主题给出建议，请结合摘要确认",
+            }
         return {
             "suggested_category": "",
             "category_label": "待确认类别",
@@ -467,6 +494,7 @@ def parse_arxiv_feed(payload: bytes, topic: dict, cutoff: datetime) -> list[dict
                 "pdf_url": links.get("pdf") or f"https://arxiv.org/pdf/{arxiv_id}",
                 "sources": ["arxiv_topic"],
                 "topics": [topic["label"]],
+                "topic_ids": [topic["id"]] if topic.get("id") else [],
                 "reason": f"匹配每日主题：{topic['label']}",
                 "score": 50,
                 "status": "new",
@@ -665,6 +693,7 @@ def discover_highly_cited(config: dict) -> tuple[list[dict], list[str]]:
                 "highly_cited_threshold": minimum,
                 "sources": ["highly_cited"],
                 "topics": [topic["label"]],
+                "topic_ids": [topic["id"]] if topic.get("id") else [],
                 "reason": f"领域高被引 · OpenAlex 被引 {cited_by_count:,} 次 · 匹配 {topic['label']}",
                 "score": 70 + min(40, math.log10(max(1, cited_by_count)) * 10),
                 "status": "new",
@@ -823,6 +852,7 @@ def merge_candidates(
         if existing:
             combined_sources = sorted(set(existing.get("sources", [])) | set(candidate.get("sources", [])))
             combined_topics = sorted(set(existing.get("topics", [])) | set(candidate.get("topics", [])))
+            combined_topic_ids = sorted(set(existing.get("topic_ids", [])) | set(candidate.get("topic_ids", [])))
             combined_score = max(float(existing.get("score", 0)), float(candidate.get("score", 0))) + 10
             if candidate.get("support_count", 0) > existing.get("support_count", 0):
                 existing.update({k: v for k, v in candidate.items() if v is not None})
@@ -837,6 +867,7 @@ def merge_candidates(
                 existing["highly_cited_threshold"] = candidate["highly_cited_threshold"]
             existing["sources"] = combined_sources
             existing["topics"] = combined_topics
+            existing["topic_ids"] = combined_topic_ids
             existing["score"] = combined_score
             if existing.get("arxiv_id"):
                 existing["id"] = f"arxiv:{existing['arxiv_id']}"

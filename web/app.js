@@ -646,77 +646,95 @@
       badge.textContent = candidateSourceLabel(source);
       badges.appendChild(badge);
     });
+
     const confidence = document.createElement('span');
     const confidenceLabel = candidate.confidence_label || '需核验';
     confidence.className = `confidence-badge confidence-${confidenceLabel === '高' ? 'high' : confidenceLabel === '中' ? 'medium' : 'review'}`;
     confidence.textContent = `可信度 ${confidenceLabel}${Number.isFinite(Number(candidate.confidence)) ? ` ${candidate.confidence}` : ''}`;
-    badges.appendChild(confidence);
+    let relevance = null;
     if (Number.isFinite(Number(candidate.relevance_score))) {
-      const relevance = document.createElement('span');
+      relevance = document.createElement('span');
       const relevanceLabel = candidate.relevance_label || '需确认';
       relevance.className = `relevance-badge relevance-${relevanceLabel === '高' ? 'high' : relevanceLabel === '中' ? 'medium' : 'review'}`;
       relevance.textContent = `主题相关 ${candidate.relevance_score}`;
       relevance.title = (candidate.relevance_evidence || []).join('；');
-      badges.appendChild(relevance);
     }
+
+    const inspectors = document.createElement('div');
+    inspectors.className = 'candidate-inspectors';
+    const abstract = document.createElement('details');
+    abstract.className = 'candidate-inspector candidate-abstract';
+    const abstractSummary = document.createElement('summary');
+    abstractSummary.textContent = '摘要';
+    const abstractPanel = document.createElement('div');
+    abstractPanel.className = 'candidate-inspector-panel';
+    const abstractText = document.createElement('p');
+    abstractText.textContent = candidate.abstract || '暂未从公开元数据中获得摘要，可打开来源页进一步查看。';
+    abstractPanel.appendChild(abstractText);
+    abstract.append(abstractSummary, abstractPanel);
+    inspectors.appendChild(abstract);
+
+    const validation = document.createElement('details');
+    validation.className = 'candidate-inspector candidate-validation';
+    const validationSummary = document.createElement('summary');
+    validationSummary.textContent = (candidate.metadata_warnings || []).length ? '需核验' : '元数据';
+    const validationPanel = document.createElement('div');
+    validationPanel.className = 'candidate-inspector-panel';
+    const quality = document.createElement('div');
+    quality.className = 'candidate-quality';
+    quality.appendChild(confidence);
+    if (relevance) quality.appendChild(relevance);
+    const validationList = document.createElement('ul');
+    (candidate.metadata_warnings || []).forEach(message => {
+      const item = document.createElement('li');
+      item.className = 'validation-warning';
+      item.textContent = message;
+      validationList.appendChild(item);
+    });
+    (candidate.metadata_checks || []).forEach(message => {
+      const item = document.createElement('li');
+      item.textContent = message;
+      validationList.appendChild(item);
+    });
+    validationPanel.append(quality, validationList);
+    validation.append(validationSummary, validationPanel);
+    inspectors.appendChild(validation);
+
     const categoryBadge = document.createElement('span');
     categoryBadge.className = `category-badge category-${candidate.category_confidence === '高' ? 'high' : candidate.category_confidence === '中' ? 'medium' : 'review'}`;
     categoryBadge.textContent = candidate.category_label
       ? `自动分类 · ${candidate.category_label}`
       : '自动分类 · 待确认';
     categoryBadge.title = candidate.category_reason || '请在加入论文库前确认类别';
-    badges.appendChild(categoryBadge);
-    top.appendChild(badges);
+    top.append(badges, inspectors);
 
+    const heading = document.createElement('div');
+    heading.className = 'candidate-heading';
     const title = document.createElement('h3');
     title.textContent = candidate.title;
+    title.title = candidate.title;
     const meta = document.createElement('p');
     meta.className = 'candidate-meta';
     const authors = (candidate.authors || []).slice(0, 4).join('、') || '作者未知';
     const citations = Number(candidate.cited_by_count);
     meta.textContent = `${candidate.year || '年份未知'} · ${authors}${(candidate.authors || []).length > 4 ? ' 等' : ''}${Number.isFinite(citations) && citations > 0 ? ` · 被引 ${citations.toLocaleString('zh-CN')} 次` : ''}`;
+    heading.append(title, meta);
+
+    const classification = document.createElement('div');
+    classification.className = 'candidate-classification';
+    classification.appendChild(categoryBadge);
 
     const reason = document.createElement('p');
     reason.className = 'candidate-reason';
     reason.textContent = candidate.reason || '匹配论文发现规则';
 
-    article.append(top, title, meta, reason);
+    article.append(top, heading, classification, reason);
 
     if ((candidate.relevance_evidence || []).length) {
       const relevanceEvidence = document.createElement('p');
       relevanceEvidence.className = 'candidate-relevance';
       relevanceEvidence.textContent = candidate.relevance_evidence.join(' · ');
       article.appendChild(relevanceEvidence);
-    }
-
-    const abstract = document.createElement('details');
-    abstract.className = 'candidate-abstract';
-    const abstractSummary = document.createElement('summary');
-    abstractSummary.textContent = '查看摘要';
-    const abstractText = document.createElement('p');
-    abstractText.textContent = candidate.abstract || '暂未从公开元数据中获得摘要，可打开来源页进一步查看。';
-    abstract.append(abstractSummary, abstractText);
-    article.appendChild(abstract);
-
-    if ((candidate.metadata_warnings || []).length || (candidate.metadata_checks || []).length) {
-      const validation = document.createElement('details');
-      validation.className = 'candidate-validation';
-      const summary = document.createElement('summary');
-      summary.textContent = (candidate.metadata_warnings || []).length ? '查看需核验信息' : '查看元数据校验';
-      const list = document.createElement('ul');
-      (candidate.metadata_warnings || []).forEach(message => {
-        const item = document.createElement('li');
-        item.className = 'validation-warning';
-        item.textContent = message;
-        list.appendChild(item);
-      });
-      (candidate.metadata_checks || []).forEach(message => {
-        const item = document.createElement('li');
-        item.textContent = message;
-        list.appendChild(item);
-      });
-      validation.append(summary, list);
-      article.appendChild(validation);
     }
 
     if ((candidate.supporting_papers || []).length) {
