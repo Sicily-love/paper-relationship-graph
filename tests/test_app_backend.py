@@ -25,6 +25,7 @@ class AppBackendTests(unittest.TestCase):
 
         self.assertEqual(result["topics"], [{"label": "GPU"}])
         self.assertEqual(result["shared_reference_minimum"], 2)
+        self.assertEqual(result["highly_cited_minimum"], 50)
         self.assertEqual(
             result["categories"],
             [{"id": "01_系统", "label": "系统"}, {"id": "02_编译器", "label": "编译器"}],
@@ -58,7 +59,10 @@ class AppBackendTests(unittest.TestCase):
         self.assertIn("已归档", result["message"])
 
     def test_discovery_sources_use_separate_commands(self):
-        config = {"shared_references": {"min_library_citations": 2}}
+        config = {
+            "shared_references": {"min_library_citations": 2},
+            "highly_cited": {"min_citations": 50},
+        }
         writes = []
         modules = {
             "load_json": lambda _path, _fallback: config,
@@ -66,6 +70,7 @@ class AppBackendTests(unittest.TestCase):
             "serve_graph": SimpleNamespace(
                 discovery_mode=lambda value: value,
                 validate_shared_reference_minimum=lambda value: int(value),
+                validate_highly_cited_minimum=lambda value: int(value),
                 write_json_atomic=lambda path, data: writes.append((path, data.copy())),
                 validated_discovery=lambda: {"candidates": []},
             ),
@@ -73,7 +78,9 @@ class AppBackendTests(unittest.TestCase):
         completed = SimpleNamespace(returncode=0, stdout="", stderr="")
         with patch.object(app_backend.subprocess, "run", return_value=completed) as run:
             arxiv = app_backend.run_discovery(modules, {"mode": "arxiv"})
-            highly_cited = app_backend.run_discovery(modules, {"mode": "highly_cited"})
+            highly_cited = app_backend.run_discovery(
+                modules, {"mode": "highly_cited", "min_citations": 75}
+            )
             shared = app_backend.run_discovery(
                 modules, {"mode": "shared", "min_library_citations": 4}
             )
@@ -87,8 +94,9 @@ class AppBackendTests(unittest.TestCase):
         self.assertIn("--skip-shared", run.call_args_list[1].args[0])
         self.assertIn("--skip-arxiv", run.call_args_list[2].args[0])
         self.assertIn("--skip-highly-cited", run.call_args_list[2].args[0])
+        self.assertEqual(config["highly_cited"]["min_citations"], 75)
         self.assertEqual(config["shared_references"]["min_library_citations"], 4)
-        self.assertEqual(len(writes), 1)
+        self.assertEqual(len(writes), 2)
 
     def test_clear_candidates_returns_updated_queue(self):
         data = {"candidates": [{"id": "new", "status": "new"}]}

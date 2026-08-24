@@ -189,6 +189,7 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('id="show-citations">', html)
         self.assertNotIn('id="show-citations" checked', html)
         self.assertIn('id="run-highly-cited"', html)
+        self.assertIn('id="highly-cited-minimum"', html)
         self.assertIn('data-source="highly_cited"', html)
         self.assertIn("const visible = focused || citationsExpanded", script)
 

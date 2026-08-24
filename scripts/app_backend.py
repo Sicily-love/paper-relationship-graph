@@ -65,6 +65,9 @@ def state(modules: dict, papers_dir: Path | None = None) -> dict:
         "shared_reference_minimum": int(
             config.get("shared_references", {}).get("min_library_citations", 2)
         ),
+        "highly_cited_minimum": int(
+            config.get("highly_cited", {}).get("min_citations", 50)
+        ),
         "categories": [
             {"id": identifier, "label": re.sub(r"^\d+_", "", identifier)}
             for identifier in modules["build_graph"].STANDARD_CATEGORIES
@@ -234,6 +237,12 @@ def run_discovery(modules: dict, body: dict) -> dict:
     if mode == "arxiv":
         arguments.extend(("--skip-shared", "--skip-highly-cited"))
     elif mode == "highly_cited":
+        config = modules["load_json"](modules["DEFAULT_CONFIG"], {})
+        minimum = modules["serve_graph"].validate_highly_cited_minimum(
+            body.get("min_citations", config.get("highly_cited", {}).get("min_citations", 50))
+        )
+        config.setdefault("highly_cited", {})["min_citations"] = minimum
+        modules["serve_graph"].write_json_atomic(modules["DEFAULT_CONFIG"], config)
         arguments.extend(("--skip-arxiv", "--skip-shared"))
     else:
         config = modules["load_json"](modules["DEFAULT_CONFIG"], {})

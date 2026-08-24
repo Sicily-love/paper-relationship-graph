@@ -236,6 +236,20 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(result[0]["sources"], ["arxiv_topic", "highly_cited"])
         self.assertEqual(result[0]["cited_by_count"], 400)
 
+    def test_highly_cited_candidate_already_in_library_is_excluded(self):
+        candidate = {
+            "id": "openalex:W1",
+            "title": "Attention Is All You Need",
+            "sources": ["highly_cited"],
+            "cited_by_count": 150000,
+            "score": 120,
+            "status": "new",
+        }
+        result = discover_papers.merge_candidates(
+            [candidate], {}, {discover_papers.normalize_title(candidate["title"])}, 10
+        )
+        self.assertEqual(result, [])
+
     def test_candidate_validation_flags_arxiv_year_conflict(self):
         result = discover_papers.candidate_validation({
             "title": "A Valid Paper Title",

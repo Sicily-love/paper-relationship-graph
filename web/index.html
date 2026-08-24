@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#090c13" media="(prefers-color-scheme: dark)">
   <title>Paper Atlas · 论文关系图谱</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=101">
+  <link rel="stylesheet" href="styles.css?v=102">
 </head>
 <body>
   <main class="app-shell">
@@ -209,8 +209,12 @@
           </div>
           <button type="button" id="manage-topics" class="toolbar-action">搜索主题</button>
           <button type="button" id="run-discovery" class="toolbar-action primary-action">搜索 arXiv</button>
-          <button type="button" id="run-highly-cited" class="toolbar-action">领域高被引</button>
-          <div class="shared-discovery-action">
+          <div class="threshold-discovery-action">
+            <label for="highly-cited-minimum">高被引下限</label>
+            <input id="highly-cited-minimum" type="number" min="1" max="1000000" step="1" value="50" aria-label="高被引次数下限">
+            <button type="button" id="run-highly-cited" class="toolbar-action">领域高被引</button>
+          </div>
+          <div class="threshold-discovery-action">
             <label for="shared-reference-minimum">共同引用下限</label>
             <input id="shared-reference-minimum" type="number" min="2" max="20" step="1" value="2" aria-label="共同引用次数下限">
             <button type="button" id="run-shared-discovery" class="toolbar-action">共同引用</button>
@@ -259,8 +263,8 @@
     <footer class="app-footer">Paper Atlas 1.0.0 · 数据保存在本地</footer>
   </main>
 
-  <script src="data/graph-data.js?v=101"></script>
-  <script src="data/discovery-data.js?v=101"></script>
-  <script src="app.js?v=101"></script>
+  <script src="data/graph-data.js?v=102"></script>
+  <script src="data/discovery-data.js?v=102"></script>
+  <script src="app.js?v=102"></script>
 </body>
 </html>

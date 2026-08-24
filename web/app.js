@@ -41,6 +41,7 @@
   const runHighlyCitedButton = document.getElementById('run-highly-cited');
   const runSharedDiscoveryButton = document.getElementById('run-shared-discovery');
   const clearCandidatesButton = document.getElementById('clear-candidates');
+  const highlyCitedMinimum = document.getElementById('highly-cited-minimum');
   const sharedReferenceMinimum = document.getElementById('shared-reference-minimum');
   const topicsDialog = document.getElementById('topics-dialog');
   const topicsBackdrop = document.getElementById('topics-backdrop');
@@ -995,6 +996,7 @@
       button.disabled = busy;
     });
     sharedReferenceMinimum.disabled = busy;
+    highlyCitedMinimum.disabled = busy;
     const isArxiv = label.includes('arXiv');
     const isHighlyCited = label.includes('高被引');
     const isShared = label.includes('共同引用');
@@ -1025,7 +1027,7 @@
       discoveryProgressMeta.textContent = isShared
         ? `下限 ${sharedReferenceMinimum.value} 次 · 正在分析库内论文引用 · 已用时 ${minutes}:${seconds}`
         : isHighlyCited
-          ? `正在按搜索主题获取高被引论文 · 已用时 ${minutes}:${seconds}`
+          ? `下限 ${highlyCitedMinimum.value} 次 · 正在按搜索主题获取高被引论文 · 已用时 ${minutes}:${seconds}`
         : isArxiv
           ? `正在按搜索主题获取 arXiv 论文 · 已用时 ${minutes}:${seconds}`
           : label.includes('清空')
@@ -1064,10 +1066,16 @@
   }
 
   async function runDiscoveryNow(mode = 'arxiv') {
-    const minimum = Number(sharedReferenceMinimum.value);
-    if (mode === 'shared' && (!Number.isInteger(minimum) || minimum < 2 || minimum > 20)) {
+    const sharedMinimum = Number(sharedReferenceMinimum.value);
+    const citationMinimum = Number(highlyCitedMinimum.value);
+    if (mode === 'shared' && (!Number.isInteger(sharedMinimum) || sharedMinimum < 2 || sharedMinimum > 20)) {
       sharedReferenceMinimum.focus();
       showToast('共同引用次数下限需要是 2–20 之间的整数', 'error');
+      return;
+    }
+    if (mode === 'highly_cited' && (!Number.isInteger(citationMinimum) || citationMinimum < 1 || citationMinimum > 1000000)) {
+      highlyCitedMinimum.focus();
+      showToast('高被引次数下限需要是 1–1,000,000 之间的整数', 'error');
       return;
     }
     setDiscoveryBusy(
@@ -1079,7 +1087,8 @@
         method: 'POST',
         body: JSON.stringify({
           mode,
-          ...(mode === 'shared' ? {min_library_citations: minimum} : {}),
+          ...(mode === 'shared' ? {min_library_citations: sharedMinimum} : {}),
+          ...(mode === 'highly_cited' ? {min_citations: citationMinimum} : {}),
         }),
       });
       discovery = result.discovery;
@@ -1298,6 +1307,7 @@
       discovery = state.discovery;
       apiTopics = state.topics || [];
       sharedReferenceMinimum.value = String(state.shared_reference_minimum || 2);
+      highlyCitedMinimum.value = String(state.highly_cited_minimum || 50);
       reviewCategories = state.categories || reviewCategories;
       renderHealth(state.health);
       renderTasks(state.tasks);

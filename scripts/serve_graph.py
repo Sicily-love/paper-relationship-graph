@@ -93,6 +93,16 @@ def validate_shared_reference_minimum(value: object) -> int:
     return minimum
 
 
+def validate_highly_cited_minimum(value: object) -> int:
+    try:
+        minimum = int(value)
+    except (TypeError, ValueError) as error:
+        raise ValueError("高被引次数下限必须是整数") from error
+    if not 1 <= minimum <= 1_000_000:
+        raise ValueError("高被引次数下限需要在 1–1,000,000 之间")
+    return minimum
+
+
 def discovery_mode(value: object) -> str:
     mode = str(value or "arxiv")
     if mode not in {"arxiv", "highly_cited", "shared"}:
@@ -185,6 +195,9 @@ class GraphRequestHandler(SimpleHTTPRequestHandler):
             "topics": config.get("topics", []),
             "shared_reference_minimum": int(
                 config.get("shared_references", {}).get("min_library_citations", 2)
+            ),
+            "highly_cited_minimum": int(
+                config.get("highly_cited", {}).get("min_citations", 50)
             ),
             "categories": [
                 {"id": identifier, "label": re.sub(r"^\d+_", "", identifier)}
@@ -377,6 +390,12 @@ class GraphRequestHandler(SimpleHTTPRequestHandler):
         if mode == "arxiv":
             arguments.extend(("--skip-shared", "--skip-highly-cited"))
         elif mode == "highly_cited":
+            config = load_json(DEFAULT_CONFIG, {})
+            minimum = validate_highly_cited_minimum(
+                body.get("min_citations", config.get("highly_cited", {}).get("min_citations", 50))
+            )
+            config.setdefault("highly_cited", {})["min_citations"] = minimum
+            write_json_atomic(DEFAULT_CONFIG, config)
             arguments.extend(("--skip-arxiv", "--skip-shared"))
         else:
             config = load_json(DEFAULT_CONFIG, {})

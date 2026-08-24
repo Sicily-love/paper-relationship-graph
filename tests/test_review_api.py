@@ -37,6 +37,13 @@ class ReviewApiTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "2–20"):
             serve_graph.validate_shared_reference_minimum(1)
 
+    def test_highly_cited_minimum_is_bounded(self):
+        self.assertEqual(serve_graph.validate_highly_cited_minimum("75"), 75)
+        with self.assertRaisesRegex(ValueError, "1–1,000,000"):
+            serve_graph.validate_highly_cited_minimum(0)
+        with self.assertRaisesRegex(ValueError, "1–1,000,000"):
+            serve_graph.validate_highly_cited_minimum(1_000_001)
+
     def test_clear_candidates_keeps_archived_records_and_decisions(self):
         data = {
             "candidates": [
