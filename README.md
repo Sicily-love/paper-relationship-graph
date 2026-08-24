@@ -4,11 +4,11 @@ Paper Atlas 是一个本地论文库工具。它用时间泳道展示分类、�
 
 ![Paper Atlas v1.2.0 时间泳道界面](preview.png)
 
-当前源码与本地构建版本是 v1.2.0；最新公开标签仍是 [v1.1.0](https://github.com/Sicily-love/paper-relationship-graph/releases/tag/v1.1.0)。点击 App 侧栏底部的版本号，可以直接查看由 [CHANGELOG.md](CHANGELOG.md) 生成的历次更新内容。
+当前版本是 [v1.2.0](https://github.com/Sicily-love/paper-relationship-graph/releases/tag/v1.2.0)。点击 App 侧栏底部的版本号，可以直接查看由 [CHANGELOG.md](CHANGELOG.md) 生成的历次更新内容。
 
 ## 当前发布状态
 
-v1.1.0 Release 目前只有 GitHub 自动生成的源码归档，没有可下载的 DMG 或 SHA-256 附件。v1.2.0 目前是源码和本地测试构建，尚未创建公开 Release。仓库根目录下的 `Paper Atlas.app` 和 `dist/` 是本机构建产物，不会提交到 Git。
+v1.2.0 Release 提供 GitHub 自动生成的源码归档，不提供 DMG 或 SHA-256 附件。仓库根目录下的 `Paper Atlas.app` 和 `dist/` 是本机构建产物，不会提交到 Git。
 
 本地执行 `make release` 可以生成临时签名的测试 DMG；它没有 Developer ID 签名和 Apple 公证，只适合自己使用。正式公开安装包仍需完成签名和公证后再上传。
 
@@ -147,7 +147,7 @@ macOS 原生 App 使用 `launchd`，关闭 Paper Atlas 后任务仍可按时运�
 
 ### 应用打不开
 
-确认打开的是本机构建的 `Paper Atlas.app`，而不是 GitHub 源码压缩包。临时签名构建可能需要在 Finder 中右键 App 并选择“打开”。当前公开的 v1.1.0 Release 没有 DMG；公开安装包必须先通过 Developer ID 签名和 Apple 公证。
+确认打开的是本机构建的 `Paper Atlas.app`，而不是 GitHub 源码压缩包。临时签名构建可能需要在 Finder 中右键 App 并选择“打开”。当前 v1.2.0 Release 没有 DMG；公开安装包必须先通过 Developer ID 签名和 Apple 公证。
 
 ### 页面提示管理功能未连接
 
