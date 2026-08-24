@@ -350,6 +350,7 @@ h1 {
 }
 .relation-legend strong { max-width: 360px; overflow: hidden; text-overflow: ellipsis; }
 .relation-legend span { border-radius: 999px; padding: 4px 8px; font-weight: 650; }
+.relation-legend span::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: currentColor; }
 .legend-outgoing { background: color-mix(in srgb, #f08a3e 14%, transparent); color: #d86f26; }
 .legend-incoming { background: var(--accent-soft); color: var(--citation); }
 
@@ -386,18 +387,20 @@ h1 {
   transition: opacity 180ms ease, stroke-width 180ms ease;
 }
 
-.edge.citation { stroke: var(--citation); stroke-width: 0.95; stroke-opacity: 0.10; marker-end: url(#citation-arrow); }
-#citation-arrow path { fill: var(--citation); opacity: 0.22; }
-#citation-arrow-focused path { fill: var(--citation); }
-#citation-arrow-outgoing path { fill: #f08a3e; }
-.edge.focused { stroke-width: 2; stroke-opacity: 0.92; marker-end: url(#citation-arrow-focused); }
-.edge.focused.outgoing { stroke: #f08a3e; marker-end: url(#citation-arrow-outgoing); }
+.edge.citation { stroke: var(--muted); stroke-width: 1; stroke-opacity: 0.14; }
+.edge.focused { stroke-width: 2.4; stroke-opacity: 0.94; }
+.edge.focused.outgoing { stroke: #f08a3e; }
 .edge.focused.incoming { stroke: var(--citation); }
 
 .node { cursor: pointer; transition: opacity 180ms ease; }
-.node-hit { fill: transparent; stroke: none; pointer-events: all; }
+.node-hit { fill: transparent; stroke: none; pointer-events: all; transition: fill 160ms ease; }
 .node .node-mark { stroke: var(--surface-strong); stroke-width: 2.2; vector-effect: non-scaling-stroke; transition: stroke-width 160ms ease, filter 160ms ease; }
+.node:hover .node-hit { fill: var(--accent-soft); }
 .node:hover .node-mark { stroke-width: 3.1; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 55%, transparent)); }
+.node.referenced-by-selected .node-hit { fill: color-mix(in srgb, #f08a3e 13%, transparent); }
+.node.referenced-by-selected .node-mark { stroke: #f08a3e; stroke-width: 3; }
+.node.cites-selected .node-hit { fill: color-mix(in srgb, var(--citation) 13%, transparent); }
+.node.cites-selected .node-mark { stroke: var(--citation); stroke-width: 3; }
 .node.selected .node-mark { stroke: var(--foreground); stroke-width: 3.4; filter: url(#node-glow); }
 .node.search-match .node-mark { stroke: var(--foreground); stroke-width: 3; filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 55%, transparent)); }
 .node.dimmed { opacity: 0.075; }

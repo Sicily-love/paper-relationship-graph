@@ -88,7 +88,7 @@
   const NODE_RADIUS_MIN = 5.5;
   const NODE_RADIUS_MAX = 15;
   const TIMELINE_LEFT = 205;
-  const TIMELINE_RIGHT = 925;
+  const TIMELINE_RIGHT = 905;
   const TIMELINE_TOP = 54;
   const TIMELINE_BOTTOM = 646;
   const maxCitationCount = Math.max(1, ...graph.nodes.map(node => node.citation_count));
@@ -315,7 +315,7 @@
           const offset = timelineOffsets[index % timelineOffsets.length];
           const overflowRing = Math.floor(index / timelineOffsets.length);
           node.timeline = {
-            x: Math.max(TIMELINE_LEFT - 38, Math.min(TIMELINE_RIGHT + 26,
+            x: Math.max(TIMELINE_LEFT - 30, Math.min(TIMELINE_RIGHT + 12,
               timelineX(node.year) + offset[0] + overflowRing * 5)),
             y: TIMELINE_TOP + (categoryIndex + 0.5) * laneHeight + offset[1],
           };
@@ -338,7 +338,7 @@
       groupElement.setAttribute('aria-label', `${node.title}，${node.year ?? '年份未知'}，被库内引用 ${node.citation_count} 次。单击查看引用关系，双击打开论文详情`);
 
       node.radius = NODE_RADIUS_MIN + Math.sqrt(node.citation_count / maxCitationCount) * (NODE_RADIUS_MAX - NODE_RADIUS_MIN);
-      node.hitRadius = Math.max(11, node.radius + 3);
+      node.hitRadius = Math.max(16, node.radius + 5);
       const hitArea = document.createElementNS(ns, 'circle');
       hitArea.setAttribute('class', 'node-hit');
       hitArea.setAttribute('r', String(node.hitRadius));
@@ -418,7 +418,7 @@
       const dy = target.y - source.y;
       const distance = Math.hypot(dx, dy) || 1;
       const sourceOffset = sourceNode.radius + 3;
-      const targetOffset = targetNode.radius + 7;
+      const targetOffset = targetNode.radius + 3;
       const start = {
         x: source.x + dx / distance * sourceOffset,
         y: source.y + dy / distance * sourceOffset,
@@ -447,16 +447,25 @@
 
     const neighborhood = selectedNode ? connectedNodes(selectedNode) : null;
     [...graph.nodes].sort((a, b) => a.position.z - b.position.z).forEach(node => {
+      const referencedBySelected = Boolean(selectedNode && allEdges.some(edge => edge.source === selectedNode && edge.target === node.id));
+      const citesSelected = Boolean(selectedNode && allEdges.some(edge => edge.source === node.id && edge.target === selectedNode));
+      node.position.scale = node.id === selectedNode ? 1.12 : 1;
       node.element.setAttribute(
         'transform',
         `translate(${node.position.x.toFixed(1)} ${node.position.y.toFixed(1)}) scale(${node.position.scale.toFixed(3)})`,
       );
       node.element.classList.toggle('selected', node.id === selectedNode);
+      node.element.classList.toggle('referenced-by-selected', referencedBySelected);
+      node.element.classList.toggle('cites-selected', citesSelected);
       const dimForNode = neighborhood && !neighborhood.has(node.id);
       const dimForSearch = !nodeMatchesSearch(node);
       node.element.classList.toggle('dimmed', Boolean(dimForNode || dimForSearch));
       node.element.classList.toggle('search-match', Boolean(searchTerm && !dimForSearch));
-      node.labelElement.style.display = node.id === selectedNode || (searchTerm && !dimForSearch) ? '' : 'none';
+      const showLabel = node.id === selectedNode || (searchTerm && !dimForSearch);
+      node.labelElement.style.display = showLabel ? '' : 'none';
+      const alignLeft = node.position.x > (TIMELINE_LEFT + TIMELINE_RIGHT) / 2;
+      node.labelElement.setAttribute('x', alignLeft ? '-15' : '15');
+      node.labelElement.setAttribute('text-anchor', alignLeft ? 'end' : 'start');
       nodeLayer.appendChild(node.element);
     });
 

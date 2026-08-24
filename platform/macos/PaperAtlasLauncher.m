@@ -315,9 +315,9 @@
     self.loadingView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.window.contentView addSubview:self.loadingView];
 
-    // Keep a native title-bar hit target above WKWebView. Calling
-    // performWindowDragWithEvent: makes dragging reliable even when WebKit has
-    // pointer capture or the click begins above an SVG element.
+    // Keep a compact native title-bar hit target beside the traffic lights.
+    // It must not extend over WebKit's toolbar controls, otherwise the native
+    // view intercepts clicks intended for the graph and discovery actions.
     PaperAtlasDragRegion *dragRegion = [[PaperAtlasDragRegion alloc] initWithFrame:NSZeroRect];
     dragRegion.translatesAutoresizingMaskIntoConstraints = NO;
     [self.window.contentView addSubview:dragRegion positioned:NSWindowAbove relativeTo:nil];
@@ -360,7 +360,7 @@
         [self.loadingView.topAnchor constraintEqualToAnchor:self.window.contentView.topAnchor],
         [self.loadingView.bottomAnchor constraintEqualToAnchor:self.window.contentView.bottomAnchor],
         [dragRegion.leadingAnchor constraintEqualToAnchor:self.window.contentView.leadingAnchor constant:76],
-        [dragRegion.trailingAnchor constraintEqualToAnchor:self.window.contentView.trailingAnchor],
+        [dragRegion.widthAnchor constraintEqualToConstant:140],
         [dragRegion.topAnchor constraintEqualToAnchor:self.window.contentView.topAnchor],
         [dragRegion.heightAnchor constraintEqualToConstant:48],
         [loadingStack.centerXAnchor constraintEqualToAnchor:self.loadingView.centerXAnchor],

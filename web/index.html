@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#090c13" media="(prefers-color-scheme: dark)">
   <title>Paper Atlas · 论文关系图谱</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=200">
+  <link rel="stylesheet" href="styles.css?v=201">
 </head>
 <body>
   <main class="app-shell">
@@ -100,17 +100,8 @@
           </div>
           <svg id="graph-svg" viewBox="0 0 960 680" role="img" aria-labelledby="graph-title graph-description">
             <title id="graph-title">论文引用时间泳道图</title>
-            <desc id="graph-description">每个节点代表一篇唯一论文，横向位置表示年份，纵向泳道表示论文类别。节点越大表示被库内论文引用越多，箭头从引用者指向被引用论文。单击节点聚焦引用关系，双击打开论文详情。</desc>
+            <desc id="graph-description">每个节点代表一篇唯一论文，横向位置表示年份，纵向泳道表示论文类别。节点越大表示被库内论文引用越多。选择节点后，橙色表示本文引用，蓝色表示引用本文。单击节点聚焦引用关系，双击打开论文详情。</desc>
             <defs>
-              <marker id="citation-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-                <path d="M 0 0 L 10 5 L 0 10 z"></path>
-              </marker>
-              <marker id="citation-arrow-focused" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-                <path d="M 0 0 L 10 5 L 0 10 z"></path>
-              </marker>
-              <marker id="citation-arrow-outgoing" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-                <path d="M 0 0 L 10 5 L 0 10 z"></path>
-              </marker>
               <filter id="node-glow" x="-100%" y="-100%" width="300%" height="300%">
                 <feGaussianBlur stdDeviation="5" result="blur"></feGaussianBlur>
                 <feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
@@ -292,8 +283,8 @@
     </section>
   </main>
 
-  <script src="data/graph-data.js?v=200"></script>
-  <script src="data/discovery-data.js?v=200"></script>
-  <script src="app.js?v=200"></script>
+  <script src="data/graph-data.js?v=201"></script>
+  <script src="data/discovery-data.js?v=201"></script>
+  <script src="app.js?v=201"></script>
 </body>
 </html>

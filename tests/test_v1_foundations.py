@@ -183,6 +183,7 @@ class WebContractTests(unittest.TestCase):
     def test_v1_controls_and_default_relation_mode_are_present(self):
         html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
         script = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "web" / "styles.css").read_text(encoding="utf-8")
         self.assertIn("Paper Atlas 1.0.0", html)
         self.assertIn('id="task-list"', html)
         self.assertIn('id="export-backup"', html)
@@ -199,6 +200,15 @@ class WebContractTests(unittest.TestCase):
         self.assertIn("function activateView", script)
         self.assertIn("function renderCandidateRow", script)
         self.assertIn("const visible = focused || citationsExpanded", script)
+        self.assertNotIn('id="citation-arrow"', html)
+        self.assertNotIn("marker-end:", styles)
+        self.assertIn(".edge.focused.outgoing { stroke: #f08a3e; }", styles)
+        self.assertIn(".edge.focused.incoming { stroke: var(--citation); }", styles)
+
+    def test_native_drag_region_does_not_cover_toolbar_actions(self):
+        launcher = (ROOT / "platform" / "macos" / "PaperAtlasLauncher.m").read_text(encoding="utf-8")
+        self.assertIn("[dragRegion.widthAnchor constraintEqualToConstant:140]", launcher)
+        self.assertNotIn("[dragRegion.trailingAnchor constraintEqualToAnchor:self.window.contentView.trailingAnchor]", launcher)
 
     def test_automatic_update_does_not_launch_browser_preview(self):
         makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
