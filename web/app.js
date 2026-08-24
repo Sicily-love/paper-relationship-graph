@@ -147,7 +147,6 @@
   ].map(template => ({enabled: true, exclude_keywords: [], max_results: 5, ...template}));
 
   let selectedNode = null;
-  let citationsExpanded = false;
   let searchTerm = '';
   let discoverySource = 'all';
   let selectedCandidateId = null;
@@ -440,7 +439,7 @@
       edge.element.classList.toggle('outgoing', Boolean(selectedNode && edge.source === selectedNode));
       edge.element.classList.toggle('incoming', Boolean(selectedNode && edge.target === selectedNode));
       const searchMatch = !searchTerm || (nodeMatchesSearch(sourceNode) && nodeMatchesSearch(targetNode));
-      const visible = focused || citationsExpanded;
+      const visible = focused;
       edge.element.style.display = visible && searchMatch ? '' : 'none';
       edge.element.style.opacity = focused ? '1' : selectedNode ? '0.035' : '0.16';
     });
@@ -1274,8 +1273,11 @@
       actions.appendChild(run);
       if (task.last_log) {
         const log = document.createElement('details');
+        log.className = 'task-log';
         const summary = document.createElement('summary');
-        summary.textContent = '查看日志';
+        const logLabel = document.createElement('span');
+        logLabel.textContent = '运行日志';
+        summary.appendChild(logLabel);
         const pre = document.createElement('pre');
         pre.textContent = task.last_log;
         log.append(summary, pre);
@@ -1516,11 +1518,6 @@
     tooltip.style.display = 'none';
   }
 
-  document.getElementById('show-citations').addEventListener('change', event => {
-    citationsExpanded = event.target.checked;
-    render();
-  });
-
   renderTopicTemplates();
   detailClose.addEventListener('click', closePaperDetail);
   detailBackdrop.addEventListener('click', closePaperDetail);
@@ -1547,8 +1544,15 @@
   saveAndDiscoverButton.addEventListener('click', () => saveTopics(true));
   document.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
-    if (!topicsDialog.hidden) closeTopicsDialog();
+    const openLog = document.querySelector('.task-log[open]');
+    if (openLog) openLog.removeAttribute('open');
+    else if (!topicsDialog.hidden) closeTopicsDialog();
     else if (!paperDetail.hidden) closePaperDetail();
+  });
+  document.addEventListener('click', event => {
+    document.querySelectorAll('.task-log[open]').forEach(log => {
+      if (!log.contains(event.target)) log.removeAttribute('open');
+    });
   });
 
   paperSearch.addEventListener('input', event => updateSearch(event.target.value));

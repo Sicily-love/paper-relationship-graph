@@ -1668,13 +1668,55 @@ button.command-row:hover,
 .task-center-header { min-height: 58px; padding: 11px 16px; border-bottom: 1px solid var(--border); }
 .task-center-header h3 { font-size: 15px; }
 .task-list { display: block; margin: 0; }
-.task-item { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(240px, 1fr) auto; align-items: center; gap: 16px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: var(--surface); padding: 14px 16px; }
+.task-item { position: relative; display: grid; grid-template-columns: minmax(260px, 1fr) minmax(240px, 1fr) auto; align-items: center; gap: 16px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: var(--surface); padding: 14px 16px; }
 .task-item:last-child { border-bottom: 0; }
 .task-heading { justify-content: flex-start; }
 .task-heading input[type="time"] { margin-left: auto; border: 1px solid var(--border); padding: 6px 8px; }
 .task-toggle strong { font-size: 13px; }
 .task-status { min-height: 0; margin: 0; font-size: 12px; }
-.task-actions { justify-content: flex-end; font-size: 12px; }
+.task-actions { justify-content: flex-end; overflow: visible; font-size: 12px; }
+.task-center { overflow: visible; }
+.task-log { position: relative; }
+.task-log > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted-strong);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 570;
+  line-height: 1;
+  list-style: none;
+  cursor: pointer;
+}
+.task-log > summary::-webkit-details-marker { display: none; }
+.task-log > summary::before { content: "⌘"; color: var(--muted); font-size: 11px; font-weight: 650; }
+.task-log > summary::after { content: "⌄"; color: var(--muted); font-size: 11px; transition: transform 150ms ease; }
+.task-log > summary:hover,
+.task-log[open] > summary { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.task-log[open] > summary::after { transform: rotate(180deg); }
+.task-log > pre {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(560px, calc(100vw - 120px));
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
+  background: var(--surface-strong);
+  color: var(--muted-strong);
+  box-shadow: var(--shadow-soft);
+  padding: 14px 16px;
+  font: 11.5px/1.6 ui-monospace, "SFMono-Regular", Menlo, monospace;
+  white-space: pre-wrap;
+}
 
 .paper-detail,
 .topics-dialog {

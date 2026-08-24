@@ -166,13 +166,14 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     papers_dir = None if args.skip_library else args.papers_dir.expanduser().resolve()
     errors = check_release(papers_dir, public_release=args.public_release)
     if errors:
         for error in errors:
             print(f"ERROR\t{error}")
         raise SystemExit(1)
-    print("Paper Atlas v1.0.0 release check passed")
+    print(f"Paper Atlas v{version} release check passed")
 
 
 if __name__ == "__main__":
