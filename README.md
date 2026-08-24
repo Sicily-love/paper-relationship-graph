@@ -2,9 +2,9 @@
 
 Paper Atlas 是一个本地论文库工具。它按研究方向和年份组织论文，显示库内引用关系，并把近期论文、领域高被引论文与共同引用推荐放在同一个审核流程里。
 
-![Paper Atlas 时间泳道](preview.png)
+![Paper Atlas v1.1.0 时间泳道界面](preview.png)
 
-当前版本：1.1.0
+当前版本：[1.1.0](https://github.com/Sicily-love/paper-relationship-graph/releases/tag/v1.1.0)
 
 ## 使用
 
@@ -59,6 +59,8 @@ make start
 - 主题论文发现：每天 11:00，同时获取最新 arXiv 与领域高被引候选。
 
 macOS 使用 `launchd`，关闭 Paper Atlas 后任务仍可按时运行。保存时间后才会安装或更新本机任务。
+
+每项任务会保留最后一次运行结果。点击“运行日志”可在浮动面板中查看完整输出，点击面板外部或按 Esc 即可收起。
 
 如果仍保留 Codex 中的同名定时任务，请只启用其中一套调度方式，避免重复执行。App 中显示“尚未安装”时，本机 `launchd` 不会运行这些任务。
 
