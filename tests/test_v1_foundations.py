@@ -218,6 +218,14 @@ class WebContractTests(unittest.TestCase):
         self.assertNotIn("capture_preview.py", update_recipe)
         self.assertIn("capture_preview.py", preview_recipe)
 
+    def test_manual_preview_uses_native_webkit_instead_of_chrome(self):
+        capture = (ROOT / "scripts" / "capture_preview.py").read_text(encoding="utf-8")
+        native_capture = (ROOT / "platform" / "macos" / "CapturePreview.m").read_text(encoding="utf-8")
+        self.assertNotIn("Google Chrome", capture)
+        self.assertNotIn("Chromium", capture)
+        self.assertIn("CapturePreview.m", capture)
+        self.assertIn("WKWebView", native_capture)
+
 
 class ReleasePrivacyTests(unittest.TestCase):
     def make_runtime(self, root: Path) -> Path:

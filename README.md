@@ -138,9 +138,9 @@ macOS 使用 `launchd`，关闭 Paper Atlas 后任务仍可按时运行。保存
 
 检查是否同时启用了 Paper Atlas 的 `launchd` 任务和 Codex 定时任务，只保留一套。仅在 App 中设置了时间、但没有点击“保存并启用”，不会安装 `launchd` 任务。
 
-### 自动整理后 Chrome 意外退出
+### 为什么之前会出现 Chrome 意外退出
 
-自动分类与图谱更新不再调用 Chrome。`preview.png` 只会在开发者手动运行 `make update-preview` 时更新，因此不会影响每天的后台任务或 Paper Atlas App。
+旧版 README 截图工具会在开发者手动运行 `make update-preview` 时启动无头 Chrome，个别 macOS 环境会因此出现崩溃提示。当前版本已改用系统 WebKit，整个项目流程不再启动 Chrome；每天的后台任务和 Paper Atlas App 也一直不依赖浏览器。
 
 ### arXiv 结果偏离主题
 
