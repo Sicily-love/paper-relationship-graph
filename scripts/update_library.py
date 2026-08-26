@@ -66,7 +66,7 @@ def main() -> None:
             raise SystemExit("请先完成论文分类，再重新运行 make update")
 
     before = previous_hashes(args.output_json)
-    graph = build_graph.build_graph(papers_dir)
+    graph = build_graph.build_graph(papers_dir, build_graph.DEFAULT_EXTRACTION_CACHE)
     build_graph.write_graph(graph, args.output_json, args.output_js)
     after = {node["sha256"] for node in graph["nodes"]}
     after.update(item["sha256"] for item in graph["duplicates"])

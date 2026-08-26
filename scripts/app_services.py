@@ -16,6 +16,7 @@ import classify_library
 import discover_papers
 import library_health
 import manage_candidate
+import system_diagnostics
 import task_center
 from discovery_utils import (
     DEFAULT_CONFIG,
@@ -23,6 +24,7 @@ from discovery_utils import (
     DEFAULT_DISCOVERY_JSON,
     DEFAULT_GRAPH,
     load_json,
+    candidate_key,
     write_discovery,
     write_text_atomic,
 )
@@ -243,13 +245,27 @@ class AppServices:
         action = str(body.get("action") or "")
         candidate_id = str(body.get("id") or "")
         category = str(body.get("category") or "") or None
+        replace_path = None
+        if action == "replace":
+            replace_node_id = str(body.get("replace_node_id") or "")
+            graph = load_json(DEFAULT_GRAPH, {"nodes": []})
+            node = next(
+                (item for item in graph.get("nodes", []) if item.get("id") == replace_node_id),
+                None,
+            )
+            if node is None:
+                raise ValueError("请选择需要替换的库内论文")
+            replace_path = str(node.get("path") or "")
+            category = str(node.get("category") or "") or category
         data = load_json(DEFAULT_DISCOVERY_JSON, {"metadata": {}, "candidates": []})
         candidate = manage_candidate.commit_decision(
             data, candidate_id, action, self.papers_dir, category,
             DEFAULT_DISCOVERY_JSON, DEFAULT_DISCOVERY_JS,
+            replace_path=replace_path,
+            cache_path=DEFAULT_CONFIG.parents[1] / ".cache" / "openalex-library.json",
         )
         graph_updated, graph_error = self._refresh_after_review(action)
-        if action == "accept":
+        if action in {"accept", "replace"}:
             manage_candidate.mark_graph_status(
                 data, candidate_id, "complete" if graph_updated else "pending",
                 DEFAULT_DISCOVERY_JSON, DEFAULT_DISCOVERY_JS, graph_error,
@@ -260,7 +276,15 @@ class AppServices:
                 if action == "accept" and graph_updated
                 else "论文已归档；图谱将在下次整理时更新"
                 if action == "accept"
-                else "已忽略该候选"
+                else "已替换库内版本并更新图谱"
+                if action == "replace" and graph_updated
+                else "新版已写入；图谱将在下次整理时更新"
+                if action == "replace"
+                else "已暂时移出；下次发现时仍可重新出现"
+                if action == "dismiss"
+                else "已永久忽略该候选"
+                if action == "reject"
+                else "已永久忽略并清除引用证据"
             ),
             "graph_updated": graph_updated,
             "graph_error": graph_error,
@@ -268,8 +292,52 @@ class AppServices:
             "discovery": validated_discovery(),
         }
 
+    def candidate_feedback(self, body: dict) -> dict:
+        candidate_id = str(body.get("id") or "").strip()
+        feedback = str(body.get("feedback") or "").strip()
+        if feedback not in {"accurate", "irrelevant", "wrong_category"}:
+            raise ValueError("未知的推荐反馈")
+        data = load_json(DEFAULT_DISCOVERY_JSON, {"metadata": {}, "candidates": []})
+        candidate = next(
+            (item for item in data.get("candidates", []) if item.get("id") == candidate_id), None,
+        )
+        if candidate is None:
+            raise ValueError("候选论文不存在")
+        entry = {
+            "feedback": feedback,
+            "recorded_at": datetime.now(timezone.utc).isoformat(),
+            "category": candidate.get("suggested_category"),
+            "title": candidate.get("title"),
+        }
+        data.setdefault("feedback", {})[candidate_key(candidate)] = entry
+        candidate["user_feedback"] = feedback
+        write_discovery(data, DEFAULT_DISCOVERY_JSON, DEFAULT_DISCOVERY_JS)
+
+        config = load_json(DEFAULT_CONFIG, {})
+        category = str(candidate.get("suggested_category") or "")
+        if category and feedback in {"accurate", "irrelevant"}:
+            tokens = [
+                token for token in re.findall(r"[a-z][a-z0-9+.-]{2,}", str(candidate.get("title") or "").lower())
+                if token not in discover_papers.PROFILE_STOPWORDS
+            ]
+            terms = list(dict.fromkeys(
+                [" ".join(pair) for pair in zip(tokens, tokens[1:])] + tokens
+            ))[:4]
+            profile = config.setdefault("feedback_profiles", {}).setdefault(
+                category, {"positive_terms": [], "negative_terms": []},
+            )
+            field = "positive_terms" if feedback == "accurate" else "negative_terms"
+            profile[field] = list(dict.fromkeys([*profile.get(field, []), *terms]))[-12:]
+            write_json_atomic(DEFAULT_CONFIG, config)
+        messages = {
+            "accurate": "已记录：推荐准确，后续搜索会参考这篇论文",
+            "irrelevant": "已记录：不相关，后续搜索会降低相似结果",
+            "wrong_category": "已记录：分类不准确，将纳入诊断记录",
+        }
+        return {"message": messages[feedback], "discovery": validated_discovery()}
+
     def _refresh_after_review(self, action: str) -> tuple[bool | None, str | None]:
-        if action != "accept":
+        if action not in {"accept", "replace"}:
             return None, None
         try:
             result = self._run_graph_update()
@@ -305,6 +373,12 @@ class AppServices:
             "health": library_health.validate_library(self.papers_dir),
         }
 
+    def run_diagnostics(self, body: dict | None = None) -> dict:
+        report = system_diagnostics.run(
+            self.papers_dir, bool((body or {}).get("include_network", True)),
+        )
+        return {"message": "诊断完成", "diagnostics": report}
+
     def _complete_pending_graph_updates(self) -> None:
         data = load_json(
             DEFAULT_DISCOVERY_JSON,
@@ -313,7 +387,8 @@ class AppServices:
         pending = {
             candidate_id
             for candidate_id, decision in (data.get("decisions") or {}).items()
-            if decision.get("status") == "accepted" and decision.get("graph_status") == "pending"
+            if decision.get("status") in {"accepted", "replaced"}
+            and decision.get("graph_status") == "pending"
         }
         if not pending:
             return

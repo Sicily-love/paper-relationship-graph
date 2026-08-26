@@ -49,7 +49,8 @@ def validate_library(
         graph = load_json(graph_path, {})
         if not isinstance(graph, dict) or not graph.get("nodes"):
             raise ValueError("图谱为空")
-        if graph != javascript_payload(graph_js_path, "window.PAPER_GRAPH="):
+        browser_graph = {key: value for key, value in graph.items() if key != "external_references"}
+        if browser_graph != javascript_payload(graph_js_path, "window.PAPER_GRAPH="):
             issues.append(issue(
                 "graph-pair-mismatch", "error", "图谱数据不同步",
                 "graph.json 与浏览器使用的 graph-data.js 内容不同。", "rebuild",
@@ -130,7 +131,8 @@ def validate_library(
 
     pending = [
         candidate_id for candidate_id, decision in (discovery.get("decisions") or {}).items()
-        if decision.get("status") == "accepted" and decision.get("graph_status") == "pending"
+        if decision.get("status") in {"accepted", "replaced"}
+        and decision.get("graph_status") == "pending"
     ]
     if pending:
         issues.append(issue(

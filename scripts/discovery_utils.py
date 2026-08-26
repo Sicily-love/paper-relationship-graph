@@ -68,4 +68,10 @@ def candidate_key(candidate: dict) -> str:
     openalex_id = str(candidate.get("openalex_id") or "").rsplit("/", 1)[-1]
     if openalex_id:
         return f"openalex:{openalex_id}"
-    return "title:" + normalize_title(str(candidate.get("title") or ""))
+    doi = str(candidate.get("doi") or (candidate.get("ids") or {}).get("doi") or "").lower()
+    doi = re.sub(r"^https?://(?:dx\.)?doi\.org/", "", doi).strip()
+    if doi:
+        return f"doi:{doi}"
+    title = normalize_title(str(candidate.get("title") or ""))
+    title = re.sub(r"\s+(?:revised|extended|technical report|version|v\d+)\s*$", "", title)
+    return "title:" + title

@@ -105,9 +105,11 @@
                 @"/api/topics": @"topics",
                 @"/api/discover": @"discover",
                 @"/api/candidates/action": @"candidate",
+                @"/api/candidates/feedback": @"feedback",
                 @"/api/classification/action": @"classification",
                 @"/api/candidates/clear": @"clear",
                 @"/api/maintenance/rebuild": @"maintenance",
+                @"/api/diagnostics": @"diagnostics",
                 @"/api/tasks": @"tasks",
                 @"/api/backup": @"backup",
             };
@@ -438,9 +440,11 @@
         @"/api/topics": @"topics",
         @"/api/discover": @"discover",
         @"/api/candidates/action": @"candidate",
+        @"/api/candidates/feedback": @"feedback",
         @"/api/classification/action": @"classification",
         @"/api/candidates/clear": @"clear",
         @"/api/maintenance/rebuild": @"maintenance",
+        @"/api/diagnostics": @"diagnostics",
         @"/api/tasks": @"tasks",
         @"/api/backup": @"backup",
     };

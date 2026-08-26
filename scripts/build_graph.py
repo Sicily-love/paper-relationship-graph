@@ -22,6 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PAPERS_DIR = REPO_ROOT.parent
 DEFAULT_JSON = REPO_ROOT / "web" / "data" / "graph.json"
 DEFAULT_JS = REPO_ROOT / "web" / "data" / "graph-data.js"
+DEFAULT_EXTRACTION_CACHE = REPO_ROOT / ".cache" / "graph-extraction.json"
 
 STANDARD_CATEGORIES = (
     "01_模型架构与训练优化",
@@ -210,11 +211,25 @@ def discover_pdfs(papers_dir: Path) -> list[Path]:
     )
 
 
-def extract_nodes(papers_dir: Path) -> tuple[list[dict], dict[str, str], list[dict]]:
+def extract_nodes(
+    papers_dir: Path,
+    cache_path: Path | None = None,
+) -> tuple[list[dict], dict[str, str], list[dict], dict[str, int]]:
     nodes: list[dict] = []
     full_text: dict[str, str] = {}
     duplicates: list[dict] = []
     hashes: dict[str, str] = {}
+    cache = {"version": 1, "papers": {}}
+    if cache_path and cache_path.exists():
+        try:
+            loaded = json.loads(cache_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict) and loaded.get("version") == 1:
+                cache = loaded
+        except (OSError, json.JSONDecodeError):
+            pass
+    cached_papers = cache.get("papers") if isinstance(cache.get("papers"), dict) else {}
+    next_cache: dict[str, dict] = {}
+    parsed = reused = 0
 
     for path in discover_pdfs(papers_dir):
         digest = sha256(path)
@@ -223,19 +238,31 @@ def extract_nodes(papers_dir: Path) -> tuple[list[dict], dict[str, str], list[di
             duplicates.append({"path": relative_path, "duplicate_of": hashes[digest], "sha256": digest})
             continue
 
-        reader = PdfReader(path)
-        pages = [(page.extract_text() or "") for page in reader.pages]
-        text = "\n".join(pages)
-        metadata = dict(reader.metadata or {})
         title = path.stem.replace(" (重复副本)", "")
+        cached = cached_papers.get(relative_path, {})
+        if isinstance(cached, dict) and cached.get("sha256") == digest and cached.get("text"):
+            text = str(cached["text"])
+            extracted = dict(cached.get("node") or {})
+            reused += 1
+        else:
+            reader = PdfReader(path)
+            pages = [(page.extract_text() or "") for page in reader.pages]
+            text = "\n".join(pages)
+            metadata = dict(reader.metadata or {})
+            extracted = {
+                "year": extract_year("\n".join(pages[:2]), metadata),
+                "authors": extract_authors(pages[0] if pages else "", title, metadata),
+                "abstract": extract_abstract("\n".join(pages[:3])),
+            }
+            parsed += 1
         node_id = f"p{len(nodes):02d}"
         node = {
             "id": node_id,
             "title": title,
             "label": short_label(title),
-            "year": extract_year("\n".join(pages[:2]), metadata),
-            "authors": extract_authors(pages[0] if pages else "", title, metadata),
-            "abstract": extract_abstract("\n".join(pages[:3])),
+            "year": extracted.get("year"),
+            "authors": extracted.get("authors"),
+            "abstract": extracted.get("abstract"),
             "category": path.parent.name,
             "path": relative_path,
             "sha256": digest,
@@ -243,8 +270,98 @@ def extract_nodes(papers_dir: Path) -> tuple[list[dict], dict[str, str], list[di
         nodes.append(node)
         full_text[node_id] = text
         hashes[digest] = relative_path
+        next_cache[relative_path] = {
+            "sha256": digest,
+            "node": {key: node.get(key) for key in ("year", "authors", "abstract")},
+            "text": text,
+        }
 
-    return nodes, full_text, duplicates
+    if cache_path:
+        write_text_atomic(
+            cache_path,
+            json.dumps({"version": 1, "papers": next_cache}, ensure_ascii=False) + "\n",
+        )
+    return nodes, full_text, duplicates, {"parsed_papers": parsed, "reused_papers": reused}
+
+
+def split_reference_entries(text: str) -> list[str]:
+    """Split a PDF bibliography into conservative, resolvable citation records."""
+    section = reference_section(text)
+    entries = re.split(r"(?m)(?=^\s*(?:\[\d+\]|\d+[.)])\s+)", section)
+    entries = [clean_inline(entry) for entry in entries if len(clean_inline(entry)) >= 35]
+    if len(entries) < 2:
+        entries = [clean_inline(line) for line in section.splitlines() if len(clean_inline(line)) >= 45]
+    return entries
+
+
+def extract_reference_record(entry: str) -> dict | None:
+    doi_match = re.search(r"\b10\.\d{4,9}/[-._;()/:a-z0-9]+", entry, re.I)
+    arxiv_match = re.search(r"(?:arxiv\s*:?\s*|arxiv\.org/(?:abs|pdf)/)(\d{4}\.\d{4,5})(?:v\d+)?", entry, re.I)
+    cleaned = re.sub(r"^\s*(?:\[\d+\]|\d+[.)])\s*", "", clean_inline(entry))
+    quoted = re.search(r"[“\"]([^\"”]{18,240})[”\"]", cleaned)
+    title = clean_inline(quoted.group(1)) if quoted else ""
+    if not title:
+        title_source = re.sub(
+            r"\s*(?:(?:in\s*)?arxiv(?:\s+preprint)?\s*)?arxiv\s*:?\s*\d{4}\.\d{4,5}.*$",
+            "", cleaned, flags=re.I,
+        )
+        title_source = re.sub(r"\s+(?:url\s*)?https?://.*$", "", title_source, flags=re.I)
+        segments = [segment.strip(" ,;:") for segment in re.split(r"\.\s+", title_source)]
+        blocked = re.compile(
+            r"https?://|doi\b|arxiv\b|proceedings|conference|journal|transactions|"
+            r"university|press\b|vol\.|volume\b|pages?\b|et al\b",
+            re.I,
+        )
+        choices = []
+        for index, segment in enumerate(segments):
+            words = re.findall(r"[A-Za-z][A-Za-z0-9+'-]*", segment)
+            if not 4 <= len(words) <= 28 or blocked.search(segment):
+                continue
+            author_punctuation = segment.count(",") >= 2 and index == 0
+            if author_punctuation:
+                continue
+            choices.append((len(words), index, segment))
+        if choices:
+            title = max(choices, key=lambda item: (item[1], item[0]))[2]
+    title = re.sub(r"\s+(?:arxiv|doi)\s*:.*$", "", title, flags=re.I)
+    title = re.sub(r"[,;]\s*(?:19|20)\d{2}\s*$", "", title).strip(" .,:;\"")
+    if not title and not doi_match and not arxiv_match:
+        return None
+    normalized_title = normalize(title)
+    if title and (len(normalized_title) < 18 or len(normalized_title.split()) < 4):
+        title = ""
+    if title and (title.count(",") >= 3 or re.search(r"\bet al\.?$", title, re.I)):
+        title = ""
+    if not title and not doi_match and not arxiv_match:
+        return None
+    doi = doi_match.group(0).rstrip(".,;)").lower() if doi_match else None
+    arxiv_id = arxiv_match.group(1) if arxiv_match else None
+    key = f"doi:{doi}" if doi else f"arxiv:{arxiv_id}" if arxiv_id else f"title:{normalize(title)}"
+    return {"key": key, "title": title or None, "doi": doi, "arxiv_id": arxiv_id}
+
+
+def build_external_reference_index(nodes: list[dict], full_text: dict[str, str]) -> list[dict]:
+    internal_titles = {normalize(node["title"]) for node in nodes}
+    records: dict[str, dict] = {}
+    for source in nodes:
+        seen: set[str] = set()
+        for entry in split_reference_entries(full_text[source["id"]]):
+            reference = extract_reference_record(entry)
+            if reference is None or reference["key"] in seen:
+                continue
+            if reference.get("title") and normalize(str(reference["title"])) in internal_titles:
+                continue
+            seen.add(reference["key"])
+            record = records.setdefault(reference["key"], {**reference, "supporting_papers": []})
+            record["supporting_papers"].append({
+                "id": source["id"], "title": source["title"],
+                "category": source["category"], "sha256": source.get("sha256"),
+            })
+    result = []
+    for record in records.values():
+        record["support_count"] = len(record["supporting_papers"])
+        result.append(record)
+    return sorted(result, key=lambda item: (-item["support_count"], item["key"]))
 
 
 def build_citation_edges(nodes: list[dict], full_text: dict[str, str]) -> list[dict]:
@@ -304,12 +421,13 @@ def choose_main_nodes(nodes: list[dict], counts: dict[str, int]) -> dict[str, st
     return main_nodes
 
 
-def build_graph(papers_dir: Path) -> dict:
-    nodes, full_text, duplicates = extract_nodes(papers_dir)
+def build_graph(papers_dir: Path, cache_path: Path | None = None) -> dict:
+    nodes, full_text, duplicates, extraction = extract_nodes(papers_dir, cache_path)
     if not nodes:
         raise RuntimeError(f"No categorized PDFs found below {papers_dir}")
 
     citation_edges = build_citation_edges(nodes, full_text)
+    external_references = build_external_reference_index(nodes, full_text)
     counts = citation_counts(nodes, citation_edges)
     main_nodes = choose_main_nodes(nodes, counts)
 
@@ -335,6 +453,8 @@ def build_graph(papers_dir: Path) -> dict:
             "unique_papers": len(nodes),
             "duplicate_files": len(duplicates),
             "citation_edges": len(citation_edges),
+            "external_references": len(external_references),
+            **extraction,
             "year_min": min(years) if years else None,
             "year_max": max(years) if years else None,
             "citation_direction": "citing_paper -> cited_paper",
@@ -343,13 +463,15 @@ def build_graph(papers_dir: Path) -> dict:
         "categories": categories,
         "nodes": nodes,
         "edges": {"citation": citation_edges},
+        "external_references": external_references,
         "duplicates": duplicates,
     }
 
 
 def write_graph(graph: dict, json_path: Path, js_path: Path) -> None:
     pretty = json.dumps(graph, ensure_ascii=False, indent=2)
-    compact = json.dumps(graph, ensure_ascii=False, separators=(",", ":"))
+    browser_graph = {key: value for key, value in graph.items() if key != "external_references"}
+    compact = json.dumps(browser_graph, ensure_ascii=False, separators=(",", ":"))
     previous_json = json_path.read_bytes() if json_path.exists() else None
     previous_js = js_path.read_bytes() if js_path.exists() else None
     try:
@@ -378,7 +500,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     papers_dir = args.papers_dir.expanduser().resolve()
-    graph = build_graph(papers_dir)
+    graph = build_graph(papers_dir, DEFAULT_EXTRACTION_CACHE)
     write_graph(graph, args.output_json, args.output_js)
     metadata = graph["metadata"]
     print(

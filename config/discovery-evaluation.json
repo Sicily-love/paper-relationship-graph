@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "reference_time": "2026-08-26T00:00:00+00:00",
+  "cases": [
+    {
+      "id": "recent-kernelarc",
+      "pipeline": "arxiv",
+      "expected_recommended": true,
+      "expected_category": "07_GPU内核智能体与自动调优",
+      "topic": {
+        "id": "category-07-kernel-agents",
+        "label": "GPU 内核智能体与自动调优",
+        "keywords": ["GPU kernel", "kernel optimization", "multi-agent"]
+      },
+      "settings": {"max_age_days": 14},
+      "candidate": {
+        "id": "arxiv:2608.17071",
+        "arxiv_id": "2608.17071",
+        "title": "KernelArc: A Multi-Agent Framework for GPU Kernel Optimization",
+        "abstract": "A multi-agent framework uses language models to generate and optimize GPU kernels.",
+        "published": "2026-08-17",
+        "year": 2026,
+        "sources": ["arxiv_topic"],
+        "topics": ["GPU 内核智能体与自动调优"]
+      }
+    },
+    {
+      "id": "expired-evomem",
+      "pipeline": "arxiv",
+      "expected_recommended": false,
+      "topic": {
+        "id": "category-07-kernel-agents",
+        "label": "GPU 内核智能体与自动调优",
+        "keywords": ["GPU kernel", "kernel optimization", "multi-agent"]
+      },
+      "settings": {"max_age_days": 14},
+      "candidate": {
+        "id": "arxiv:2608.10795",
+        "arxiv_id": "2608.10795",
+        "title": "EvoMem: Memory-Augmented Evolution for Code Optimization",
+        "abstract": "Memory-augmented evolution optimizes GPU kernels with language models.",
+        "published": "2026-08-11",
+        "year": 2026,
+        "sources": ["arxiv_topic"]
+      }
+    },
+    {
+      "id": "irrelevant-agent-paper",
+      "pipeline": "arxiv",
+      "expected_recommended": false,
+      "topic": {
+        "id": "category-07-kernel-agents",
+        "label": "GPU 内核智能体与自动调优",
+        "keywords": ["GPU kernel", "kernel optimization", "multi-agent"]
+      },
+      "settings": {"max_age_days": 14},
+      "candidate": {
+        "id": "arxiv:2608.99999",
+        "arxiv_id": "2608.99999",
+        "title": "Multi-Agent Planning for Urban Traffic",
+        "abstract": "Autonomous vehicles coordinate routes in a city.",
+        "published": "2026-08-24",
+        "year": 2026,
+        "sources": ["arxiv_topic"]
+      }
+    },
+    {
+      "id": "highly-cited-kernelbench",
+      "pipeline": "highly_cited",
+      "expected_recommended": true,
+      "expected_category": "07_GPU内核智能体与自动调优",
+      "settings": {"min_citations": 1},
+      "candidate": {
+        "id": "openalex:W4407683692",
+        "openalex_id": "https://openalex.org/W4407683692",
+        "arxiv_id": "2502.10517",
+        "title": "KernelBench: Can LLMs Write Efficient GPU Kernels?",
+        "abstract": "We benchmark language models that write and optimize efficient GPU kernels.",
+        "year": 2025,
+        "cited_by_count": 1,
+        "sources": ["highly_cited"],
+        "topics": ["GPU 内核智能体与自动调优"]
+      }
+    },
+    {
+      "id": "below-citation-threshold",
+      "pipeline": "highly_cited",
+      "expected_recommended": false,
+      "settings": {"min_citations": 2},
+      "candidate": {
+        "id": "openalex:W0",
+        "title": "An Uncited GPU Kernel Agent",
+        "abstract": "An agent writes GPU kernels.",
+        "year": 2026,
+        "cited_by_count": 1,
+        "sources": ["highly_cited"]
+      }
+    },
+    {
+      "id": "shared-kernelbench",
+      "pipeline": "shared_reference",
+      "expected_recommended": true,
+      "expected_category": "07_GPU内核智能体与自动调优",
+      "dedupe_group": "kernelbench",
+      "settings": {"min_library_citations": 3},
+      "candidate": {
+        "id": "openalex:W4407683692",
+        "openalex_id": "https://openalex.org/W4407683692",
+        "arxiv_id": "2502.10517",
+        "title": "KernelBench: Can LLMs Write Efficient GPU Kernels?",
+        "abstract": "We benchmark language models that write and optimize efficient GPU kernels.",
+        "year": 2025,
+        "cited_by_count": 1,
+        "support_count": 10,
+        "sources": ["shared_reference"]
+      }
+    },
+    {
+      "id": "weak-shared-reference",
+      "pipeline": "shared_reference",
+      "expected_recommended": false,
+      "settings": {"min_library_citations": 3},
+      "candidate": {
+        "id": "openalex:WWEAK",
+        "title": "Weak Shared Reference",
+        "year": 2024,
+        "support_count": 2,
+        "sources": ["shared_reference"]
+      }
+    }
+  ]
+}

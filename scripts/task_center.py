@@ -15,10 +15,16 @@ from pathlib import Path
 
 from discovery_utils import load_json, write_text_atomic
 
+try:
+    import fcntl
+except ImportError:  # Windows manual mode has no launchd concurrency.
+    fcntl = None
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = REPO_ROOT / "config" / "tasks.json"
 DEFAULT_STATUS = REPO_ROOT / ".cache" / "task-status.json"
+DEFAULT_LOCKS = REPO_ROOT / ".cache" / "task-locks"
 TASK_DEFINITIONS = {
     "classification": {
         "label": "论文分类整理",
@@ -26,7 +32,7 @@ TASK_DEFINITIONS = {
         "command": "classify",
     },
     "arxiv": {
-        "label": "主题论文发现",
+        "label": "每日论文发现",
         "time": "11:00",
         "command": "discover",
     },
@@ -110,6 +116,8 @@ def task_state(config_path: Path = DEFAULT_CONFIG, status_path: Path = DEFAULT_S
     return {
         "supported": sys.platform == "darwin",
         "scheduler": "launchd" if sys.platform == "darwin" else "manual",
+        "executor": "Paper Atlas App",
+        "singleton": fcntl is not None,
         "tasks": tasks,
     }
 
@@ -124,23 +132,47 @@ def task_command(task_id: str, papers_dir: Path) -> list[str]:
     if task_id == "classification":
         return [sys.executable, str(REPO_ROOT / "scripts" / "classify_library.py"), "--papers-dir", str(papers_dir)]
     if task_id == "arxiv":
-        return [sys.executable, str(REPO_ROOT / "scripts" / "discover_papers.py"), "--skip-shared"]
+        return [sys.executable, str(REPO_ROOT / "scripts" / "discover_papers.py")]
     raise ValueError("未知自动任务")
 
 
 def run_task(task_id: str, papers_dir: Path, status_path: Path = DEFAULT_STATUS) -> dict:
     if task_id not in TASK_DEFINITIONS:
         raise ValueError("未知自动任务")
+    DEFAULT_LOCKS.mkdir(parents=True, exist_ok=True)
+    lock_handle = (DEFAULT_LOCKS / f"{task_id}.lock").open("a+")
+    if fcntl is not None:
+        try:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            lock_handle.close()
+            message = "已有相同任务正在运行，本次重复触发已跳过"
+            return {"message": message, "task_id": task_id, "status": "skipped", "result": {}}
     started = datetime.now().astimezone().isoformat()
-    update_status(task_id, {"status": "running", "started_at": started, "message": "正在运行"}, status_path)
-    result = subprocess.run(
-        task_command(task_id, papers_dir.expanduser().resolve()),
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=900,
-        check=False,
-    )
+    update_status(task_id, {
+        "status": "running", "started_at": started, "message": "正在运行",
+        "executor": "Paper Atlas App", "pid": os.getpid(),
+    }, status_path)
+    try:
+        result = subprocess.run(
+            task_command(task_id, papers_dir.expanduser().resolve()),
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=900,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        message = "任务超过 15 分钟，已停止"
+        update_status(task_id, {
+            "status": "failed", "finished_at": datetime.now().astimezone().isoformat(),
+            "message": message, "log": str(error),
+        }, status_path)
+        raise ValueError(message) from error
+    finally:
+        if fcntl is not None:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+        lock_handle.close()
     output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
     message = (output.splitlines()[-1] if output else "任务已完成")[:500]
     status = "success" if result.returncode == 0 else "failed"
@@ -182,6 +214,7 @@ def launch_agent_payload(task_id: str, item: dict, papers_dir: Path) -> dict:
         ],
         "StartCalendarInterval": {"Hour": hour, "Minute": minute},
         "ProcessType": "Background",
+        "ThrottleInterval": 60,
         "EnvironmentVariables": {
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONNOUSERSITE": "1",

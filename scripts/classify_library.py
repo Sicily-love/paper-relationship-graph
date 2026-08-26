@@ -143,7 +143,9 @@ def main() -> None:
     result["review"] = write_review_queue(result["pending"])
     result["graph_updated"] = False
     if not args.dry_run:
-        graph = build_graph.build_graph(args.papers_dir.expanduser().resolve())
+        graph = build_graph.build_graph(
+            args.papers_dir.expanduser().resolve(), build_graph.DEFAULT_EXTRACTION_CACHE
+        )
         build_graph.write_graph(graph, build_graph.DEFAULT_JSON, build_graph.DEFAULT_JS)
         result["graph_updated"] = True
     print(json.dumps(result, ensure_ascii=False))

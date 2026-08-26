@@ -73,6 +73,12 @@
   const classificationReviewList = document.getElementById('classification-review-list');
   const discoveryDebugOutput = document.getElementById('discovery-debug-output');
   const rebuildGraphButton = document.getElementById('rebuild-graph');
+  const runDiagnosticsButton = document.getElementById('run-diagnostics');
+  const diagnosticsPanel = document.getElementById('diagnostics-panel');
+  const diagnosticsSummary = document.getElementById('diagnostics-summary');
+  const diagnosticsMetrics = document.getElementById('diagnostics-metrics');
+  const diagnosticsChecks = document.getElementById('diagnostics-checks');
+  const copyDiagnosticsButton = document.getElementById('copy-diagnostics');
   const taskList = document.getElementById('task-list');
   const saveTasksButton = document.getElementById('save-tasks');
   const exportBackupButton = document.getElementById('export-backup');
@@ -612,7 +618,7 @@
     return Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || '';
   }
 
-  async function reviewCandidate(candidate, action, categorySelectControl, article) {
+  async function reviewCandidate(candidate, action, categorySelectControl, article, extras = {}) {
     const category = categorySelectControl.value;
     if (action === 'accept' && !category) {
       categorySelectControl.focus();
@@ -637,9 +643,9 @@
       const elapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
       const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
       const seconds = String(elapsed % 60).padStart(2, '0');
-      if (action === 'accept') {
+      if (action === 'accept' || action === 'replace') {
         progress.textContent = `正在下载、校验并更新图谱 · ${minutes}:${seconds}`;
-        if (acceptButton) acceptButton.textContent = '正在加入…';
+        if (acceptButton && action === 'accept') acceptButton.textContent = '正在加入…';
       } else {
         progress.textContent = `正在移出候选 · ${minutes}:${seconds}`;
       }
@@ -667,7 +673,7 @@
         discovery = snapshot;
         renderDiscovery();
         showToast(
-          action === 'accept'
+          action === 'accept' || action === 'replace'
             ? `${candidate.title} 已归档，图谱正在更新`
             : `${candidate.title} 已从候选中移除`,
         );
@@ -678,19 +684,19 @@
 
     updateProgress();
     statusTimer = setInterval(updateProgress, 1000);
-    if (action === 'accept') {
+    if (action === 'accept' || action === 'replace') {
       commitPollTimer = setInterval(detectCommittedDecision, 1500);
     }
     try {
       const payload = await apiRequest('/api/candidates/action', {
         method: 'POST',
-        body: JSON.stringify({id: candidate.id, action, category}),
+        body: JSON.stringify({id: candidate.id, action, category, ...extras}),
       });
       discovery = payload.discovery;
       if (!commitDetected || payload.graph_updated === false) {
         showToast(payload.message, payload.graph_updated === false ? 'warning' : 'success');
       }
-      if (action === 'accept') {
+      if (action === 'accept' || action === 'replace') {
         if (payload.graph_updated === false) {
           renderDiscovery();
         } else {
@@ -742,6 +748,22 @@
       renderDiscovery();
     });
     return button;
+  }
+
+  async function sendCandidateFeedback(candidate, feedback, container) {
+    const controls = container.querySelectorAll('button');
+    controls.forEach(control => { control.disabled = true; });
+    try {
+      const result = await apiRequest('/api/candidates/feedback', {
+        method: 'POST', body: JSON.stringify({id: candidate.id, feedback}),
+      });
+      discovery = result.discovery;
+      showToast(result.message);
+      renderDiscovery();
+    } catch (error) {
+      controls.forEach(control => { control.disabled = false; });
+      showToast(error.message, 'error');
+    }
   }
 
   function renderCandidate(candidate) {
@@ -856,6 +878,40 @@
       evidence.textContent = candidate.relevance_evidence.join(' · ');
       tabPanels[2].appendChild(evidence);
     }
+    if (Number.isFinite(Number(candidate.recommendation_score))) {
+      const ranking = document.createElement('div');
+      ranking.className = 'candidate-ranking';
+      const rankingScore = document.createElement('strong');
+      rankingScore.textContent = `推荐分 ${candidate.recommendation_score}`;
+      const rankingReason = document.createElement('p');
+      rankingReason.textContent = (candidate.ranking_explanation || []).join(' · ');
+      ranking.append(rankingScore, rankingReason);
+      tabPanels[2].appendChild(ranking);
+    }
+    if ((candidate.versions || []).length > 1) {
+      const versions = document.createElement('p');
+      versions.className = 'candidate-version-summary';
+      versions.textContent = `已合并 ${candidate.versions.length} 条版本或来源记录`;
+      tabPanels[2].appendChild(versions);
+    }
+    const feedback = document.createElement('div');
+    feedback.className = 'candidate-feedback';
+    const feedbackLabel = document.createElement('span');
+    feedbackLabel.textContent = candidate.user_feedback ? '反馈已记录' : '这条推荐是否准确？';
+    feedback.appendChild(feedbackLabel);
+    [
+      ['accurate', '准确'],
+      ['irrelevant', '不相关'],
+      ['wrong_category', '分类不准'],
+    ].forEach(([value, label]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.classList.toggle('active', candidate.user_feedback === value);
+      button.addEventListener('click', () => sendCandidateFeedback(candidate, value, feedback));
+      feedback.appendChild(button);
+    });
+    tabPanels[2].appendChild(feedback);
     if ((candidate.supporting_papers || []).length) {
       const supportList = document.createElement('div');
       supportList.className = 'candidate-support-list';
@@ -891,17 +947,68 @@
       category.appendChild(option);
     });
     category.value = suggestedCategory(candidate);
-    const ignore = document.createElement('button');
-    ignore.type = 'button';
-    ignore.className = 'candidate-action secondary-action';
-    ignore.textContent = '忽略';
-    ignore.addEventListener('click', () => reviewCandidate(candidate, 'reject', category, article));
+    const more = document.createElement('details');
+    more.className = 'candidate-more-actions';
+    const moreSummary = document.createElement('summary');
+    moreSummary.textContent = '更多操作';
+    const morePanel = document.createElement('div');
+    morePanel.className = 'candidate-more-panel';
+    const dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.textContent = '暂时移出';
+    dismiss.title = '本次移出候选，下次发现时仍可重新出现';
+    dismiss.addEventListener('click', () => reviewCandidate(candidate, 'dismiss', category, article));
+    const reject = document.createElement('button');
+    reject.type = 'button';
+    reject.textContent = '永久忽略';
+    reject.title = '以后发现到相同论文时不再推荐';
+    reject.addEventListener('click', () => {
+      if (window.confirm(`以后不再推荐“${candidate.title}”？`)) {
+        reviewCandidate(candidate, 'reject', category, article);
+      }
+    });
+    const purge = document.createElement('button');
+    purge.type = 'button';
+    purge.textContent = '清除引用证据';
+    purge.title = '永久忽略，并从共同引用缓存中清除该论文的证据';
+    purge.addEventListener('click', () => {
+      if (window.confirm(`永久忽略“${candidate.title}”并清除它的共同引用证据？`)) {
+        reviewCandidate(candidate, 'purge', category, article);
+      }
+    });
+    const replacement = document.createElement('select');
+    replacement.setAttribute('aria-label', '选择要替换的库内论文版本');
+    const replacementPlaceholder = document.createElement('option');
+    replacementPlaceholder.value = '';
+    replacementPlaceholder.textContent = '选择旧版本…';
+    replacement.appendChild(replacementPlaceholder);
+    [...graph.nodes]
+      .sort((a, b) => (a.category !== candidate.suggested_category) - (b.category !== candidate.suggested_category) || a.title.localeCompare(b.title))
+      .forEach(node => {
+        const option = document.createElement('option');
+        option.value = node.id;
+        option.textContent = `${node.title} · ${node.category.replace(/^\d+_/, '')}`;
+        replacement.appendChild(option);
+      });
+    const replace = document.createElement('button');
+    replace.type = 'button';
+    replace.textContent = '替换为新版本';
+    replace.addEventListener('click', () => {
+      if (!replacement.value) {
+        replacement.focus();
+        showToast('请先选择要替换的库内论文', 'error');
+        return;
+      }
+      reviewCandidate(candidate, 'replace', category, article, {replace_node_id: replacement.value});
+    });
+    morePanel.append(dismiss, reject, purge, replacement, replace);
+    more.append(moreSummary, morePanel);
     const accept = document.createElement('button');
     accept.type = 'button';
     accept.className = 'candidate-action primary-action';
     accept.textContent = '加入论文库';
     accept.addEventListener('click', () => reviewCandidate(candidate, 'accept', category, article));
-    footer.append(category, ignore, accept);
+    footer.append(category, more, accept);
 
     article.append(header, title, meta, classification, tabs, panels, footer);
     return article;
@@ -1520,6 +1627,80 @@
     }
   }
 
+  function renderDiagnostics(report) {
+    diagnosticsPanel.hidden = false;
+    diagnosticsPanel.dataset.status = report.status || 'warning';
+    const statusLabels = {healthy: '所有关键检查均通过', warning: '诊断完成，存在需要留意的项目', failed: '诊断发现需要处理的问题'};
+    diagnosticsSummary.textContent = statusLabels[report.status] || '诊断完成';
+    diagnosticsPanel.dataset.copyText = report.copy_text || '';
+    const metrics = report.evaluation?.metrics || {};
+    const metricItems = [
+      ['召回率', metrics.recall],
+      ['精确率', metrics.precision],
+      ['分类准确率', metrics.classification_accuracy],
+      ['去重准确率', metrics.dedupe_accuracy],
+    ];
+    diagnosticsMetrics.replaceChildren(...metricItems.map(([label, value]) => {
+      const item = document.createElement('div');
+      item.className = 'diagnostics-metric';
+      const strong = document.createElement('strong');
+      strong.textContent = Number.isFinite(Number(value)) ? `${Math.round(Number(value) * 100)}%` : '—';
+      const caption = document.createElement('span');
+      caption.textContent = label;
+      item.append(strong, caption);
+      return item;
+    }));
+    diagnosticsChecks.replaceChildren(...(report.checks || []).map(check => {
+      const item = document.createElement('article');
+      item.className = 'diagnostics-check';
+      item.dataset.status = check.status;
+      const dot = document.createElement('span');
+      dot.className = 'diagnostics-check-dot';
+      const copy = document.createElement('div');
+      const label = document.createElement('strong');
+      label.textContent = check.label;
+      const summary = document.createElement('p');
+      summary.textContent = check.summary;
+      copy.append(label, summary);
+      item.append(dot, copy);
+      return item;
+    }));
+  }
+
+  async function runDiagnostics() {
+    runDiagnosticsButton.disabled = true;
+    runDiagnosticsButton.textContent = '诊断中…';
+    try {
+      const result = await apiRequest('/api/diagnostics', {
+        method: 'POST', body: JSON.stringify({include_network: true}),
+      });
+      renderDiagnostics(result.diagnostics);
+      showToast(result.message, result.diagnostics.status === 'failed' ? 'warning' : 'success');
+    } catch (error) {
+      showToast(error.message, 'error');
+    } finally {
+      runDiagnosticsButton.disabled = false;
+      runDiagnosticsButton.textContent = '运行诊断';
+    }
+  }
+
+  async function copyDiagnostics() {
+    const text = diagnosticsPanel.dataset.copyText || '';
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('诊断报告已复制');
+    } catch (_error) {
+      const area = document.createElement('textarea');
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+      showToast('诊断报告已复制');
+    }
+  }
+
   async function exportBackup() {
     exportBackupButton.disabled = true;
     try {
@@ -1721,6 +1902,8 @@
   runSharedDiscoveryButton.addEventListener('click', () => runDiscoveryNow('shared'));
   clearCandidatesButton.addEventListener('click', clearCandidates);
   rebuildGraphButton.addEventListener('click', rebuildGraph);
+  runDiagnosticsButton.addEventListener('click', runDiagnostics);
+  copyDiagnosticsButton.addEventListener('click', copyDiagnostics);
   saveTasksButton.addEventListener('click', saveTasks);
   exportBackupButton.addEventListener('click', exportBackup);
   importBackupButton.addEventListener('click', () => backupFile.click());

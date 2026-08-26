@@ -127,6 +127,8 @@ CATEGORY_RULES = {
         "agentic kernel", "kernel generation agent", "kernel optimization agent",
         "autonomous gpu kernel", "multi-agent kernel", "kernel design agents",
         "kernel harness", "automatic kernel optimization", "llm-based gpu kernel",
+        "llms write efficient gpu kernels", "language models write efficient gpu kernels",
+        "language models to generate gpu kernels", "language models optimize gpu kernels",
     ),
     "08_通用智能体与自主学习": (
         "ai agent", "llm agent", "agentic", "multi-agent", "autonomous agent",
@@ -260,14 +262,30 @@ def enrich_topics_from_library(config: dict, graph: dict) -> tuple[dict, list[di
             if len(references) >= 5:
                 break
         dynamic_keywords = category_profile_keywords(category_nodes)
+        feedback = (config.get("feedback_profiles") or {}).get(category, {}) if category else {}
+        learned_keywords = [
+            compact_text(str(value)) for value in feedback.get("positive_terms", [])
+            if compact_text(str(value))
+        ]
+        learned_exclusions = [
+            compact_text(str(value)) for value in feedback.get("negative_terms", [])
+            if compact_text(str(value))
+        ]
         keywords = list(dict.fromkeys([
             *(compact_text(str(value)) for value in topic.get("keywords", []) if compact_text(str(value))),
             *dynamic_keywords,
+            *learned_keywords,
         ]))[:12]
         topic.update({
             "keywords": keywords,
+            "exclude_keywords": list(dict.fromkeys([
+                *(compact_text(str(value)) for value in topic.get("exclude_keywords", []) if compact_text(str(value))),
+                *learned_exclusions,
+            ]))[:12],
             "dynamic_keywords": dynamic_keywords,
             "reference_titles": references,
+            "learned_keywords": learned_keywords,
+            "learned_exclusions": learned_exclusions,
             "library_category": category,
         })
         profile = {
@@ -318,10 +336,20 @@ def classify_candidate(candidate: dict) -> dict:
     attention_category = "02_注意力机制与长上下文"
     if any(marker in combined for marker in (" video generation ", " text to video ", " image to video ")):
         scores[video_category] += 24
-    kernel_markers = (" gpu kernel ", " cuda kernel ", " triton kernel ", " ptx ")
-    agent_markers = (" agent ", " agentic ", " multi agent ", " autonomous ", " llm based ")
+    kernel_markers = (
+        " gpu kernel ", " gpu kernels ", " cuda kernel ", " cuda kernels ",
+        " triton kernel ", " triton kernels ", " ptx ",
+    )
+    agent_markers = (
+        " agent ", " agents ", " agentic ", " multi agent ", " autonomous ",
+        " llm ", " llms ", " llm based ", " language model ", " language models ",
+    )
     if any(marker in combined for marker in kernel_markers):
-        if any(marker in combined for marker in agent_markers):
+        agent_context = re.sub(
+            r"\b(?:without|no|not using|does not use)\s+(?:an?\s+)?(?:llms?|language models?|agents?)\b",
+            " ", combined,
+        )
+        if any(marker in agent_context for marker in agent_markers):
             scores[kernel_agent_category] += 32
         else:
             scores[kernel_category] += 24
@@ -470,6 +498,17 @@ def candidate_relevance(candidate: dict, topic: dict) -> dict:
     score = min(100, score)
     threshold = int(topic.get("min_relevance_score", 40 if anchors else 24))
     relevant = bool(all_hits) and score >= threshold and (not anchors or bool(title_anchors or abstract_anchors))
+    if topic_id == "category-07-kernel-agents":
+        combined = title + abstract
+        kernel_signal = any(marker in combined for marker in (
+            " gpu kernel ", " gpu kernels ", " cuda kernel ", " cuda kernels ",
+            " triton kernel ", " triton kernels ", " kernel optimization ",
+        ))
+        agent_signal = any(marker in combined for marker in (
+            " agent ", " agents ", " agentic ", " multi agent ", " autonomous ",
+            " llm ", " llms ", " language model ", " language models ",
+        ))
+        relevant = relevant and kernel_signal and agent_signal
     evidence = []
     if title_hits:
         evidence.append("标题命中 " + "、".join(title_hits[:3]))
@@ -1228,7 +1267,10 @@ def discover_highly_cited(config: dict) -> tuple[list[dict], list[str], dict]:
 
 
 def load_openalex_cache(path: Path) -> dict:
-    return load_json(path, {"version": 3, "nodes": {}, "reference_index": {}})  # type: ignore[return-value]
+    return load_json(
+        path,
+        {"version": 3, "nodes": {}, "reference_index": {}, "external_references": {}},
+    )  # type: ignore[return-value]
 
 
 def reusable_openalex_cache_entry(cached: object, cache_version: int, now: datetime) -> bool:
@@ -1265,6 +1307,7 @@ def discover_shared_references(
     cache["version"] = 3
     node_cache = cache.setdefault("nodes", {})
     reference_index = cache.setdefault("reference_index", {})
+    external_cache = cache.setdefault("external_references", {})
     errors: list[str] = []
     matched: dict[str, dict] = {}
     nodes_by_id = {node["id"]: node for node in graph.get("nodes", [])}
@@ -1343,6 +1386,54 @@ def discover_shared_references(
         for paper in evidence.get("supporting_papers") or []:
             if not isinstance(paper, dict):
                 continue
+            node_id = node_id_by_sha.get(str(paper.get("sha256") or ""))
+            if node_id is None:
+                node_id = node_id_by_title.get(normalize_title(str(paper.get("title") or "")))
+            if node_id is not None:
+                supporting_nodes[work_id].add(node_id)
+
+    # Add evidence extracted from the PDFs themselves. This recovers common
+    # references even when a library paper cannot be resolved to OpenAlex or
+    # its OpenAlex reference list is incomplete.
+    external_records = [
+        item for item in graph.get("external_references", [])
+        if isinstance(item, dict)
+        and int(item.get("support_count") or 0) >= minimum
+        and item.get("title")
+    ]
+    external_records.sort(
+        key=lambda item: (-int(item.get("support_count") or 0), str(item.get("key") or ""))
+    )
+    resolution_limit = int(settings.get("max_external_resolutions", max(30, maximum * 3)))
+    external_resolved = 0
+    for index, reference in enumerate(external_records[:resolution_limit]):
+        reference_key = str(
+            reference.get("key") or normalize_title(str(reference.get("title") or ""))
+        )
+        cached = external_cache.get(reference_key)
+        if not reusable_openalex_cache_entry(cached, cache_version, datetime.now(timezone.utc)):
+            try:
+                work = resolve_openalex_work(
+                    {"title": reference.get("title"), "authors": ""}, mailto,
+                )
+                cached = {
+                    "title": reference.get("title"),
+                    "work": work,
+                    "resolved_at": datetime.now(timezone.utc).isoformat(),
+                }
+                external_cache[reference_key] = cached
+            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
+                errors.append(f"OpenAlex bibliography / {reference.get('title')}: {error}")
+                continue
+            if delay > 0 and index < min(len(external_records), resolution_limit) - 1:
+                time.sleep(delay)
+        work = cached.get("work") if isinstance(cached, dict) else None
+        work_id = str((work or {}).get("id") or "") if isinstance(work, dict) else ""
+        if not work_id or work_id in library_work_ids:
+            continue
+        external_resolved += 1
+        historical_works[work_id] = work
+        for paper in reference.get("supporting_papers") or []:
             node_id = node_id_by_sha.get(str(paper.get("sha256") or ""))
             if node_id is None:
                 node_id = node_id_by_title.get(normalize_title(str(paper.get("title") or "")))
@@ -1453,6 +1544,9 @@ def discover_shared_references(
         "unmatched_library_papers": len(graph.get("nodes", [])) - len(matched),
         "shared_reference_library_count": len(library_matches),
         "shared_reference_library_matches": library_matches[:20],
+        "pdf_external_reference_count": len(graph.get("external_references", [])),
+        "pdf_external_qualified_count": len(external_records),
+        "pdf_external_resolved_count": external_resolved,
     }
     debug_event(
         "shared_reference_summary",
@@ -1461,6 +1555,8 @@ def discover_shared_references(
         candidate_count=min(len(candidates), maximum),
         library_match_count=len(library_matches),
         minimum=minimum,
+        pdf_external_qualified=len(external_records),
+        pdf_external_resolved=external_resolved,
         errors=errors,
     )
     return candidates[:maximum], errors, stats
@@ -1483,6 +1579,12 @@ def merge_candidates(
         if normalize_title(str(candidate.get("title") or "")) in library_titles:
             continue
         key = candidate_key(candidate)
+        version = {
+            field: candidate.get(field)
+            for field in ("id", "arxiv_id", "openalex_id", "doi", "published", "url", "pdf_url")
+            if candidate.get(field)
+        }
+        candidate.setdefault("versions", [version] if version else [])
         existing = merged.get(key)
         if existing:
             combined_sources = sorted(set(existing.get("sources", [])) | set(candidate.get("sources", [])))
@@ -1504,6 +1606,14 @@ def merge_candidates(
             existing["topics"] = combined_topics
             existing["topic_ids"] = combined_topic_ids
             existing["score"] = combined_score
+            known_versions = {
+                candidate_key(item) if isinstance(item, dict) else str(item)
+                for item in existing.get("versions", [])
+            }
+            for item in candidate.get("versions", []):
+                if candidate_key(item) not in known_versions:
+                    existing.setdefault("versions", []).append(item)
+                    known_versions.add(candidate_key(item))
             if existing.get("arxiv_id"):
                 existing["id"] = f"arxiv:{existing['arxiv_id']}"
             if len(combined_sources) > 1:
@@ -1523,7 +1633,8 @@ def merge_candidates(
             continue
         prior = previous_by_key.get(key, {})
         decision = decisions.get(candidate["id"], decisions.get(key, {}))
-        candidate["status"] = decision.get("status", prior.get("status", candidate.get("status", "new")))
+        saved_status = decision.get("status", prior.get("status", candidate.get("status", "new")))
+        candidate["status"] = "new" if saved_status == "dismissed" else saved_status
         candidate["first_seen"] = prior.get("first_seen", now_iso)
         candidate["last_seen"] = now_iso
         accepted_path = decision.get("accepted_path", prior.get("accepted_path"))
@@ -1547,7 +1658,10 @@ def merge_candidates(
                 pass
         merged[key] = dict(prior)
 
-    active = [item for item in merged.values() if item.get("status") != "rejected"]
+    active = [
+        item for item in merged.values()
+        if item.get("status") not in {"rejected", "purged"}
+    ]
     def published_timestamp(item: dict) -> float:
         try:
             published = str(item.get("published") or "")
@@ -1569,6 +1683,49 @@ def merge_candidates(
         )
     )
     return active[:limit]
+
+
+def score_recommendation(candidate: dict, graph: dict, now: datetime | None = None) -> dict:
+    """Build a bounded, explainable score without changing newest-first ordering."""
+    now = now or datetime.now(timezone.utc)
+    relevance = max(0.0, min(100.0, float(candidate.get("relevance_score") or 0)))
+    support = max(0, int(candidate.get("support_count") or 0))
+    citations = max(0, int(candidate.get("cited_by_count") or 0))
+    year = int(candidate.get("year") or now.year)
+    age = max(0, now.year - year)
+    citation_velocity = citations / max(1, age + 1)
+    sources = set(candidate.get("sources") or [])
+    category = candidate.get("suggested_category")
+    category_counts = {
+        item.get("id"): int(item.get("paper_count") or 0)
+        for item in graph.get("categories", [])
+    }
+    largest_category = max(category_counts.values(), default=0)
+    category_gap = max(0, largest_category - category_counts.get(category, largest_category))
+    components = {
+        "topic_relevance": round(relevance * 0.30, 2),
+        "shared_evidence": round(min(25.0, support * 5.0), 2),
+        "citation_impact": round(min(25.0, math.log10(citation_velocity + 1) * 8.0), 2),
+        "source_diversity": round(min(10.0, max(0, len(sources) - 1) * 5.0), 2),
+        "category_gap": round(min(10.0, category_gap * 1.5), 2),
+    }
+    score = round(min(100.0, sum(components.values())), 1)
+    explanation = []
+    if relevance:
+        explanation.append(f"主题相关度 {relevance:.0f}")
+    if support:
+        explanation.append(f"{support} 篇库内论文共同引用")
+    if citations:
+        explanation.append(f"被引 {citations:,} 次，按发表年校正")
+    if len(sources) > 1:
+        explanation.append(f"{len(sources)} 条发现路径相互印证")
+    if category_gap:
+        explanation.append("补充当前相对稀疏的类别")
+    return {
+        "recommendation_score": score,
+        "ranking_components": components,
+        "ranking_explanation": explanation or ["满足基础发现规则"],
+    }
 
 
 def apply_shared_reference_minimum(candidates: list[dict], minimum: int) -> list[dict]:
@@ -1677,6 +1834,7 @@ def main() -> None:
     for candidate in candidates:
         candidate.update(classify_candidate(candidate))
         candidate.update(candidate_validation(candidate, now))
+        candidate.update(score_recommendation(candidate, graph, now))
 
     enabled_topics = [
         {
