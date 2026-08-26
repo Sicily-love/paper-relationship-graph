@@ -1,5 +1,7 @@
 import os
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -26,6 +28,8 @@ class AppServicesTests(unittest.TestCase):
             patch.object(app_services.build_graph, "STANDARD_CATEGORIES", ["01_系统", "02_编译器"]),
             patch.object(app_services.library_health, "validate_library", return_value={"status": "healthy"}),
             patch.object(app_services.task_center, "task_state", return_value={"tasks": []}),
+            patch.object(app_services.classify_library, "load_review_queue", return_value={"items": []}),
+            patch.object(app_services, "discovery_debug_log", return_value=[]),
         ):
             result = app_services.AppServices(Path("papers")).state()
 
@@ -37,6 +41,32 @@ class AppServicesTests(unittest.TestCase):
             [{"id": "01_系统", "label": "系统"}, {"id": "02_编译器", "label": "编译器"}],
         )
         self.assertEqual(result["health"]["status"], "healthy")
+        self.assertEqual(result["classification_review"], {"items": []})
+
+    def test_classification_review_moves_file_and_rebuilds_graph(self):
+        with tempfile.TemporaryDirectory() as directory:
+            papers = Path(directory)
+            source = papers / "Needs Review.pdf"
+            source.write_bytes(b"pdf")
+            queue_path = papers / "review.json"
+            queue = {"version": 1, "items": [{
+                "id": "review-1", "path": source.name,
+                "suggested_category": "01_系统", "confidence": "需确认",
+            }]}
+            queue_path.write_text(json.dumps(queue), encoding="utf-8")
+            completed = SimpleNamespace(returncode=0, stdout="ok", stderr="")
+            service = app_services.AppServices(papers)
+            with (
+                patch.object(app_services.build_graph, "STANDARD_CATEGORIES", ["01_系统"]),
+                patch.object(app_services.classify_library, "DEFAULT_REVIEW_QUEUE", queue_path),
+                patch.object(app_services.classify_library, "load_review_queue", return_value=queue),
+                patch.object(service, "_run_graph_update", return_value=completed),
+                patch.object(app_services.library_health, "validate_library", return_value={"status": "healthy"}),
+            ):
+                result = service.review_classification({"id": "review-1", "category": "01_系统"})
+            self.assertTrue((papers / "01_系统" / source.name).exists())
+            self.assertEqual(result["classification_review"]["items"], [])
+            self.assertTrue(result["graph_updated"])
 
     def test_archived_candidate_is_returned_even_when_graph_refresh_fails(self):
         candidate = {"id": "arxiv:1", "status": "accepted"}

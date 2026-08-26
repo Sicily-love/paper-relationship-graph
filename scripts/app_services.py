@@ -12,6 +12,7 @@ from pathlib import Path
 
 import backup_restore
 import build_graph
+import classify_library
 import discover_papers
 import library_health
 import manage_candidate
@@ -20,6 +21,7 @@ from discovery_utils import (
     DEFAULT_CONFIG,
     DEFAULT_DISCOVERY_JS,
     DEFAULT_DISCOVERY_JSON,
+    DEFAULT_GRAPH,
     load_json,
     write_discovery,
     write_text_atomic,
@@ -143,6 +145,21 @@ def command_error(result: subprocess.CompletedProcess, fallback: str) -> str:
     return output.strip().splitlines()[-1]
 
 
+def discovery_debug_log(limit: int = 80) -> list[dict]:
+    path = discover_papers.DEFAULT_DEBUG_LOG
+    if not path.exists():
+        return []
+    events = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines()[-limit:]:
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict):
+            events.append(event)
+    return events
+
+
 class AppServices:
     """Business operations shared by Paper Atlas' two local transports."""
 
@@ -151,6 +168,7 @@ class AppServices:
 
     def state(self) -> dict:
         config = load_json(DEFAULT_CONFIG, {})
+        graph_stat = DEFAULT_GRAPH.stat() if DEFAULT_GRAPH.exists() else None
         return {
             "discovery": validated_discovery(),
             "topics": config.get("topics", []),
@@ -166,6 +184,52 @@ class AppServices:
             ],
             "health": library_health.validate_library(self.papers_dir),
             "tasks": task_center.task_state(),
+            "classification_review": classify_library.load_review_queue(),
+            "graph_revision": (
+                f"{graph_stat.st_mtime_ns}:{graph_stat.st_size}" if graph_stat else None
+            ),
+            "discovery_log": discovery_debug_log(),
+        }
+
+    def review_classification(self, body: dict) -> dict:
+        item_id = str(body.get("id") or "").strip()
+        category = str(body.get("category") or "").strip()
+        if category not in build_graph.STANDARD_CATEGORIES:
+            raise ValueError("请选择有效的论文类别")
+        queue = classify_library.load_review_queue()
+        item = next(
+            (candidate for candidate in queue.get("items", []) if candidate.get("id") == item_id),
+            None,
+        )
+        if item is None:
+            raise ValueError("待审核论文不存在或已处理")
+        source = (self.papers_dir / str(item.get("path") or "")).resolve()
+        try:
+            source.relative_to(self.papers_dir)
+        except ValueError as error:
+            raise ValueError("待审核论文路径无效") from error
+        if not source.is_file() or source.suffix.lower() not in {".pdf", ".pptx"}:
+            raise ValueError("待审核论文文件已不存在")
+        destination = self.papers_dir / category / source.name
+        if destination.exists():
+            raise ValueError("目标类别中已有同名文件")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        source.replace(destination)
+        try:
+            result = self._run_graph_update()
+            if result.returncode:
+                raise ValueError(command_error(result, "图谱更新失败"))
+        except Exception:
+            destination.replace(source)
+            raise
+        queue["items"] = [candidate for candidate in queue.get("items", []) if candidate is not item]
+        queue["updated_at"] = datetime.now(timezone.utc).isoformat()
+        write_json_atomic(classify_library.DEFAULT_REVIEW_QUEUE, queue)
+        return {
+            "message": "分类已确认并更新图谱",
+            "graph_updated": True,
+            "classification_review": queue,
+            "health": library_health.validate_library(self.papers_dir),
         }
 
     def save_topics(self, body: dict) -> dict:

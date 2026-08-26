@@ -179,6 +179,25 @@ class ClassificationTests(unittest.TestCase):
             self.assertEqual(len(result["classified"]), 1)
             self.assertTrue((papers / category / "ultraattn.pptx").exists())
 
+    def test_pending_classification_is_persisted_for_review(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "review.json"
+            queue = classify_library.write_review_queue([{
+                "path": "Unknown.pdf", "suggested_category": "", "confidence": "需确认",
+                "reason": "分类依据不足",
+            }], path)
+            self.assertEqual(len(queue["items"]), 1)
+            self.assertTrue(queue["items"][0]["id"])
+            self.assertEqual(classify_library.load_review_queue(path)["items"][0]["path"], "Unknown.pdf")
+
+    def test_unreadable_pdf_becomes_review_item_instead_of_failing_task(self):
+        with tempfile.TemporaryDirectory() as directory:
+            papers = Path(directory)
+            (papers / "Broken.pdf").write_bytes(b"not a pdf")
+            result = classify_library.classify_files(papers)
+            self.assertEqual(result["classified"], [])
+            self.assertEqual(result["pending"][0]["confidence"], "读取失败")
+
 
 class WebContractTests(unittest.TestCase):
     def test_v1_controls_and_default_relation_mode_are_present(self):
@@ -190,6 +209,9 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('id="release-notes-dialog"', html)
         self.assertIn("window.PAPER_RELEASES", script)
         self.assertIn('id="task-list"', html)
+        self.assertIn('id="classification-review-panel"', html)
+        self.assertIn('id="discovery-debug-output"', html)
+        self.assertIn('data/graph-data.js?v=${Date.now()}', html)
         self.assertIn('id="export-backup"', html)
         self.assertNotIn('id="show-citations"', html)
         self.assertIn('id="run-highly-cited"', html)
@@ -202,6 +224,10 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('id="candidate-preview"', html)
         self.assertIn("function activateView", script)
         self.assertIn("function renderCandidateRow", script)
+        self.assertIn("function highlyCitedPipeline", script)
+        self.assertIn("function renderClassificationReview", script)
+        self.assertIn("function pollApiState", script)
+        self.assertIn("OpenAlex 语义召回", script)
         self.assertIn("JSON.stringify({mode: 'topics'})", script)
         self.assertNotIn("citationsExpanded", script)
         self.assertIn("const visible = focused;", script)
@@ -240,6 +266,7 @@ class WebContractTests(unittest.TestCase):
         self.assertEqual(generate_release_notes.check_generated_files(), [])
         self.assertEqual(payload["current_version"], version)
         self.assertEqual(payload["releases"][0]["version"], version)
+        self.assertNotIn("Unreleased", [release["version"] for release in payload["releases"]])
 
 
 class ReleasePrivacyTests(unittest.TestCase):

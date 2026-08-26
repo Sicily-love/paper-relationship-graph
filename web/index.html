@@ -135,6 +135,17 @@
         <div id="health-issues" class="health-issues"></div>
       </div>
 
+      <section id="classification-review-panel" class="classification-review-panel" hidden>
+        <header>
+          <div>
+            <h3>分类待审核</h3>
+            <p id="classification-review-summary"></p>
+          </div>
+          <strong id="classification-review-count">0</strong>
+        </header>
+        <div id="classification-review-list" class="classification-review-list"></div>
+      </section>
+
       <div class="task-center">
         <header class="task-center-header">
           <h3>App 本机每日任务</h3>
@@ -142,6 +153,11 @@
         </header>
         <div id="task-list" class="task-list"></div>
       </div>
+
+      <details class="discovery-debug-log">
+        <summary>发现调试日志</summary>
+        <pre id="discovery-debug-output">尚无日志</pre>
+      </details>
     </section>
 
     <div id="detail-backdrop" class="detail-backdrop" hidden></div>
@@ -189,7 +205,7 @@
       <header class="topics-dialog-header">
         <div>
           <h2 id="topics-title">每日搜索主题</h2>
-          <p>用关键词决定每天 11:00 搜索哪些最新 arXiv 与领域高被引论文。</p>
+          <p>关键词用于描述研究方向：arXiv 匹配题目和摘要，高被引搜索按语义相近程度召回论文。</p>
         </div>
         <button type="button" id="topics-close" class="detail-close" aria-label="关闭搜索主题">×</button>
       </header>
@@ -295,9 +311,11 @@
     </section>
   </main>
 
-  <script src="data/graph-data.js?v=202"></script>
+  <script>
+    document.write(`<script src="data/graph-data.js?v=${Date.now()}"><\/script>`);
+  </script>
   <script src="data/discovery-data.js?v=202"></script>
   <script src="data/releases-data.js?v=120"></script>
-  <script src="app.js?v=204"></script>
+  <script src="app.js?v=205"></script>
 </body>
 </html>

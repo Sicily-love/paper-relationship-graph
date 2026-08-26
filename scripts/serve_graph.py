@@ -99,6 +99,7 @@ class GraphRequestHandler(SimpleHTTPRequestHandler):
     def do_POST(self) -> None:
         actions = {
             "/api/candidates/action": self.services.review_candidate,
+            "/api/classification/action": self.services.review_classification,
             "/api/candidates/clear": self.services.clear_candidates,
             "/api/discover": self.services.run_discovery,
             "/api/maintenance/rebuild": self.services.rebuild_graph,

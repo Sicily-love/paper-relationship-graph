@@ -18,6 +18,7 @@ COMMAND_METHODS = {
     "topics": "save_topics",
     "discover": "run_discovery",
     "candidate": "review_candidate",
+    "classification": "review_classification",
     "clear": "clear_candidates",
     "maintenance": "rebuild_graph",
     "tasks": "manage_tasks",

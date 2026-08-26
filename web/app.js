@@ -67,6 +67,11 @@
   const healthPanel = document.getElementById('health-panel');
   const healthSummary = document.getElementById('health-summary');
   const healthIssues = document.getElementById('health-issues');
+  const classificationReviewPanel = document.getElementById('classification-review-panel');
+  const classificationReviewSummary = document.getElementById('classification-review-summary');
+  const classificationReviewCount = document.getElementById('classification-review-count');
+  const classificationReviewList = document.getElementById('classification-review-list');
+  const discoveryDebugOutput = document.getElementById('discovery-debug-output');
   const rebuildGraphButton = document.getElementById('rebuild-graph');
   const taskList = document.getElementById('task-list');
   const saveTasksButton = document.getElementById('save-tasks');
@@ -166,6 +171,8 @@
   let highlightedCandidateIds = new Set();
   let apiHealth = null;
   let apiTasks = {supported: false, tasks: []};
+  let apiGraphRevision = null;
+  let apiStatePollBusy = false;
   const topicTemplateButtons = new Map();
   const nativeRequests = new Map();
 
@@ -974,8 +981,43 @@
     });
   }
 
+  function highlyCitedPipeline(metadata = {}) {
+    const raw = Number(metadata.highly_cited_raw_count) || 0;
+    const relevant = Number(metadata.highly_cited_relevant_count) || 0;
+    const threshold = Number(metadata.highly_cited_threshold_count) || 0;
+    const selected = Number(metadata.highly_cited_selected_count) || 0;
+    return {
+      raw,
+      relevant,
+      threshold,
+      selected,
+      text: `OpenAlex 语义召回 ${raw} 篇 · 排除词过滤后 ${relevant} 篇 · 达到被引下限 ${threshold} 篇 · 入选 ${selected} 篇`,
+    };
+  }
+
+  function libraryMatchSummary(metadata = {}, mode) {
+    const matches = mode === 'shared'
+      ? metadata.shared_reference_library_matches || []
+      : metadata.highly_cited_library_matches || [];
+    if (!matches.length) return '';
+    const titles = matches.slice(0, 3).map(item => item.title).join('、');
+    return `另命中 ${matches.length} 篇库内论文（${titles}${matches.length > 3 ? ' 等' : ''}），已自动排除重复推荐`;
+  }
+
+  function belowThresholdLibrarySummary(metadata = {}) {
+    const matches = metadata.highly_cited_library_below_threshold_matches || [];
+    if (!matches.length) return '';
+    const sample = matches.slice(0, 3).map(item => `${item.title}（OpenAlex ${Number(item.cited_by_count) || 0}）`).join('、');
+    return `库内另有 ${matches.length} 篇语义命中但低于当前 OpenAlex 阈值：${sample}`;
+  }
+
   function showDiscoveryOutcome(currentDiscovery, mode) {
     const summary = discoveryRunSummary(currentDiscovery, mode);
+    const highlyCited = highlyCitedPipeline(currentDiscovery.metadata);
+    const libraryMatches = libraryMatchSummary(currentDiscovery.metadata, mode);
+    const belowThresholdMatches = mode === 'highly_cited'
+      ? belowThresholdLibrarySummary(currentDiscovery.metadata)
+      : '';
     const sourceLabel = mode === 'topics'
       ? '主题发现'
       : mode === 'shared' ? '共同引用' : mode === 'highly_cited' ? '领域高被引' : 'arXiv 搜索';
@@ -990,15 +1032,21 @@
     discoveryResultTitle.textContent = summary.found
       ? `${sourceLabel}找到 ${summary.found} 篇论文`
       : `${sourceLabel}没有找到符合条件的论文`;
-    discoveryResultMeta.textContent = summary.found
-      ? mode === 'topics'
+    discoveryResultMeta.textContent = mode === 'highly_cited'
+      ? summary.found
+        ? `${highlyCited.text} · 本次新增 ${summary.added} 篇；下方结果已高亮${libraryMatches ? `；${libraryMatches}` : ''}${belowThresholdMatches ? `；${belowThresholdMatches}` : ''}`
+        : highlyCited.selected
+          ? `${highlyCited.text}；${libraryMatches || '入选论文可能已在候选或审核记录中'}${belowThresholdMatches ? `；${belowThresholdMatches}` : ''}`
+          : highlyCited.threshold
+            ? `${highlyCited.text}；可以提高每个主题的入选数量`
+            : `${highlyCited.text}；${belowThresholdMatches || '可以降低被引下限或调整主题描述'}`
+      : summary.found
+        ? mode === 'topics'
         ? `arXiv ${summary.arxiv} 篇 · 高被引 ${summary.highlyCited} 篇 · 新增 ${summary.added} 篇；下方结果已高亮`
-        : `其中新增 ${summary.added} 篇；下方对应结果已高亮`
+        : `其中新增 ${summary.added} 篇；下方对应结果已高亮${libraryMatches ? `；${libraryMatches}` : ''}`
       : mode === 'shared'
-        ? '可以降低共同引用次数下限后再次计算'
-        : mode === 'highly_cited'
-          ? '可以增加搜索关键词，或降低配置中的最低被引次数'
-          : mode === 'topics'
+        ? libraryMatches || '可以降低共同引用次数下限后再次计算'
+        : mode === 'topics'
             ? '可以调整搜索主题、扩大 arXiv 时间范围或降低高被引下限'
         : '可以调整搜索主题或扩大时间范围后再次尝试';
     renderDiscovery();
@@ -1288,6 +1336,70 @@
     });
   }
 
+  function renderClassificationReview(review = {}) {
+    const items = review.items || [];
+    classificationReviewPanel.hidden = !items.length;
+    classificationReviewCount.textContent = String(items.length);
+    classificationReviewSummary.textContent = items.length
+      ? `${items.length} 篇需要确认类别后归档`
+      : '没有需要审核的论文';
+    classificationReviewList.replaceChildren();
+    items.forEach(item => {
+      const row = document.createElement('article');
+      row.className = 'classification-review-item';
+      const copy = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = String(item.path || '').split('/').pop() || '未命名论文';
+      const reason = document.createElement('p');
+      reason.textContent = `${item.confidence || '需确认'} · ${item.reason || '分类依据不足'}`;
+      copy.append(title, reason);
+      const select = document.createElement('select');
+      select.setAttribute('aria-label', `${title.textContent}的论文类别`);
+      reviewCategories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.id;
+        option.textContent = category.label;
+        option.selected = category.id === item.suggested_category;
+        select.appendChild(option);
+      });
+      const confirm = document.createElement('button');
+      confirm.type = 'button';
+      confirm.className = 'toolbar-action primary-action';
+      confirm.textContent = '确认归档';
+      confirm.addEventListener('click', async () => {
+        confirm.disabled = true;
+        confirm.textContent = '归档中…';
+        try {
+          const result = await apiRequest('/api/classification/action', {
+            method: 'POST', body: JSON.stringify({id: item.id, category: select.value}),
+          });
+          renderClassificationReview(result.classification_review);
+          if (result.health) renderHealth(result.health);
+          showToast(result.message);
+          if (result.graph_updated) setTimeout(() => window.location.reload(), 500);
+        } catch (error) {
+          showToast(error.message, 'error');
+          confirm.disabled = false;
+          confirm.textContent = '确认归档';
+        }
+      });
+      row.append(copy, select, confirm);
+      classificationReviewList.appendChild(row);
+    });
+  }
+
+  function renderDiscoveryLog(events = []) {
+    if (!events.length) {
+      discoveryDebugOutput.textContent = '尚无日志';
+      return;
+    }
+    discoveryDebugOutput.textContent = [...events].reverse().map(event => {
+      const {timestamp, event: name, ...details} = event;
+      const time = timestamp ? new Date(timestamp).toLocaleString('zh-CN') : '未知时间';
+      return `${time}  ${name}\n${JSON.stringify(details, null, 2)}`;
+    }).join('\n\n');
+  }
+
   function renderTasks(state) {
     apiTasks = state || {supported: false, tasks: []};
     taskList.replaceChildren();
@@ -1356,6 +1468,11 @@
       if (state.discovery) {
         discovery = state.discovery;
         renderDiscovery();
+      }
+      renderClassificationReview(state.classification_review);
+      renderDiscoveryLog(state.discovery_log);
+      if (taskId === 'classification' && result.result?.graph_updated) {
+        setTimeout(() => window.location.reload(), 500);
       }
     } catch (error) {
       showToast(error.message, 'error');
@@ -1448,12 +1565,35 @@
       sharedReferenceMinimum.value = String(state.shared_reference_minimum || 2);
       highlyCitedMinimum.value = String(state.highly_cited_minimum || 50);
       reviewCategories = state.categories || reviewCategories;
+      apiGraphRevision = state.graph_revision || apiGraphRevision;
       renderHealth(state.health);
       renderTasks(state.tasks);
+      renderClassificationReview(state.classification_review);
+      renderDiscoveryLog(state.discovery_log);
       serviceNotice.hidden = true;
       renderDiscovery();
     } catch (_error) {
       serviceNotice.hidden = false;
+    }
+  }
+
+  async function pollApiState() {
+    if (apiStatePollBusy) return;
+    apiStatePollBusy = true;
+    try {
+      const state = await apiRequest('/api/state');
+      if (apiGraphRevision && state.graph_revision && state.graph_revision !== apiGraphRevision) {
+        window.location.reload();
+        return;
+      }
+      apiGraphRevision = state.graph_revision || apiGraphRevision;
+      renderTasks(state.tasks);
+      renderClassificationReview(state.classification_review);
+      renderDiscoveryLog(state.discovery_log);
+    } catch (_error) {
+      // The next poll retries; transient background-task overlap is expected.
+    } finally {
+      apiStatePollBusy = false;
     }
   }
 
@@ -1650,4 +1790,5 @@
   activateView(initialView, false);
   renderDiscovery();
   loadApiState();
+  setInterval(pollApiState, 60000);
 })();

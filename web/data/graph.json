@@ -1,9 +1,9 @@
 {
   "metadata": {
-    "paper_files": 69,
-    "unique_papers": 69,
+    "paper_files": 78,
+    "unique_papers": 78,
     "duplicate_files": 0,
-    "citation_edges": 214,
+    "citation_edges": 248,
     "year_min": 2017,
     "year_max": 2026,
     "citation_direction": "citing_paper -> cited_paper",
@@ -38,36 +38,36 @@
       "id": "05_分布式训练与数据基础设施",
       "label": "分布式训练与数据基础设施",
       "main_node": "p33",
-      "paper_count": 4
+      "paper_count": 6
     },
     {
       "id": "06_GPU内核_编译器与性能工程",
       "label": "GPU内核_编译器与性能工程",
-      "main_node": "p46",
+      "main_node": "p48",
       "paper_count": 10
     },
     {
       "id": "07_GPU内核智能体与自动调优",
       "label": "GPU内核智能体与自动调优",
-      "main_node": "p51",
-      "paper_count": 8
+      "main_node": "p61",
+      "paper_count": 15
     },
     {
       "id": "08_通用智能体与自主学习",
       "label": "通用智能体与自主学习",
-      "main_node": "p55",
+      "main_node": "p64",
       "paper_count": 4
     },
     {
       "id": "09_生成模型与视频系统",
       "label": "生成模型与视频系统",
-      "main_node": "p59",
+      "main_node": "p68",
       "paper_count": 6
     },
     {
       "id": "10_大模型技术报告与推理训练",
       "label": "大模型技术报告与推理训练",
-      "main_node": "p66",
+      "main_node": "p75",
       "paper_count": 4
     }
   ],
@@ -238,7 +238,7 @@
       "category": "02_注意力机制与长上下文",
       "path": "02_注意力机制与长上下文/FlashAttention Fast and Memory-Efficient Exact Attention with IO-Awareness.pdf",
       "sha256": "b1dff215698c42705e29d15c8f532fbc903670ffae7b3d382f436475a76c80fc",
-      "citation_count": 16,
+      "citation_count": 17,
       "is_main": true
     },
     {
@@ -394,7 +394,7 @@
       "category": "03_MoE与稀疏模型",
       "path": "03_MoE与稀疏模型/DeepSeekMoE Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models.pdf",
       "sha256": "a64b509e1410d09cf5b70570788d27790985fb9808ce436b9da8de73f2eed651",
-      "citation_count": 3,
+      "citation_count": 4,
       "is_main": false
     },
     {
@@ -516,6 +516,32 @@
     },
     {
       "id": "p34",
+      "title": "PipeDream Fast and Efficient Pipeline Parallel DNN Training",
+      "label": "PipeDream Fast and Efficient…",
+      "year": 2018,
+      "authors": "Amar Phanishayee",
+      "abstract": "PipeDream is a Deep Neural Network (DNN) training systemforGPUsthatparallelizescomputationbypipelining execution across multiple machines. Its pipeline parallel computing model avoids the slowdowns faced by data-parallel training when large models and/or limited network bandwidth induce high communication-tocomputation ratios. PipeDream reduces communication by up to 95% for large DNNs relative to data-parallel training, and allows perfect overlap of communication and computation. PipeDream keeps all available GPUs productive by systematically partitioning DNN layers among them to balance work and minimize communication,versionsmodelparametersforbackwardpasscorrectness,andschedulestheforwardandbackwardpasses of diﬀerent inputs in round-robin fashion to optimize “time to target accuracy”. Experiments with ﬁve diﬀerentDNNsontwodiﬀerentclustersshowthatPipeDream is up to 5x faster in time-to-accuracy compared to dataparallel training.",
+      "category": "05_分布式训练与数据基础设施",
+      "path": "05_分布式训练与数据基础设施/PipeDream Fast and Efficient Pipeline Parallel DNN Training.pdf",
+      "sha256": "8705b51efbb8b8a54162a9859cf78f56edb70fae3a51927dc534e48b61bcaf26",
+      "citation_count": 4,
+      "is_main": false
+    },
+    {
+      "id": "p35",
+      "title": "PyTorch Distributed Experiences on Accelerating Data Parallel Training",
+      "label": "PyTorch Distributed…",
+      "year": 2020,
+      "authors": "Shen Li  Y anli Zhao Rohan Varma Omkar Salpekar, Pieter Noordhuis  T eng Li Adam Paszke, Jeff Smith  Brian Vaughan Pritam Damania  Soumith Chintala",
+      "abstract": "This paper presents the design, implementation, and evaluation of the PyTorch distributed data parallel module. PyTorch is a widely-adopted scientiﬁc computing package used in deep learning research and applications. Recent advances in deep learning argue for the value of large datasets and large models, which necessitates the ability to scale out model training to more computational resources. Data parallelism has emerged as a popular solution for distributed training thanks to its straightforward principle and broad applicability. In general, the technique of distributed data parallelism replicates the model on every computational resource to generate gradients independently and then communicates those gradients at each iteration to keep model replicas consistent. Despite the conceptual simplicity of the technique, the subtle dependencies between computation and communication make it non-trivial to optimize the distributed training eﬃciency. As of v1.5, PyTorch natively provides several techniques to accelerate distributed data parallel, including bucketing gradients, overlapping computation with communication, and skipping gradient synchronization. Evaluations show that, when conﬁgured appropriately, the PyTorch distributed data parallel module attains near-linear scalability using 256 GPUs.",
+      "category": "05_分布式训练与数据基础设施",
+      "path": "05_分布式训练与数据基础设施/PyTorch Distributed Experiences on Accelerating Data Parallel Training.pdf",
+      "sha256": "246af7a675cfb58a4110c1f92b952baa571038e0a57457459137e8c49f8fcf96",
+      "citation_count": 1,
+      "is_main": false
+    },
+    {
+      "id": "p36",
       "title": "PyTorch FSDP Experiences on Scaling Fully Sharded Data Parallel",
       "label": "PyTorch FSDP Experiences on…",
       "year": 2023,
@@ -528,7 +554,7 @@
       "is_main": false
     },
     {
-      "id": "p35",
+      "id": "p37",
       "title": "SlimPipe Memory-Thrifty and Efficient Pipeline Parallelism for Long-Context LLM Training",
       "label": "SlimPipe Memory-Thrifty and…",
       "year": 2025,
@@ -541,7 +567,7 @@
       "is_main": false
     },
     {
-      "id": "p36",
+      "id": "p38",
       "title": "Teaching the Old Dog New Tricks Building Efficient Data Pipelines for Large-Scale LLM Pre-Training",
       "label": "Teaching the Old Dog New…",
       "year": 2026,
@@ -554,7 +580,7 @@
       "is_main": false
     },
     {
-      "id": "p37",
+      "id": "p39",
       "title": "CODA Rewriting Transformer Blocks as GEMM-Epilogue Programs",
       "label": "CODA Rewriting Transformer…",
       "year": 2026,
@@ -567,7 +593,7 @@
       "is_main": false
     },
     {
-      "id": "p38",
+      "id": "p40",
       "title": "Exceeding the Numerical and Performance Characteristics of IEEE-754 SGEMM with BFloat16 Tensor Cores on GPUs for Scientific Computing",
       "label": "Exceeding the Numerical and…",
       "year": 2026,
@@ -580,7 +606,7 @@
       "is_main": false
     },
     {
-      "id": "p39",
+      "id": "p41",
       "title": "Graphene An ir for optimized tensor computations on gpus",
       "label": "Graphene An ir for optimized…",
       "year": 2023,
@@ -593,7 +619,7 @@
       "is_main": false
     },
     {
-      "id": "p40",
+      "id": "p42",
       "title": "SOL-ExecBench Speed-of-Light Benchmarking for Real-World GPU Kernels Against Hardware Limits",
       "label": "SOL-ExecBench Speed-of-Light…",
       "year": 2026,
@@ -601,12 +627,12 @@
       "abstract": "As agentic AI systems become increasingly capable of generating and optimizing GPU kernels, progress is constrained by benchmarks that reward speedup over software baselines rather than proximity to hardware-efficient execution. We presentSOL-ExecBench, a benchmark of 235 CUDA kernel optimization problems extracted from 124 production and emerging AI models spanning language, diffusion, vision, audio, video, and hybrid architectures, targeting NVIDIA Blackwell GPUs. The benchmark covers forward and backward workloads across BF16, FP8, and NVFP4, including kernels whose best performance is expected to rely on Blackwell-specific capabilities. Unlike prior benchmarks that evaluate kernels primarily relative to software implementations, SOL-ExecBench measures performance against analytically derivedSpeed-of-Light (SOL)bounds computed by SOLAR, our pipeline for deriving hardware-grounded SOL bounds, yielding a fixed target for hardware-efficient optimization. We report aSOL Scorethat quantifies how much of the gap between a release-defined scoring baseline and the hardware SOL bound a candidate kernel closes. To support robust evaluation of agentic optimizers, we additionally provide a sandboxed harness with GPU clock locking, L2 cache clearing, isolated subprocess execution, and static analysis based checks against common reward-hacking strategies. SOL-ExecBench reframes GPU kernel benchmarking from beating a mutable software baseline to closing the remaining gap to hardware Speed-of-Light.",
       "category": "06_GPU内核_编译器与性能工程",
       "path": "06_GPU内核_编译器与性能工程/SOL-ExecBench Speed-of-Light Benchmarking for Real-World GPU Kernels Against Hardware Limits.pdf",
-      "sha256": "d73efe80bd9d8fc8c57ac016ec07de37d76851786bd6641b8ace5e6889099160",
+      "sha256": "952881c91d2973739158aa00b8c3c65488837859a98f0f9abe6b05dfd919a022",
       "citation_count": 2,
       "is_main": false
     },
     {
-      "id": "p41",
+      "id": "p43",
       "title": "Stream-K Work-centric Parallel Decomposition for Dense Matrix-Matrix Multiplication on the GPU",
       "label": "Stream-K Work-centric Parallel…",
       "year": 2023,
@@ -619,7 +645,7 @@
       "is_main": false
     },
     {
-      "id": "p42",
+      "id": "p44",
       "title": "Swizzle Inventor Data Movement Synthesis for GPU Kernels",
       "label": "Swizzle Inventor Data Movement…",
       "year": 2019,
@@ -632,7 +658,7 @@
       "is_main": false
     },
     {
-      "id": "p43",
+      "id": "p45",
       "title": "TileLang A Composable Tiled Programming Model for AI Systems",
       "label": "TileLang A Composable Tiled…",
       "year": 2025,
@@ -645,7 +671,7 @@
       "is_main": false
     },
     {
-      "id": "p44",
+      "id": "p46",
       "title": "TileLink Generating Efficient Compute-Communication Overlapping Kernels using Tile-Centric Primitives",
       "label": "TileLink Generating Efficient…",
       "year": 2025,
@@ -658,7 +684,7 @@
       "is_main": false
     },
     {
-      "id": "p45",
+      "id": "p47",
       "title": "Tilus A Tile-Level GPGPU Programming Language for Low-Precision Computation",
       "label": "Tilus A Tile-Level GPGPU…",
       "year": 2026,
@@ -671,7 +697,7 @@
       "is_main": false
     },
     {
-      "id": "p46",
+      "id": "p48",
       "title": "Triton An Intermediate Language and Compiler for Tiled Neural Network Computations",
       "label": "Triton An Intermediate…",
       "year": 2019,
@@ -680,11 +706,76 @@
       "category": "06_GPU内核_编译器与性能工程",
       "path": "06_GPU内核_编译器与性能工程/Triton An Intermediate Language and Compiler for Tiled Neural Network Computations.pdf",
       "sha256": "d6c97a92a82dd4cc4559fff5aa9be951406e591b37818dd7c91a3287e22b8f6e",
-      "citation_count": 15,
+      "citation_count": 17,
       "is_main": true
     },
     {
-      "id": "p47",
+      "id": "p49",
+      "title": "AIDE AI-Driven Exploration in the Space of Code",
+      "label": "AIDE AI-Driven Exploration in…",
+      "year": 2025,
+      "authors": "Zhengyao Jiang, Weco AI, Dominik Schmidt, Runway ML, Dhruv Srikanth",
+      "abstract": "Machine learning, the foundation of modern artificial intelligence, has driven innovations that have fundamentally transformed the world. Yet, behind advancements lies a complex and often tedious process requiring labor and compute intensive iteration and experimentation. Engineers and scientists developing machine learning models spend much of their time on trial-and-error tasks instead of conceptualizing innovative solutions or research hypotheses. To address this challenge, we introduce AI-Driven Exploration (AIDE), a machine learning engineering agent powered by large language models (LLMs). AIDE frames machine learning engineering as a code optimization problem, and formulates trial-anderror as a tree search in the space of potential solutions. By strategically reusing and refining promising solutions, AIDE effectively trades computational resources for enhanced performance, achieving state-of-the-art results on multiple machine learning engineering benchmarks, including our Kaggle evaluations, OpenAI’s MLE-Bench and METR’s RE-Bench. The implementation of AIDE is publicly available at https://github.com/WecoAI/aideml.",
+      "category": "07_GPU内核智能体与自动调优",
+      "path": "07_GPU内核智能体与自动调优/AIDE AI-Driven Exploration in the Space of Code.pdf",
+      "sha256": "5fc52573eab9c8cb568b0c5aab6ee75752d198504babf8278ad23fe3d542cb41",
+      "citation_count": 0,
+      "is_main": false
+    },
+    {
+      "id": "p50",
+      "title": "AccelOpt A self-improving LLM agentic system for AI accelerator kernel optimization.",
+      "label": "AccelOpt A self-improving LLM…",
+      "year": 2025,
+      "authors": "Genghan Zhang; Shaowei Zhu; Anjiang Wei; Zhenyu Song; Allen Nie; Zhen Jia; Nandita Vijaykumar; Yida Wang; Kunle Olukotun",
+      "abstract": "We present AccelOpt, a self-improving large language model (LLM) agentic system that autonomously optimizes kernels for emerging AI acclerators, eliminating the need for expert-provided hardware-specific optimization knowledge. AccelOpt explores the kernel optimization space through iterative generation, informed by an optimization memory that curates experiences and insights from previously encountered slow-fast kernel pairs. We build NKIBench, a new benchmark suite of AWS Trainium accelerator kernels with varying complexity extracted from real-world LLM workloads to evaluate the effectiveness of AccelOpt. Our evaluation confirms that AccelOpt’s capability improves over iterations, boosting the average percentage of peak throughput from49% to 61% on Trainium 1 and from 45% to 59% on Trainium 2 for NKIBench kernels. Moreover, AccelOpt is highly cost-effective: using open-source models, it matches the kernel improvements of Claude Sonnet 4 while being 26×cheaper. The code is open-sourced athttps://github.com/zhang677/AccelOpt.",
+      "category": "07_GPU内核智能体与自动调优",
+      "path": "07_GPU内核智能体与自动调优/AccelOpt A self-improving LLM agentic system for AI accelerator kernel optimization..pdf",
+      "sha256": "979cce954480722705e35743e9af3d5f05ae0b340be21a502e65a4147673cf86",
+      "citation_count": 3,
+      "is_main": false
+    },
+    {
+      "id": "p51",
+      "title": "Astra A multi-agent system for GPU kernel performance optimization.",
+      "label": "Astra A multi-agent system for…",
+      "year": 2025,
+      "authors": "Anjiang Wei; Tianran Sun; Yogesh Seenichamy; Hang Song; Anne Ouyang; Azalia Mirhoseini; Ke Wang; Alex Aiken",
+      "abstract": "GPU kernel optimization has long been a central challenge at the intersection of high-performance computing and machine learning. Efficient kernels are crucial for accelerating large language model (LLM) training and serving, yet attaining high performance typically requires extensive manual tuning. Compiler-based systems reduce some of this burden, but still demand substantial manual design and engineering effort. Recently, researchers have explored using LLMs for GPU kernel generation, though prior work has largely focused on translating high-level PyTorch modules into CUDA code. In this work, we introduce Astra, the first LLM-based multi-agent system for GPU kernel optimization. Unlike previous approaches, Astra starts from existing CUDA implementations extracted from SGLang, a widely deployed framework for serving LLMs, rather than treating PyTorch modules as the specification. Within Astra, specialized LLM agents collaborate through iterative code generation, testing, profiling, and planning to produce kernels that are both correct and high-performance. On kernels from SGLang, Astra achieves an average speedup of 1.32× using zero-shot prompting with OpenAI o4-mini. A detailed case study further demonstrates that LLMs can autonomously apply loop transformations, optimize memory access patterns, exploit CUDA intrinsics, and leverage fast math operations to yield substantial performance gains. Our work highlights multi-agent LLM systems as a promising new paradigm for GPU kernel optimization. Our code is publicly available at https://github.com/Anjiang-Wei/Astra.",
+      "category": "07_GPU内核智能体与自动调优",
+      "path": "07_GPU内核智能体与自动调优/Astra A multi-agent system for GPU kernel performance optimization..pdf",
+      "sha256": "c4d4731ef8f95fb6f2bf179fa268cee8608680beae237f69743bc13f1a1f0674",
+      "citation_count": 3,
+      "is_main": false
+    },
+    {
+      "id": "p52",
+      "title": "AutoComp A powerful and portable code optimizer for tensor accelerators",
+      "label": "AutoComp A powerful and…",
+      "year": 2025,
+      "authors": "Charles Hong; Sahil Bhatia; Alvin Cheung; Yakun Sophia Shao",
+      "abstract": "Hardware accelerators, especially those designed for tensor processing, have become ubiquitous in today’s computing landscape. However, even with significant efforts in building compilers, programming these tensor accelerators remains challenging, leaving much of their potential underutilized. Recently, large language models (LLMs), trained on large amounts of code, have shown significant promise in code generation and optimization tasks, but generating low-resource languages, such as specialized tensor accelerator code still poses a significant challenge. We tackle this challenge with Autocomp, an approach that empowers accelerator programmers to leverage domain knowledge and hardware feedback to optimize code via an automated LLM-driven search. We accomplish this by: 1) formulating each optimization pass as a structured two-phase prompt, divided into planning and code generation phases, 2) inserting domain knowledge during planning via a concise and adaptable optimization menu, and 3) integrating correctness and performance metrics from hardware as feedback at each search iteration. Across three distinct hardware platforms, we demonstrate that Autocomp-optimized code runs 5.6× faster than the vendor-provided library (Gemmini), outperforms expert-level hand-tuned code by 1.9× (AWS Trainium), and achieves 3.8× higher performance than a machine learning-based cost model for GPUs (NVIDIA L40S). Additionally, we demonstrate that optimization schedules generated from Autocomp can be reused across similar tensor operations, improving speedups by up to 24% under a fixed sample budget.",
+      "category": "07_GPU内核智能体与自动调优",
+      "path": "07_GPU内核智能体与自动调优/AutoComp A powerful and portable code optimizer for tensor accelerators.pdf",
+      "sha256": "25e257da18594e934e1803e6e863b2a1a5fa92bed2d04741926ef50fc26623e2",
+      "citation_count": 2,
+      "is_main": false
+    },
+    {
+      "id": "p53",
+      "title": "AutoKernel Autonomous GPU Kernel Optimization via Iterative Agent-Driven Search",
+      "label": "AutoKernel Autonomous GPU…",
+      "year": 2026,
+      "authors": "Jaber Jaber; Osama Jaber",
+      "abstract": "Writing high-performance GPU kernels is among the most labor-intensive tasks in machine learning systems engineering. A single matrix multiplication kernel targeting tensor core hardware may require weeks of expert tuning across tiling strategies, memory layouts, and precision configurations. We present AUTOKERNEL, an open-source framework that applies an autonomous agent loop to GPU kernel optimization for arbitrary PyTorch models. Given a model, AUTOKERNEL profiles it to identify computational bottlenecks, ranks them by Amdahl’s law impact, and iteratively refines Triton or CUDA C++ kernel implementations through hundreds of experiments without human intervention. A five-stage correctness harness, covering smoke tests, shape sweeps across 10+ configurations, numerical stability under adversarial inputs, determinism verification, and edge-case coverage, ensures that every candidate kernel is validated before any speedup is recorded. We describe the system architecture comprising over 9,000 lines of Python and a 909-line agent instruction document, 18 starter kernel implementations across two backends, a six-tier optimization playbook, and integration with the KernelBench benchmark suite of 250 standardized problems. AUTOKERNELcovers nine kernel types spanning the dominant operations in modern transformer architectures. On an NVIDIA H100, our Triton kernels outperform both PyTorch eager and torch.compile (max-autotune) on the majority of tested configurations: 5.29× over eager on RMSNorm, 2.82× on softmax, and 2.21× on cross-entropy, while beatingtorch.compile by 2.83×, 3.44×, and 2.94× on the same kernels respectively. In community deployment, an AutoKernel-optimized kernel achieved first place on the vectorsum_v2 B200 leaderboard, and a single-prompt Triton FP4 matmu…",
+      "category": "07_GPU内核智能体与自动调优",
+      "path": "07_GPU内核智能体与自动调优/AutoKernel Autonomous GPU Kernel Optimization via Iterative Agent-Driven Search.pdf",
+      "sha256": "fbcb7bad52c47f69ac9dd26b89a21fd149e167fcdefd5d39bc31a9a3adef487a",
+      "citation_count": 3,
+      "is_main": false
+    },
+    {
+      "id": "p54",
       "title": "CAKE Compiler–Agent Co-Design for Frontier Kernel Evolution",
       "label": "CAKE Compiler–Agent Co-Design…",
       "year": 2026,
@@ -697,7 +788,20 @@
       "is_main": false
     },
     {
-      "id": "p48",
+      "id": "p55",
+      "title": "CORAL Towards autonomous multi-agent evolution for open-ended discovery",
+      "label": "CORAL Towards autonomous…",
+      "year": 2026,
+      "authors": "Ao Qu; Han Zheng; Zijian Zhou; Yihao Yan; Yihong Tang; Shao Yong Ong; Fenglu Hong; Kaichen Zhou; Chonghe Jiang; Minwei Kong; Jiacheng Zhu; Xuan Jiang; Sirui Li; Cathy Wu; Bryan Kian Hsiang Low; Jinhua Zhao; Paul Pu Liang",
+      "abstract": "Large language model (LLM)-based evolution is a promising approach for open-ended discovery, where progress requires sustained search and knowledge accumulation. Existing methods still rely heavily on fixed heuristics and hard-coded exploration rules, which limit the autonomy of LLM agents. We presentCORAL, the first framework for autonomous multi-agent evolution on open-ended problems. CORAL replaces rigid control with long-running agents that explore, reflect, and collaborate through shared persistent memory, asynchronous multi-agent execution, and heartbeat-based interventions. It also provides practical safeguards, including isolated workspaces, evaluator separation, resource management, and agent session and health management. Evaluated on diverse Correspondence:qua@mit.edu,hanzheng@mit.edu,zhou zijian@u.nus.edu",
+      "category": "07_GPU内核智能体与自动调优",
+      "path": "07_GPU内核智能体与自动调优/CORAL Towards autonomous multi-agent evolution for open-ended discovery.pdf",
+      "sha256": "6baf82f122d884380dea1ce2a20a92fd4e75216f430f652819d56bb2b893085c",
+      "citation_count": 1,
+      "is_main": false
+    },
+    {
+      "id": "p56",
       "title": "CUDA Agent Large-Scale Agentic RL for High-Performance CUDA Kernel Generation",
       "label": "CUDA Agent Large-Scale Agentic…",
       "year": 2026,
@@ -706,11 +810,11 @@
       "category": "07_GPU内核智能体与自动调优",
       "path": "07_GPU内核智能体与自动调优/CUDA Agent Large-Scale Agentic RL for High-Performance CUDA Kernel Generation.pdf",
       "sha256": "a6b960d87a15bcac85dd97266d021832d03017b519cb0dcfb760358089fed23e",
-      "citation_count": 1,
+      "citation_count": 2,
       "is_main": false
     },
     {
-      "id": "p49",
+      "id": "p57",
       "title": "EvoMem Memory-Augmented Evolution for Code Optimization",
       "label": "EvoMem Memory-Augmented…",
       "year": 2026,
@@ -723,7 +827,7 @@
       "is_main": false
     },
     {
-      "id": "p50",
+      "id": "p58",
       "title": "HAN_Lab_Kernel_Mafia_Technical_Report",
       "label": "HAN_Lab_Kernel_Mafia_Technical_Report…",
       "year": 2026,
@@ -736,7 +840,7 @@
       "is_main": false
     },
     {
-      "id": "p51",
+      "id": "p59",
       "title": "KernelAgent Hardware-Guided GPU Kernel Optimization via Multi-Agent Orchestration",
       "label": "KernelAgent Hardware-Guided…",
       "year": 2026,
@@ -746,10 +850,10 @@
       "path": "07_GPU内核智能体与自动调优/KernelAgent Hardware-Guided GPU Kernel Optimization via Multi-Agent Orchestration.pdf",
       "sha256": "012c808e41562d6d6c28413f79b856794cea9218109eba5a0e55a46f4b2d37e7",
       "citation_count": 1,
-      "is_main": true
+      "is_main": false
     },
     {
-      "id": "p52",
+      "id": "p60",
       "title": "KernelArc A Multi-Agent Framework for GPU Kernel Optimization",
       "label": "KernelArc A Multi-Agent…",
       "year": 2026,
@@ -757,12 +861,25 @@
       "abstract": "We presentKernelArc, a multi-agent framework for autonomous GPU kernel optimization across heterogeneous workloads. Strategy-specialized agents run in parallel and coordinate through conclusions-only shared memory, a deterministic benchmark guard, and read-only cross-agent state with plateau-triggered drafting. We evaluateKernelArcon NVIDIA H100 and B200 GPUs using category-representative SOL-ExecBench workloads. The resulting implementations span custom BF16 GEMM, static cuBLASLt Expert-API configuration tables, fused mixture-of-experts backward, shape-gated decoder-layer fusion, native NVFP4 grouped-query attention, and paged prefill attention. At the public SOL-ExecBench leaderboard snapshot recorded on July 30, 2026, these submissions ranked first on representative L1, L2, Quantization, and FlashInfer tasks. The trajectories support the paper’s central motivation: shared multi-agent search can broaden exploration and reach stronger incumbents within a fixed candidate budget, while the value of individual coordination features depends on the kernel and optimization stage.",
       "category": "07_GPU内核智能体与自动调优",
       "path": "07_GPU内核智能体与自动调优/KernelArc A Multi-Agent Framework for GPU Kernel Optimization.pdf",
-      "sha256": "ef607139f4e2426e4803043b939f0536a81c5009adde8909af9cdacb712af3f4",
+      "sha256": "5d761adcc6a3926ffdf9102c9f817f60d2220aebc4f00674364dc4a5eb5b0363",
       "citation_count": 0,
       "is_main": false
     },
     {
-      "id": "p53",
+      "id": "p61",
+      "title": "KernelBench Can LLMs write efficient GPU kernels?",
+      "label": "KernelBench Can LLMs write…",
+      "year": 2025,
+      "authors": "Anne Ouyang,, Simon Guo ,, Simran Arora , Alex L. Zhang , William Hu , Christopher",
+      "abstract": "Efficient GPU kernels are crucial for building performant machine learning architectures, but writing them is a time-consuming challenge that requires significant expertise; therefore, we explore using language models (LMs) to automate kernel generation. We introduce KernelBench, an open-source framework for evaluating LMs’ ability to write fast and correct kernels on a suite of 250 carefully selected PyTorch ML workloads. KernelBench represents a real-world engineering environment and making progress on the introduced benchmark directly translates to faster practical kernels. We introduce a new evaluation metric fastp, which measures the percentage of generated kernels that are functionally correct and offer a speedup greater than an adjustable threshold p over baseline. Our experiments across various state-of-the-art models and test-time methods show that frontier reasoning models perform the best out of the box but still fall short overall, matching the PyTorch baseline in less than 20% of the cases. While we show that results can improve by leveraging execution and profiling feedback during iterative refinement, KernelBench remains a challenging benchmark, with its difficulty increasing as we raise speedup threshold p.",
+      "category": "07_GPU内核智能体与自动调优",
+      "path": "07_GPU内核智能体与自动调优/KernelBench Can LLMs write efficient GPU kernels?.pdf",
+      "sha256": "fb1765807098915b853cca7a007aaa4bccdcd1a45eb1baef0d3919948abd7a6b",
+      "citation_count": 10,
+      "is_main": true
+    },
+    {
+      "id": "p62",
       "title": "Optimizing CUDA like a Human Micro-Profiling Tools as Expert Surrogates for LLM-Based GPU Kernel Optimization",
       "label": "Optimizing CUDA like a Human…",
       "year": 2026,
@@ -775,7 +892,7 @@
       "is_main": false
     },
     {
-      "id": "p54",
+      "id": "p63",
       "title": "ako-tech-report",
       "label": "ako-tech-report",
       "year": 2026,
@@ -788,7 +905,7 @@
       "is_main": false
     },
     {
-      "id": "p55",
+      "id": "p64",
       "title": "AVO Agentic Variation Operators for Autonomous Evolutionary Search",
       "label": "AVO Agentic Variation…",
       "year": 2026,
@@ -801,7 +918,7 @@
       "is_main": true
     },
     {
-      "id": "p56",
+      "id": "p65",
       "title": "From Copilots to Colleagues A Survey of Autonomous Research Agents",
       "label": "From Copilots to Colleagues A…",
       "year": 2026,
@@ -814,7 +931,7 @@
       "is_main": false
     },
     {
-      "id": "p57",
+      "id": "p66",
       "title": "Self-Play in the Age of Foundation Models A Comprehensive Survey from Game-Theoretic Foundations to Open-Ended Learning",
       "label": "Self-Play in the Age of…",
       "year": 2024,
@@ -827,7 +944,7 @@
       "is_main": false
     },
     {
-      "id": "p58",
+      "id": "p67",
       "title": "The Landscape of Emerging AI Agent Architectures for Reasoning, Planning, and Tool Calling A Survey",
       "label": "The Landscape of Emerging AI…",
       "year": 2024,
@@ -840,7 +957,7 @@
       "is_main": false
     },
     {
-      "id": "p59",
+      "id": "p68",
       "title": "Denoising Diffusion Probabilistic Models",
       "label": "Denoising Diffusion…",
       "year": 2020,
@@ -849,11 +966,11 @@
       "category": "09_生成模型与视频系统",
       "path": "09_生成模型与视频系统/Denoising Diffusion Probabilistic Models.pdf",
       "sha256": "aee5e07a802e8dfd2a386374c94fd61d1d056cb7e1e0fec4f28e8120ff5d8505",
-      "citation_count": 4,
+      "citation_count": 5,
       "is_main": true
     },
     {
-      "id": "p60",
+      "id": "p69",
       "title": "EDEN Enhanced Diffusion for High-quality Large-motion Video Frame Interpolation",
       "label": "EDEN Enhanced Diffusion for…",
       "year": 2025,
@@ -866,7 +983,7 @@
       "is_main": false
     },
     {
-      "id": "p61",
+      "id": "p70",
       "title": "Fast Video Generation with SLIDING TILE ATTENTION",
       "label": "Fast Video Generation with…",
       "year": 2025,
@@ -879,7 +996,7 @@
       "is_main": false
     },
     {
-      "id": "p62",
+      "id": "p71",
       "title": "MAGI-1 Autoregressive Video Generation at Scale",
       "label": "MAGI-1 Autoregressive Video…",
       "year": 2025,
@@ -892,7 +1009,7 @@
       "is_main": false
     },
     {
-      "id": "p63",
+      "id": "p72",
       "title": "Scalable Diffusion Models with Transformers",
       "label": "Scalable Diffusion Models with…",
       "year": 2022,
@@ -905,7 +1022,7 @@
       "is_main": false
     },
     {
-      "id": "p64",
+      "id": "p73",
       "title": "Sol Video Inference Engine Agent-Native Full-Stack Acceleration Framework for Efficient Video Generation",
       "label": "Sol Video Inference Engine…",
       "year": 2026,
@@ -918,7 +1035,7 @@
       "is_main": false
     },
     {
-      "id": "p65",
+      "id": "p74",
       "title": "DeepSeek-R1 incentivizes reasoning in LLMs through reinforcement learning",
       "label": "DeepSeek-R1 incentivizes…",
       "year": 2025,
@@ -931,7 +1048,7 @@
       "is_main": false
     },
     {
-      "id": "p66",
+      "id": "p75",
       "title": "DeepSeek-V3 Technical Report",
       "label": "DeepSeek-V3 Technical Report",
       "year": 2024,
@@ -940,11 +1057,11 @@
       "category": "10_大模型技术报告与推理训练",
       "path": "10_大模型技术报告与推理训练/DeepSeek-V3 Technical Report.pdf",
       "sha256": "728079b0cc5820cb650de21fd820a9cbc76e119bc21bc38c130180207e719eea",
-      "citation_count": 11,
+      "citation_count": 12,
       "is_main": true
     },
     {
-      "id": "p67",
+      "id": "p76",
       "title": "DeepSeek-V3.2 Pushing the Frontier of Open Large Language Models",
       "label": "DeepSeek-V3.2 Pushing the…",
       "year": 2025,
@@ -957,7 +1074,7 @@
       "is_main": false
     },
     {
-      "id": "p68",
+      "id": "p77",
       "title": "DeepSeek-V4 Technical Report",
       "label": "DeepSeek-V4 Technical Report",
       "year": 2026,
@@ -1010,7 +1127,7 @@
       },
       {
         "source": "p04",
-        "target": "p66",
+        "target": "p75",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1070,13 +1187,13 @@
       },
       {
         "source": "p09",
-        "target": "p43",
+        "target": "p45",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p09",
-        "target": "p66",
+        "target": "p75",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1118,7 +1235,7 @@
       },
       {
         "source": "p10",
-        "target": "p46",
+        "target": "p48",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1184,13 +1301,13 @@
       },
       {
         "source": "p13",
-        "target": "p46",
+        "target": "p48",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p13",
-        "target": "p66",
+        "target": "p75",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1220,7 +1337,7 @@
       },
       {
         "source": "p14",
-        "target": "p46",
+        "target": "p48",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1322,7 +1439,7 @@
       },
       {
         "source": "p17",
-        "target": "p46",
+        "target": "p48",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1364,7 +1481,7 @@
       },
       {
         "source": "p18",
-        "target": "p66",
+        "target": "p75",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1406,7 +1523,7 @@
       },
       {
         "source": "p19",
-        "target": "p46",
+        "target": "p48",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1448,7 +1565,7 @@
       },
       {
         "source": "p20",
-        "target": "p61",
+        "target": "p70",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1490,13 +1607,13 @@
       },
       {
         "source": "p22",
-        "target": "p34",
+        "target": "p36",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p22",
-        "target": "p66",
+        "target": "p75",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1556,7 +1673,13 @@
       },
       {
         "source": "p24",
-        "target": "p46",
+        "target": "p34",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p24",
+        "target": "p48",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1598,19 +1721,19 @@
       },
       {
         "source": "p28",
-        "target": "p43",
+        "target": "p45",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p28",
-        "target": "p46",
+        "target": "p48",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p28",
-        "target": "p66",
+        "target": "p75",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1634,13 +1757,13 @@
       },
       {
         "source": "p31",
-        "target": "p59",
+        "target": "p68",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p31",
-        "target": "p63",
+        "target": "p72",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1669,38 +1792,14 @@
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p34",
-        "target": "p29",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p35",
-        "target": "p01",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p35",
-        "target": "p06",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p35",
-        "target": "p12",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p35",
-        "target": "p33",
+        "source": "p33",
+        "target": "p34",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p36",
-        "target": "p33",
+        "target": "p29",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1712,37 +1811,73 @@
       },
       {
         "source": "p36",
-        "target": "p66",
+        "target": "p35",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p37",
-        "target": "p07",
+        "target": "p01",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p37",
-        "target": "p43",
+        "target": "p06",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p37",
-        "target": "p46",
+        "target": "p12",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p37",
+        "target": "p33",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p38",
-        "target": "p01",
+        "target": "p33",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p38",
+        "target": "p36",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p38",
+        "target": "p75",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p39",
-        "target": "p46",
+        "target": "p07",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p39",
+        "target": "p45",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p39",
+        "target": "p48",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p39",
+        "target": "p61",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1753,68 +1888,44 @@
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p40",
-        "target": "p12",
+        "source": "p41",
+        "target": "p48",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p40",
-        "target": "p46",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p40",
-        "target": "p66",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p43",
-        "target": "p12",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p43",
-        "target": "p39",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p43",
-        "target": "p42",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p43",
-        "target": "p46",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p44",
-        "target": "p41",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p44",
-        "target": "p46",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p45",
+        "source": "p42",
         "target": "p01",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
+        "source": "p42",
+        "target": "p12",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p42",
+        "target": "p48",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p42",
+        "target": "p61",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p42",
+        "target": "p75",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
         "source": "p45",
-        "target": "p39",
+        "target": "p12",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1826,43 +1937,43 @@
       },
       {
         "source": "p45",
-        "target": "p46",
+        "target": "p44",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p45",
+        "target": "p48",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p46",
+        "target": "p43",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p46",
+        "target": "p48",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p47",
         "target": "p01",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p47",
-        "target": "p13",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p47",
-        "target": "p28",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p47",
-        "target": "p39",
+        "target": "p41",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p47",
         "target": "p43",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p47",
-        "target": "p46",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1873,44 +1984,104 @@
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p47",
+        "source": "p48",
+        "target": "p01",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p50",
+        "target": "p24",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p50",
+        "target": "p61",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p50",
+        "target": "p75",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p51",
+        "target": "p48",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p51",
+        "target": "p61",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p51",
+        "target": "p68",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p53",
+        "target": "p12",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p53",
+        "target": "p48",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p53",
         "target": "p51",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p47",
-        "target": "p55",
+        "source": "p53",
+        "target": "p56",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p50",
-        "target": "p43",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p50",
-        "target": "p46",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p50",
-        "target": "p55",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p52",
-        "target": "p40",
+        "source": "p53",
+        "target": "p61",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p54",
-        "target": "p40",
+        "target": "p13",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p54",
+        "target": "p28",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p54",
+        "target": "p41",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p54",
+        "target": "p45",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p54",
+        "target": "p48",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
@@ -1921,338 +2092,488 @@
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p55",
-        "target": "p01",
+        "source": "p54",
+        "target": "p52",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p55",
-        "target": "p12",
+        "source": "p54",
+        "target": "p56",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p55",
-        "target": "p13",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p57",
-        "target": "p66",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p59",
-        "target": "p01",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p60",
-        "target": "p01",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p60",
+        "source": "p54",
         "target": "p59",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p60",
-        "target": "p63",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p61",
-        "target": "p15",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p61",
-        "target": "p17",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p61",
-        "target": "p18",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p61",
-        "target": "p19",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p61",
-        "target": "p63",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p62",
-        "target": "p00",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p62",
-        "target": "p01",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p62",
-        "target": "p07",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p62",
-        "target": "p11",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p62",
-        "target": "p12",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p62",
-        "target": "p15",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p62",
-        "target": "p32",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p62",
-        "target": "p33",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p62",
-        "target": "p34",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p62",
-        "target": "p59",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p62",
-        "target": "p63",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p63",
-        "target": "p00",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p63",
-        "target": "p01",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p63",
-        "target": "p02",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p63",
-        "target": "p59",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p64",
-        "target": "p17",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p64",
-        "target": "p18",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p64",
-        "target": "p19",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p64",
-        "target": "p37",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p64",
+        "source": "p54",
         "target": "p61",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p66",
+        "source": "p54",
+        "target": "p64",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p56",
+        "target": "p61",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p57",
+        "target": "p61",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p58",
+        "target": "p45",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p58",
+        "target": "p48",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p58",
+        "target": "p51",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p58",
+        "target": "p53",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p58",
+        "target": "p61",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p58",
+        "target": "p64",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p60",
+        "target": "p42",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p60",
+        "target": "p50",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p60",
+        "target": "p52",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p60",
+        "target": "p53",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p60",
+        "target": "p55",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p60",
+        "target": "p61",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p63",
+        "target": "p42",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p63",
+        "target": "p50",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p63",
+        "target": "p51",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p63",
+        "target": "p53",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p63",
+        "target": "p58",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p64",
         "target": "p01",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p66",
-        "target": "p02",
+        "source": "p64",
+        "target": "p12",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p64",
+        "target": "p13",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
         "source": "p66",
+        "target": "p75",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p68",
+        "target": "p01",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p69",
+        "target": "p01",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p69",
+        "target": "p68",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p69",
+        "target": "p72",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p70",
+        "target": "p15",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p70",
+        "target": "p17",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p70",
+        "target": "p18",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p70",
+        "target": "p19",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p70",
+        "target": "p72",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p71",
+        "target": "p00",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p71",
+        "target": "p01",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p71",
         "target": "p07",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p66",
-        "target": "p24",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p66",
-        "target": "p27",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p66",
-        "target": "p29",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p66",
-        "target": "p32",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p67",
-        "target": "p01",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p67",
-        "target": "p65",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p67",
-        "target": "p66",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p68",
-        "target": "p01",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p68",
-        "target": "p02",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p68",
-        "target": "p03",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p68",
-        "target": "p04",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p68",
-        "target": "p07",
-        "confidence": "high",
-        "evidence": "完整标题匹配"
-      },
-      {
-        "source": "p68",
+        "source": "p71",
         "target": "p11",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p68",
-        "target": "p23",
+        "source": "p71",
+        "target": "p12",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p68",
+        "source": "p71",
+        "target": "p15",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p71",
+        "target": "p32",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p71",
+        "target": "p33",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p71",
+        "target": "p36",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p71",
+        "target": "p68",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p71",
+        "target": "p72",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p72",
+        "target": "p00",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p72",
+        "target": "p01",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p72",
+        "target": "p02",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p72",
+        "target": "p68",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p73",
+        "target": "p17",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p73",
+        "target": "p18",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p73",
+        "target": "p19",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p73",
+        "target": "p39",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p73",
+        "target": "p70",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p75",
+        "target": "p01",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p75",
+        "target": "p02",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p75",
+        "target": "p07",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p75",
         "target": "p24",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p68",
+        "source": "p75",
+        "target": "p27",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p75",
+        "target": "p29",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p75",
+        "target": "p32",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p75",
+        "target": "p34",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p76",
+        "target": "p01",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p76",
+        "target": "p74",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p76",
+        "target": "p75",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p77",
+        "target": "p01",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p77",
+        "target": "p02",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p77",
+        "target": "p03",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p77",
+        "target": "p04",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p77",
+        "target": "p07",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p77",
+        "target": "p11",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p77",
+        "target": "p23",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p77",
+        "target": "p24",
+        "confidence": "high",
+        "evidence": "完整标题匹配"
+      },
+      {
+        "source": "p77",
         "target": "p26",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p68",
-        "target": "p41",
+        "source": "p77",
+        "target": "p43",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p68",
-        "target": "p65",
+        "source": "p77",
+        "target": "p74",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p68",
-        "target": "p66",
+        "source": "p77",
+        "target": "p75",
         "confidence": "high",
         "evidence": "完整标题匹配"
       },
       {
-        "source": "p68",
-        "target": "p67",
+        "source": "p77",
+        "target": "p76",
         "confidence": "high",
         "evidence": "完整标题匹配"
       }

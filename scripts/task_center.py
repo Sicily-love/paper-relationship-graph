@@ -105,6 +105,7 @@ def task_state(config_path: Path = DEFAULT_CONFIG, status_path: Path = DEFAULT_S
             "last_finished_at": status.get("finished_at"),
             "last_message": status.get("message", "尚未安装" if item["enabled"] and not installed else "尚未运行"),
             "last_log": status.get("log", ""),
+            "last_result": status.get("result", {}),
         })
     return {
         "supported": sys.platform == "darwin",
@@ -143,15 +144,30 @@ def run_task(task_id: str, papers_dir: Path, status_path: Path = DEFAULT_STATUS)
     output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
     message = (output.splitlines()[-1] if output else "任务已完成")[:500]
     status = "success" if result.returncode == 0 else "failed"
+    structured_result = {}
+    for line in result.stdout.splitlines():
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            structured_result = value
+            break
     update_status(task_id, {
         "status": status,
         "finished_at": datetime.now().astimezone().isoformat(),
         "message": message,
         "log": output[-12000:],
+        "result": structured_result,
     }, status_path)
     if result.returncode:
         raise ValueError(message)
-    return {"message": message, "task_id": task_id, "status": status}
+    return {
+        "message": message,
+        "task_id": task_id,
+        "status": status,
+        "result": structured_result,
+    }
 
 
 def launch_agent_payload(task_id: str, item: dict, papers_dir: Path) -> dict:

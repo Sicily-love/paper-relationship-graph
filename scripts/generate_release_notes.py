@@ -42,7 +42,11 @@ def parse_changelog(text: str) -> list[dict]:
 
 def release_notes() -> dict:
     version = VERSION.read_text(encoding="utf-8").strip()
-    releases = parse_changelog(CHANGELOG.read_text(encoding="utf-8"))
+    releases = [
+        release
+        for release in parse_changelog(CHANGELOG.read_text(encoding="utf-8"))
+        if release["version"].lower() != "unreleased"
+    ]
     current = next((item for item in releases if item["version"] == version), None)
     if current is None:
         raise ValueError(f"CHANGELOG.md 缺少当前版本 {version}")
