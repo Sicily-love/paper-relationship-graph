@@ -250,7 +250,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertIn("KernelBench", query)
 
     def test_live_topic_profile_uses_current_category_papers(self):
-        category = "07_GPU内核智能体与自动调优"
+        category = "08_GPU内核智能体与自动调优"
         graph = {
             "categories": [{"id": category, "main_node": "p1"}],
             "nodes": [
@@ -597,7 +597,7 @@ class DiscoveryTests(unittest.TestCase):
             "abstract": "We generate and tune Triton kernels with several cooperating agents.",
             "supporting_papers": [],
         })
-        self.assertEqual(result["suggested_category"], "07_GPU内核智能体与自动调优")
+        self.assertEqual(result["suggested_category"], "08_GPU内核智能体与自动调优")
         self.assertEqual(result["category_confidence"], "高")
 
     def test_attention_quantization_uses_attention_boundary_rule(self):
@@ -605,14 +605,14 @@ class DiscoveryTests(unittest.TestCase):
             "title": "Low-Precision Quantized Attention for Long Context",
             "abstract": "An attention-specific quantization method.",
         })
-        self.assertEqual(result["suggested_category"], "02_注意力机制与长上下文")
+        self.assertEqual(result["suggested_category"], "03_注意力机制与长上下文")
 
     def test_non_agentic_gpu_compiler_stays_in_performance_engineering(self):
         result = discover_papers.classify_candidate({
             "title": "A Tensor Compiler for Fast GPU Kernels",
             "abstract": "We compile tiled tensor programs into optimized GPU code without agents.",
         })
-        self.assertEqual(result["suggested_category"], "06_GPU内核_编译器与性能工程")
+        self.assertEqual(result["suggested_category"], "07_GPU内核_编译器与性能工程")
 
     def test_automatic_kernel_generation_is_classified_as_performance_engineering(self):
         result = discover_papers.classify_candidate({
@@ -620,7 +620,7 @@ class DiscoveryTests(unittest.TestCase):
             "abstract": "We use polyhedral transformations to generate efficient kernels.",
             "topic_ids": ["category-07-kernel-agents"],
         })
-        self.assertEqual(result["suggested_category"], "06_GPU内核_编译器与性能工程")
+        self.assertEqual(result["suggested_category"], "07_GPU内核_编译器与性能工程")
 
     def test_search_topic_is_used_as_low_confidence_classification_fallback(self):
         result = discover_papers.classify_candidate({
@@ -628,7 +628,7 @@ class DiscoveryTests(unittest.TestCase):
             "abstract": "No known category phrase is available.",
             "topic_ids": ["category-07-kernel-agents"],
         })
-        self.assertEqual(result["suggested_category"], "07_GPU内核智能体与自动调优")
+        self.assertEqual(result["suggested_category"], "08_GPU内核智能体与自动调优")
         self.assertEqual(result["category_confidence"], "需确认")
 
     def test_openalex_abstract_is_restored_in_word_order(self):

@@ -47,7 +47,7 @@ class TransactionTests(unittest.TestCase):
                 with self.assertRaisesRegex(OSError, "disk full"):
                     manage_candidate.commit_decision(
                         data, "arxiv:1", "accept", papers,
-                        "06_GPU内核_编译器与性能工程", root / "d.json", root / "d.js",
+                        "07_GPU内核_编译器与性能工程", root / "d.json", root / "d.js",
                     )
             self.assertEqual(data, before)
             self.assertFalse(any(papers.rglob("*.pdf")))
@@ -65,7 +65,7 @@ class TransactionTests(unittest.TestCase):
             }]}
             candidate = manage_candidate.commit_decision(
                 data, "arxiv:1", "accept", papers,
-                "06_GPU内核_编译器与性能工程", json_path, js_path,
+                "07_GPU内核_编译器与性能工程", json_path, js_path,
             )
             self.assertEqual(candidate["graph_status"], "pending")
             manage_candidate.mark_graph_status(data, "arxiv:1", "complete", json_path, js_path)
@@ -204,7 +204,7 @@ class WebContractTests(unittest.TestCase):
         html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
         script = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
         styles = (ROOT / "web" / "styles.css").read_text(encoding="utf-8")
-        self.assertIn("Paper Atlas 1.3.0", html)
+        self.assertIn("Paper Atlas 1.4.0", html)
         self.assertIn('id="version-history"', html)
         self.assertIn('id="release-notes-dialog"', html)
         self.assertIn("window.PAPER_RELEASES", script)
@@ -214,6 +214,11 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('data/graph-data.js?v=${Date.now()}', html)
         self.assertIn('id="export-backup"', html)
         self.assertIn('id="run-diagnostics"', html)
+        self.assertIn('id="open-runtime-logs"', html)
+        self.assertIn('id="logs-dialog"', html)
+        self.assertIn('id="remove-graph-node"', html)
+        self.assertIn('id="run-topic-discovery"', html)
+        self.assertIn('id="graph-heading">论文图谱', html)
         self.assertIn('id="diagnostics-panel"', html)
         self.assertNotIn('id="show-citations"', html)
         self.assertIn('id="run-highly-cited"', html)
@@ -230,6 +235,15 @@ class WebContractTests(unittest.TestCase):
         self.assertIn("function renderClassificationReview", script)
         self.assertIn("function pollApiState", script)
         self.assertIn("function runDiagnostics", script)
+        self.assertIn("function removeGraphNode", script)
+        self.assertIn("function openRuntimeLogs", script)
+        self.assertIn("Math.hypot(candidate.x - other.x", script)
+        self.assertIn("node.hitRadius + other.node.hitRadius", script)
+        self.assertIn("node-port incoming-port", script)
+        self.assertIn("node-port outgoing-port", script)
+        self.assertIn("const boundaryPoint = (node, toward)", script)
+        self.assertNotIn("candidate-more-actions", script)
+        self.assertNotIn("更多操作", script)
         self.assertIn("function sendCandidateFeedback", script)
         self.assertIn("OpenAlex 语义召回", script)
         self.assertIn("JSON.stringify({mode: 'topics'})", script)
@@ -240,12 +254,22 @@ class WebContractTests(unittest.TestCase):
         self.assertNotIn("marker-end:", styles)
         self.assertIn(".edge.focused.outgoing { stroke: #f08a3e; }", styles)
         self.assertIn(".edge.focused.incoming { stroke: var(--citation); }", styles)
+        self.assertIn("--cat-10:", styles)
+
+    def test_v14_taxonomy_has_distinct_architecture_and_training_categories(self):
+        self.assertEqual(len(build_graph.STANDARD_CATEGORIES), 11)
+        self.assertEqual(build_graph.STANDARD_CATEGORIES[0], "01_模型架构与基础组件")
+        self.assertEqual(build_graph.STANDARD_CATEGORIES[1], "02_训练方法与优化器")
+        self.assertIn("09_通用智能体与自主发现", build_graph.STANDARD_CATEGORIES)
 
     def test_native_titlebar_is_draggable_without_covering_web_actions(self):
         launcher = (ROOT / "platform" / "macos" / "PaperAtlasLauncher.m").read_text(encoding="utf-8")
         self.assertIn("NSWindowStyleMaskTitled", launcher)
         self.assertNotIn("NSWindowStyleMaskFullSizeContentView", launcher)
         self.assertNotIn("PaperAtlasDragRegion", launcher)
+        self.assertIn('@selector(copy:)', launcher)
+        self.assertIn('@selector(paste:)', launcher)
+        self.assertIn('@"config/discovery-evaluation.json"', launcher)
 
     def test_automatic_update_does_not_launch_browser_preview(self):
         makefile = (ROOT / "Makefile").read_text(encoding="utf-8")

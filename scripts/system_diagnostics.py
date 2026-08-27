@@ -111,12 +111,31 @@ def run(papers_dir: Path, include_network: bool = True) -> dict:
         },
     ))
 
-    evaluation = discovery_evaluation.run()
+    try:
+        evaluation = discovery_evaluation.run()
+        evaluation_error = None
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        evaluation_error = str(error)
+        evaluation = {
+            "status": "failed",
+            "case_count": 0,
+            "metrics": {
+                "precision": 0.0,
+                "recall": 0.0,
+                "classification_accuracy": 0.0,
+                "dedupe_accuracy": 0.0,
+            },
+            "cases": [],
+        }
     checks.append(check(
         "evaluation", "固定发现评测",
         "passed" if evaluation["status"] == "passed" else "failed",
-        f"{evaluation['case_count']} 个样本；召回率 {evaluation['metrics']['recall']:.0%}，"
-        f"精确率 {evaluation['metrics']['precision']:.0%}",
+        (
+            f"评测集无法读取：{evaluation_error}"
+            if evaluation_error
+            else f"{evaluation['case_count']} 个样本；召回率 {evaluation['metrics']['recall']:.0%}，"
+                 f"精确率 {evaluation['metrics']['precision']:.0%}"
+        ),
         evaluation["metrics"],
     ))
 

@@ -107,6 +107,8 @@ class GraphRequestHandler(SimpleHTTPRequestHandler):
             "/api/diagnostics": self.services.run_diagnostics,
             "/api/tasks": self.services.manage_tasks,
             "/api/backup": self.services.manage_backup,
+            "/api/logs": self.services.runtime_logs,
+            "/api/graph/node/remove": self.services.remove_graph_node,
         }
         action = actions.get(urlsplit(self.path).path)
         if action is None:

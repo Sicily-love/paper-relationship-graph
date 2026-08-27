@@ -112,6 +112,8 @@
                 @"/api/diagnostics": @"diagnostics",
                 @"/api/tasks": @"tasks",
                 @"/api/backup": @"backup",
+                @"/api/logs": @"logs",
+                @"/api/graph/node/remove": @"remove_node",
             };
             NSString *command = commands[path];
             NSData *data;
@@ -211,6 +213,7 @@
             withIntermediateDirectories:YES attributes:nil error:error]) return NO;
     NSArray<NSString *> *programFiles = @[
         @"scripts", @"requirements.txt", @"VERSION",
+        @"config/discovery-evaluation.json",
         @"web/index.html", @"web/app.js", @"web/styles.css",
         @"web/data/releases.json", @"web/data/releases-data.js",
     ];
@@ -234,6 +237,34 @@
 
 - (void)applicationWillFinishLaunching:(NSNotification *)notification {
     [NSApp setApplicationIconImage:[self bundledApplicationIcon]];
+    [self installMainMenu];
+}
+
+- (void)installMainMenu {
+    NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:@""];
+
+    NSMenuItem *appMenuItem = [[NSMenuItem alloc] initWithTitle:@"" action:nil keyEquivalent:@""];
+    NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"Paper Atlas"];
+    [appMenu addItemWithTitle:@"退出 Paper Atlas" action:@selector(terminate:) keyEquivalent:@"q"];
+    appMenuItem.submenu = appMenu;
+    [mainMenu addItem:appMenuItem];
+
+    NSMenuItem *editMenuItem = [[NSMenuItem alloc] initWithTitle:@"" action:nil keyEquivalent:@""];
+    NSMenu *editMenu = [[NSMenu alloc] initWithTitle:@"编辑"];
+    [editMenu addItemWithTitle:@"撤销" action:@selector(undo:) keyEquivalent:@"z"];
+    NSMenuItem *redo = [editMenu addItemWithTitle:@"重做" action:@selector(redo:) keyEquivalent:@"Z"];
+    redo.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
+    [editMenu addItem:[NSMenuItem separatorItem]];
+    [editMenu addItemWithTitle:@"剪切" action:@selector(cut:) keyEquivalent:@"x"];
+    [editMenu addItemWithTitle:@"复制" action:@selector(copy:) keyEquivalent:@"c"];
+    [editMenu addItemWithTitle:@"粘贴" action:@selector(paste:) keyEquivalent:@"v"];
+    [editMenu addItemWithTitle:@"删除" action:@selector(delete:) keyEquivalent:@""];
+    [editMenu addItem:[NSMenuItem separatorItem]];
+    [editMenu addItemWithTitle:@"全选" action:@selector(selectAll:) keyEquivalent:@"a"];
+    editMenuItem.submenu = editMenu;
+    [mainMenu addItem:editMenuItem];
+
+    NSApp.mainMenu = mainMenu;
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
@@ -447,6 +478,8 @@
         @"/api/diagnostics": @"diagnostics",
         @"/api/tasks": @"tasks",
         @"/api/backup": @"backup",
+        @"/api/logs": @"logs",
+        @"/api/graph/node/remove": @"remove_node",
     };
     NSString *command = commands[path];
     if (identifier.length == 0) return;

@@ -6,7 +6,7 @@
       "id": "recent-kernelarc",
       "pipeline": "arxiv",
       "expected_recommended": true,
-      "expected_category": "07_GPU内核智能体与自动调优",
+      "expected_category": "08_GPU内核智能体与自动调优",
       "topic": {
         "id": "category-07-kernel-agents",
         "label": "GPU 内核智能体与自动调优",
@@ -68,7 +68,7 @@
       "id": "highly-cited-kernelbench",
       "pipeline": "highly_cited",
       "expected_recommended": true,
-      "expected_category": "07_GPU内核智能体与自动调优",
+      "expected_category": "08_GPU内核智能体与自动调优",
       "settings": {"min_citations": 1},
       "candidate": {
         "id": "openalex:W4407683692",
@@ -100,7 +100,7 @@
       "id": "shared-kernelbench",
       "pipeline": "shared_reference",
       "expected_recommended": true,
-      "expected_category": "07_GPU内核智能体与自动调优",
+      "expected_category": "08_GPU内核智能体与自动调优",
       "dedupe_group": "kernelbench",
       "settings": {"min_library_citations": 3},
       "candidate": {

@@ -25,6 +25,7 @@
   const detailAuthors = document.getElementById('detail-authors');
   const detailAbstract = document.getElementById('detail-abstract');
   const detailPdf = document.getElementById('detail-pdf');
+  const removeGraphNodeButton = document.getElementById('remove-graph-node');
   const detailOutgoing = document.getElementById('detail-outgoing');
   const detailIncoming = document.getElementById('detail-incoming');
   const detailMainBadge = document.getElementById('detail-main-badge');
@@ -39,6 +40,7 @@
   const discoveryUpdated = document.getElementById('discovery-updated');
   const manageTopics = document.getElementById('manage-topics');
   const runDiscoveryButton = document.getElementById('run-discovery');
+  const runTopicDiscoveryButton = document.getElementById('run-topic-discovery');
   const runHighlyCitedButton = document.getElementById('run-highly-cited');
   const runSharedDiscoveryButton = document.getElementById('run-shared-discovery');
   const clearCandidatesButton = document.getElementById('clear-candidates');
@@ -79,6 +81,14 @@
   const diagnosticsMetrics = document.getElementById('diagnostics-metrics');
   const diagnosticsChecks = document.getElementById('diagnostics-checks');
   const copyDiagnosticsButton = document.getElementById('copy-diagnostics');
+  const openRuntimeLogsButton = document.getElementById('open-runtime-logs');
+  const logsDialog = document.getElementById('logs-dialog');
+  const logsBackdrop = document.getElementById('logs-backdrop');
+  const logsClose = document.getElementById('logs-close');
+  const logsTabs = document.getElementById('logs-tabs');
+  const logsOutput = document.getElementById('logs-output');
+  const refreshLogsButton = document.getElementById('refresh-logs');
+  const copyLogButton = document.getElementById('copy-log');
   const taskList = document.getElementById('task-list');
   const saveTasksButton = document.getElementById('save-tasks');
   const exportBackupButton = document.getElementById('export-backup');
@@ -112,8 +122,13 @@
   const TOPIC_TEMPLATES = [
     {
       id: 'category-01-model-architecture',
-      label: '模型架构与训练优化',
-      keywords: ['transformer architecture', 'optimizer', 'normalization', 'training method', 'distillation'],
+      label: '模型架构与基础组件',
+      keywords: ['transformer architecture', 'normalization', 'positional encoding', 'residual connection'],
+    },
+    {
+      id: 'category-02-training-optimization',
+      label: '训练方法与优化器',
+      keywords: ['optimizer', 'weight decay', 'training method', 'distillation', 'stochastic optimization'],
     },
     {
       id: 'category-02-attention-context',
@@ -148,8 +163,8 @@
     },
     {
       id: 'category-08-general-agents',
-      label: '通用智能体与自主学习',
-      keywords: ['AI agent', 'research agent', 'tool use', 'self-play', 'autonomous search'],
+      label: '通用智能体与自主发现',
+      keywords: ['AI agent', 'research agent', 'tool use', 'self-play', 'open-ended discovery'],
     },
     {
       id: 'category-09-generative-video',
@@ -179,6 +194,8 @@
   let apiTasks = {supported: false, tasks: []};
   let apiGraphRevision = null;
   let apiStatePollBusy = false;
+  let runtimeLogs = [];
+  let activeLogId = '';
   const topicTemplateButtons = new Map();
   const nativeRequests = new Map();
 
@@ -258,11 +275,6 @@
     return result;
   }, {});
 
-  const timelineOffsets = [
-    [0, 0], [-18, -14], [18, 14], [-18, 14], [18, -14],
-    [-36, 0], [36, 0], [-36, -15], [36, 15], [0, -17], [0, 17],
-  ];
-
   function timelineX(year) {
     return TIMELINE_LEFT + (((year ?? yearMin) - yearMin) / yearSpan) * (TIMELINE_RIGHT - TIMELINE_LEFT);
   }
@@ -323,26 +335,49 @@
   function assignTimelinePositions() {
     const laneHeight = (TIMELINE_BOTTOM - TIMELINE_TOP) / graph.categories.length;
     graph.categories.forEach((category, categoryIndex) => {
-      const byYear = (grouped[category.id] || []).reduce((result, node) => {
-        (result[node.year ?? yearMin] ??= []).push(node);
-        return result;
-      }, {});
-      Object.values(byYear).forEach(nodes => {
-        nodes.sort((a, b) => b.citation_count - a.citation_count || a.title.localeCompare(b.title));
-        nodes.forEach((node, index) => {
-          const offset = timelineOffsets[index % timelineOffsets.length];
-          const overflowRing = Math.floor(index / timelineOffsets.length);
-          node.timeline = {
-            x: Math.max(TIMELINE_LEFT - 30, Math.min(TIMELINE_RIGHT + 12,
-              timelineX(node.year) + offset[0] + overflowRing * 5)),
-            y: TIMELINE_TOP + (categoryIndex + 0.5) * laneHeight + offset[1],
-          };
-        });
+      const nodes = [...(grouped[category.id] || [])].sort((a, b) =>
+        timelineX(b.year) - timelineX(a.year)
+        || b.citation_count - a.citation_count
+        || a.title.localeCompare(b.title));
+      const placed = [];
+      const centerY = TIMELINE_TOP + (categoryIndex + 0.5) * laneHeight;
+      nodes.forEach(node => {
+        const desiredX = timelineX(node.year);
+        const verticalRoom = Math.max(0, laneHeight / 2 - node.hitRadius - 2);
+        const yOffsets = verticalRoom > 0
+          ? [-verticalRoom, -verticalRoom / 3, verticalRoom / 3, verticalRoom]
+          : [0];
+        let position = null;
+        for (let ring = 0; ring < 32 && !position; ring += 1) {
+          const xOffsets = ring === 0 ? [0] : [-ring * 10, ring * 10];
+          for (const yOffset of yOffsets) {
+            for (const xOffset of xOffsets) {
+              const candidate = {
+                x: Math.max(TIMELINE_LEFT - 25, Math.min(TIMELINE_RIGHT + 10, desiredX + xOffset)),
+                y: centerY + yOffset,
+              };
+              const clear = placed.every(other =>
+                Math.hypot(candidate.x - other.x, candidate.y - other.y)
+                  >= node.hitRadius + other.node.hitRadius + 2);
+              if (clear) {
+                position = candidate;
+                break;
+              }
+            }
+            if (position) break;
+          }
+        }
+        node.timeline = position || {x: desiredX, y: centerY};
+        placed.push({...node.timeline, node});
       });
     });
   }
 
   buildTimelineGrid();
+  graph.nodes.forEach(node => {
+    node.radius = NODE_RADIUS_MIN + Math.sqrt(node.citation_count / maxCitationCount) * (NODE_RADIUS_MAX - NODE_RADIUS_MIN);
+    node.hitRadius = Math.max(8, node.radius + 2);
+  });
   assignTimelinePositions();
 
   graph.categories.forEach((category, categoryIndex) => {
@@ -355,8 +390,6 @@
       groupElement.setAttribute('tabindex', '0');
       groupElement.setAttribute('aria-label', `${node.title}，${node.year ?? '年份未知'}，被库内引用 ${node.citation_count} 次。单击查看引用关系，双击打开论文详情`);
 
-      node.radius = NODE_RADIUS_MIN + Math.sqrt(node.citation_count / maxCitationCount) * (NODE_RADIUS_MAX - NODE_RADIUS_MIN);
-      node.hitRadius = Math.max(16, node.radius + 5);
       const hitArea = document.createElementNS(ns, 'circle');
       hitArea.setAttribute('class', 'node-hit');
       hitArea.setAttribute('r', String(node.hitRadius));
@@ -367,6 +400,18 @@
       mark.setAttribute('r', node.radius.toFixed(2));
       mark.style.fill = `var(--cat-${categoryIndex})`;
       groupElement.appendChild(mark);
+
+      const incomingPort = document.createElementNS(ns, 'circle');
+      incomingPort.setAttribute('class', 'node-port incoming-port');
+      incomingPort.setAttribute('cx', String(-(node.radius + 3)));
+      incomingPort.setAttribute('r', '2.7');
+      groupElement.appendChild(incomingPort);
+
+      const outgoingPort = document.createElementNS(ns, 'circle');
+      outgoingPort.setAttribute('class', 'node-port outgoing-port');
+      outgoingPort.setAttribute('cx', String(node.radius + 3));
+      outgoingPort.setAttribute('r', '2.7');
+      groupElement.appendChild(outgoingPort);
 
       const label = document.createElementNS(ns, 'text');
       label.setAttribute('x', '15');
@@ -398,6 +443,8 @@
 
       node.element = groupElement;
       node.labelElement = label;
+      node.incomingPortElement = incomingPort;
+      node.outgoingPortElement = outgoingPort;
       nodeLayer.appendChild(groupElement);
     });
   });
@@ -424,35 +471,34 @@
 
   function render() {
     graph.nodes.forEach(node => {
-      node.position = {x: node.timeline.x, y: node.timeline.y, z: 0, scale: 1};
+      node.position = {
+        x: node.timeline.x,
+        y: node.timeline.y,
+        z: 0,
+        scale: node.id === selectedNode ? 1.12 : 1,
+      };
     });
+
+    const outgoingEdges = selectedNode ? allEdges.filter(edge => edge.source === selectedNode) : [];
+    const incomingEdges = selectedNode ? allEdges.filter(edge => edge.target === selectedNode) : [];
+    const outgoingOrder = new Map(outgoingEdges.map((edge, index) => [edge, index]));
+    const incomingOrder = new Map(incomingEdges.map((edge, index) => [edge, index]));
+    const selected = selectedNode ? nodesById[selectedNode] : null;
+    const spreadOffset = (index, count) => (index - (count - 1) / 2) * Math.min(7, 34 / Math.max(1, count - 1));
+    const boundaryPoint = (node, toward) => {
+      const dx = toward.x - node.position.x;
+      const dy = toward.y - node.position.y;
+      const distance = Math.hypot(dx, dy) || 1;
+      const radius = node.radius * node.position.scale + 1.2;
+      return {
+        x: node.position.x + dx / distance * radius,
+        y: node.position.y + dy / distance * radius,
+      };
+    };
 
     allEdges.forEach(edge => {
       const sourceNode = nodesById[edge.source];
       const targetNode = nodesById[edge.target];
-      const source = sourceNode.position;
-      const target = targetNode.position;
-      const dx = target.x - source.x;
-      const dy = target.y - source.y;
-      const distance = Math.hypot(dx, dy) || 1;
-      const sourceOffset = sourceNode.radius + 3;
-      const targetOffset = targetNode.radius + 3;
-      const start = {
-        x: source.x + dx / distance * sourceOffset,
-        y: source.y + dy / distance * sourceOffset,
-      };
-      const end = {
-        x: target.x - dx / distance * targetOffset,
-        y: target.y - dy / distance * targetOffset,
-      };
-      const sameLane = sourceNode.category === targetNode.category;
-      const curve = sameLane ? Math.min(42, 18 + Math.abs(dx) * 0.08) : 0;
-      const controlY1 = sameLane ? start.y - curve : start.y;
-      const controlY2 = sameLane ? end.y - curve : end.y;
-      edge.element.setAttribute(
-        'd',
-        `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} C ${(start.x + dx * 0.42).toFixed(1)} ${controlY1.toFixed(1)}, ${(end.x - dx * 0.42).toFixed(1)} ${controlY2.toFixed(1)}, ${end.x.toFixed(1)} ${end.y.toFixed(1)}`,
-      );
       const focused = shouldFocusEdge(edge);
       edge.element.classList.toggle('focused', focused);
       edge.element.classList.toggle('outgoing', Boolean(selectedNode && edge.source === selectedNode));
@@ -460,14 +506,50 @@
       const searchMatch = !searchTerm || (nodeMatchesSearch(sourceNode) && nodeMatchesSearch(targetNode));
       const visible = focused;
       edge.element.style.display = visible && searchMatch ? '' : 'none';
-      edge.element.style.opacity = focused ? '1' : selectedNode ? '0.035' : '0.16';
+      if (!visible) return;
+
+      let start;
+      let end;
+      let control1;
+      let control2;
+      if (edge.source === selectedNode) {
+        const fan = spreadOffset(outgoingOrder.get(edge), outgoingEdges.length);
+        start = {
+          x: selected.position.x + (selected.radius + 3) * selected.position.scale,
+          y: selected.position.y,
+        };
+        end = boundaryPoint(targetNode, start);
+        const endDistance = Math.hypot(start.x - targetNode.position.x, start.y - targetNode.position.y) || 1;
+        control1 = {x: start.x + 42, y: start.y + fan};
+        control2 = {
+          x: end.x + (start.x - targetNode.position.x) / endDistance * 30,
+          y: end.y + (start.y - targetNode.position.y) / endDistance * 30,
+        };
+      } else {
+        const fan = spreadOffset(incomingOrder.get(edge), incomingEdges.length);
+        end = {
+          x: selected.position.x - (selected.radius + 3) * selected.position.scale,
+          y: selected.position.y,
+        };
+        start = boundaryPoint(sourceNode, end);
+        const startDistance = Math.hypot(end.x - sourceNode.position.x, end.y - sourceNode.position.y) || 1;
+        control1 = {
+          x: start.x + (end.x - sourceNode.position.x) / startDistance * 30,
+          y: start.y + (end.y - sourceNode.position.y) / startDistance * 30,
+        };
+        control2 = {x: end.x - 42, y: end.y + fan};
+      }
+      edge.element.setAttribute(
+        'd',
+        `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} C ${control1.x.toFixed(1)} ${control1.y.toFixed(1)}, ${control2.x.toFixed(1)} ${control2.y.toFixed(1)}, ${end.x.toFixed(1)} ${end.y.toFixed(1)}`,
+      );
+      edge.element.style.opacity = '1';
     });
 
     const neighborhood = selectedNode ? connectedNodes(selectedNode) : null;
     [...graph.nodes].sort((a, b) => a.position.z - b.position.z).forEach(node => {
       const referencedBySelected = Boolean(selectedNode && allEdges.some(edge => edge.source === selectedNode && edge.target === node.id));
       const citesSelected = Boolean(selectedNode && allEdges.some(edge => edge.source === node.id && edge.target === selectedNode));
-      node.position.scale = node.id === selectedNode ? 1.12 : 1;
       node.element.setAttribute(
         'transform',
         `translate(${node.position.x.toFixed(1)} ${node.position.y.toFixed(1)}) scale(${node.position.scale.toFixed(3)})`,
@@ -484,6 +566,8 @@
       const alignLeft = node.position.x > (TIMELINE_LEFT + TIMELINE_RIGHT) / 2;
       node.labelElement.setAttribute('x', alignLeft ? '-15' : '15');
       node.labelElement.setAttribute('text-anchor', alignLeft ? 'end' : 'start');
+      node.outgoingPortElement.style.display = node.id === selectedNode && outgoingEdges.length ? '' : 'none';
+      node.incomingPortElement.style.display = node.id === selectedNode && incomingEdges.length ? '' : 'none';
       nodeLayer.appendChild(node.element);
     });
 
@@ -585,6 +669,71 @@
     releaseNotesBackdrop.hidden = true;
     document.body.classList.remove('topics-open');
     versionHistoryButton.focus({preventScroll: true});
+  }
+
+  function renderRuntimeLogs() {
+    logsTabs.replaceChildren(...runtimeLogs.map(log => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.role = 'tab';
+      button.textContent = log.label;
+      button.className = 'logs-tab';
+      button.classList.toggle('active', log.id === activeLogId);
+      button.setAttribute('aria-selected', String(log.id === activeLogId));
+      button.addEventListener('click', () => {
+        activeLogId = log.id;
+        renderRuntimeLogs();
+      });
+      return button;
+    }));
+    const active = runtimeLogs.find(log => log.id === activeLogId) || runtimeLogs[0];
+    logsOutput.textContent = active?.content || '尚无日志';
+  }
+
+  async function loadRuntimeLogs() {
+    refreshLogsButton.disabled = true;
+    try {
+      const result = await apiRequest('/api/logs', {method: 'POST', body: '{}'});
+      runtimeLogs = result.logs || [];
+      if (!runtimeLogs.some(log => log.id === activeLogId)) activeLogId = runtimeLogs[0]?.id || '';
+      renderRuntimeLogs();
+    } catch (error) {
+      logsOutput.textContent = error.message;
+      showToast(error.message, 'error');
+    } finally {
+      refreshLogsButton.disabled = false;
+    }
+  }
+
+  function openRuntimeLogs() {
+    logsDialog.hidden = false;
+    logsBackdrop.hidden = false;
+    document.body.classList.add('topics-open');
+    logsOutput.textContent = '正在读取…';
+    loadRuntimeLogs();
+    requestAnimationFrame(() => logsClose.focus({preventScroll: true}));
+  }
+
+  function closeRuntimeLogs() {
+    logsDialog.hidden = true;
+    logsBackdrop.hidden = true;
+    document.body.classList.remove('topics-open');
+    openRuntimeLogsButton.focus({preventScroll: true});
+  }
+
+  async function copyCurrentLog() {
+    const text = logsOutput.textContent || '';
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (_error) {
+      const area = document.createElement('textarea');
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+    showToast('当前日志已复制');
   }
 
   async function apiRequest(path, options = {}) {
@@ -947,68 +1096,28 @@
       category.appendChild(option);
     });
     category.value = suggestedCategory(candidate);
-    const more = document.createElement('details');
-    more.className = 'candidate-more-actions';
-    const moreSummary = document.createElement('summary');
-    moreSummary.textContent = '更多操作';
-    const morePanel = document.createElement('div');
-    morePanel.className = 'candidate-more-panel';
     const dismiss = document.createElement('button');
     dismiss.type = 'button';
-    dismiss.textContent = '暂时移出';
+    dismiss.className = 'candidate-action candidate-action-quiet';
+    dismiss.textContent = '移除';
     dismiss.title = '本次移出候选，下次发现时仍可重新出现';
     dismiss.addEventListener('click', () => reviewCandidate(candidate, 'dismiss', category, article));
     const reject = document.createElement('button');
     reject.type = 'button';
-    reject.textContent = '永久忽略';
+    reject.className = 'candidate-action candidate-action-quiet candidate-action-danger';
+    reject.textContent = '忽略';
     reject.title = '以后发现到相同论文时不再推荐';
     reject.addEventListener('click', () => {
       if (window.confirm(`以后不再推荐“${candidate.title}”？`)) {
         reviewCandidate(candidate, 'reject', category, article);
       }
     });
-    const purge = document.createElement('button');
-    purge.type = 'button';
-    purge.textContent = '清除引用证据';
-    purge.title = '永久忽略，并从共同引用缓存中清除该论文的证据';
-    purge.addEventListener('click', () => {
-      if (window.confirm(`永久忽略“${candidate.title}”并清除它的共同引用证据？`)) {
-        reviewCandidate(candidate, 'purge', category, article);
-      }
-    });
-    const replacement = document.createElement('select');
-    replacement.setAttribute('aria-label', '选择要替换的库内论文版本');
-    const replacementPlaceholder = document.createElement('option');
-    replacementPlaceholder.value = '';
-    replacementPlaceholder.textContent = '选择旧版本…';
-    replacement.appendChild(replacementPlaceholder);
-    [...graph.nodes]
-      .sort((a, b) => (a.category !== candidate.suggested_category) - (b.category !== candidate.suggested_category) || a.title.localeCompare(b.title))
-      .forEach(node => {
-        const option = document.createElement('option');
-        option.value = node.id;
-        option.textContent = `${node.title} · ${node.category.replace(/^\d+_/, '')}`;
-        replacement.appendChild(option);
-      });
-    const replace = document.createElement('button');
-    replace.type = 'button';
-    replace.textContent = '替换为新版本';
-    replace.addEventListener('click', () => {
-      if (!replacement.value) {
-        replacement.focus();
-        showToast('请先选择要替换的库内论文', 'error');
-        return;
-      }
-      reviewCandidate(candidate, 'replace', category, article, {replace_node_id: replacement.value});
-    });
-    morePanel.append(dismiss, reject, purge, replacement, replace);
-    more.append(moreSummary, morePanel);
     const accept = document.createElement('button');
     accept.type = 'button';
     accept.className = 'candidate-action primary-action';
     accept.textContent = '加入论文库';
     accept.addEventListener('click', () => reviewCandidate(candidate, 'accept', category, article));
-    footer.append(category, more, accept);
+    footer.append(category, dismiss, reject, accept);
 
     article.append(header, title, meta, classification, tabs, panels, footer);
     return article;
@@ -1361,7 +1470,7 @@
       showToast('共同引用次数下限需要是 2–20 之间的整数', 'error');
       return;
     }
-    if (mode === 'highly_cited' && (!Number.isInteger(citationMinimum) || citationMinimum < 1 || citationMinimum > 1000000)) {
+    if (['highly_cited', 'topics'].includes(mode) && (!Number.isInteger(citationMinimum) || citationMinimum < 1 || citationMinimum > 1000000)) {
       highlyCitedMinimum.focus();
       showToast('高被引次数下限需要是 1–1,000,000 之间的整数', 'error');
       return;
@@ -1369,7 +1478,13 @@
     runDiscoveryButton.closest('details')?.removeAttribute('open');
     setDiscoveryBusy(
       true,
-      mode === 'shared' ? '正在计算共同引用…' : mode === 'highly_cited' ? '正在搜索领域高被引…' : '正在搜索 arXiv…',
+      mode === 'shared'
+        ? '正在计算共同引用…'
+        : mode === 'highly_cited'
+          ? '正在搜索领域高被引…'
+          : mode === 'topics'
+            ? '正在搜索 arXiv 与领域高被引…'
+            : '正在搜索 arXiv…',
     );
     try {
       const result = await apiRequest('/api/discover', {
@@ -1377,7 +1492,7 @@
         body: JSON.stringify({
           mode,
           ...(mode === 'shared' ? {min_library_citations: sharedMinimum} : {}),
-          ...(mode === 'highly_cited' ? {min_citations: citationMinimum} : {}),
+          ...(['highly_cited', 'topics'].includes(mode) ? {min_citations: citationMinimum} : {}),
         }),
       });
       discovery = result.discovery;
@@ -1839,6 +1954,8 @@
     incomingCount.textContent = String(incomingNodes.length);
     detailPdf.href = paperUrl(node);
     detailPdf.setAttribute('aria-label', `打开 ${node.title} 的本地 PDF`);
+    removeGraphNodeButton.dataset.nodeId = node.id;
+    removeGraphNodeButton.dataset.nodeTitle = node.title;
     renderRelationList(detailOutgoing, outgoingNodes, '未检测到本文引用的库内论文');
     renderRelationList(detailIncoming, incomingNodes, '未检测到库内其他论文引用本文');
     requestAnimationFrame(() => detailClose.focus({preventScroll: true}));
@@ -1853,6 +1970,29 @@
     incomingCount.textContent = '0';
     detailOutgoing.replaceChildren();
     detailIncoming.replaceChildren();
+    delete removeGraphNodeButton.dataset.nodeId;
+    delete removeGraphNodeButton.dataset.nodeTitle;
+  }
+
+  async function removeGraphNode() {
+    const id = removeGraphNodeButton.dataset.nodeId;
+    const title = removeGraphNodeButton.dataset.nodeTitle;
+    if (!id) return;
+    if (!window.confirm(`确定将“${title}”从论文图谱移出吗？\n\nPDF 不会被删除，而会保存在论文库的可恢复归档中。`)) return;
+    removeGraphNodeButton.disabled = true;
+    removeGraphNodeButton.textContent = '正在移出…';
+    try {
+      const result = await apiRequest('/api/graph/node/remove', {
+        method: 'POST', body: JSON.stringify({id}),
+      });
+      showToast(result.message);
+      clearPaperDetail();
+      setTimeout(() => window.location.reload(), 500);
+    } catch (error) {
+      showToast(error.message, 'error');
+      removeGraphNodeButton.disabled = false;
+      removeGraphNodeButton.textContent = '从图谱移出';
+    }
   }
 
   function closePaperDetail() {
@@ -1896,13 +2036,20 @@
   renderTopicTemplates();
   detailClose.addEventListener('click', closePaperDetail);
   detailBackdrop.addEventListener('click', closePaperDetail);
+  removeGraphNodeButton.addEventListener('click', removeGraphNode);
   manageTopics.addEventListener('click', openTopicsDialog);
   runDiscoveryButton.addEventListener('click', () => runDiscoveryNow('arxiv'));
+  runTopicDiscoveryButton.addEventListener('click', () => runDiscoveryNow('topics'));
   runHighlyCitedButton.addEventListener('click', () => runDiscoveryNow('highly_cited'));
   runSharedDiscoveryButton.addEventListener('click', () => runDiscoveryNow('shared'));
   clearCandidatesButton.addEventListener('click', clearCandidates);
   rebuildGraphButton.addEventListener('click', rebuildGraph);
   runDiagnosticsButton.addEventListener('click', runDiagnostics);
+  openRuntimeLogsButton.addEventListener('click', openRuntimeLogs);
+  logsClose.addEventListener('click', closeRuntimeLogs);
+  logsBackdrop.addEventListener('click', closeRuntimeLogs);
+  refreshLogsButton.addEventListener('click', loadRuntimeLogs);
+  copyLogButton.addEventListener('click', copyCurrentLog);
   copyDiagnosticsButton.addEventListener('click', copyDiagnostics);
   saveTasksButton.addEventListener('click', saveTasks);
   exportBackupButton.addEventListener('click', exportBackup);
@@ -1926,6 +2073,7 @@
     if (event.key !== 'Escape') return;
     const openLog = document.querySelector('.task-log[open]');
     if (openLog) openLog.removeAttribute('open');
+    else if (!logsDialog.hidden) closeRuntimeLogs();
     else if (!releaseNotesDialog.hidden) closeReleaseNotes();
     else if (!topicsDialog.hidden) closeTopicsDialog();
     else if (!paperDetail.hidden) closePaperDetail();

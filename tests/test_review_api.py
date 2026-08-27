@@ -1,4 +1,6 @@
 import sys
+import io
+import json
 import shutil
 import tempfile
 import unittest
@@ -64,7 +66,7 @@ class ReviewApiTests(unittest.TestCase):
             result = app_services.validated_discovery()
         self.assertEqual(
             result["candidates"][0]["suggested_category"],
-            "06_GPU内核_编译器与性能工程",
+            "07_GPU内核_编译器与性能工程",
         )
 
     def test_clear_candidates_keeps_archived_records_and_decisions(self):
@@ -103,7 +105,7 @@ class ReviewApiTests(unittest.TestCase):
             with source.open("wb") as output:
                 writer.write(output)
             papers = root / "papers"
-            category = "06_GPU内核_编译器与性能工程"
+            category = "07_GPU内核_编译器与性能工程"
             data = {"candidates": [{
                 "id": "arxiv:1",
                 "title": "A Safe GPU Paper",
@@ -127,7 +129,7 @@ class ReviewApiTests(unittest.TestCase):
             papers.mkdir()
             unclassified = papers / "Existing Download.pdf"
             shutil.copyfile(source, unclassified)
-            category = "06_GPU内核_编译器与性能工程"
+            category = "07_GPU内核_编译器与性能工程"
             data = {"candidates": [{
                 "id": "arxiv:1",
                 "title": "A Safe GPU Paper",
@@ -140,6 +142,30 @@ class ReviewApiTests(unittest.TestCase):
             self.assertFalse(unclassified.exists())
             self.assertTrue((papers / candidate["accepted_path"]).is_file())
             self.assertEqual(len(manage_candidate.library_paper_files(papers)), 1)
+
+    def test_openalex_fallback_recovers_arxiv_pdf_for_publisher_only_candidate(self):
+        work = {
+            "ids": {"doi": "https://doi.org/10.1145/example"},
+            "best_oa_location": {"landing_page_url": "https://arxiv.org/abs/2309.06180"},
+            "locations": [{"pdf_url": "https://arxiv.org/pdf/2309.06180"}],
+        }
+        response = io.BytesIO(json.dumps(work).encode("utf-8"))
+        with patch.object(manage_candidate.urllib.request, "urlopen", return_value=response):
+            urls = manage_candidate.openalex_pdf_urls({"openalex_id": "https://openalex.org/W4387321091"})
+        self.assertIn("https://arxiv.org/pdf/2309.06180", urls)
+
+    def test_arxiv_title_fallback_recovers_paged_attention_preprint(self):
+        feed = b'''<?xml version="1.0" encoding="UTF-8"?>
+        <feed xmlns="http://www.w3.org/2005/Atom"><entry>
+          <id>http://arxiv.org/abs/2309.06180v1</id>
+          <title>Efficient Memory Management for Large Language Model Serving with PagedAttention</title>
+          <link title="pdf" href="https://arxiv.org/pdf/2309.06180v1" type="application/pdf"/>
+        </entry></feed>'''
+        with patch.object(manage_candidate.urllib.request, "urlopen", return_value=io.BytesIO(feed)):
+            urls = manage_candidate.arxiv_title_pdf_urls({
+                "title": "Efficient Memory Management for Large Language Model Serving with PagedAttention",
+            })
+        self.assertIn("https://arxiv.org/pdf/2309.06180v1", urls)
 
 
 if __name__ == "__main__":

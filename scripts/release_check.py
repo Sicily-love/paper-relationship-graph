@@ -47,7 +47,7 @@ def check_release(papers_dir: Path | None, public_release: bool = False) -> list
         "scripts/task_center.py", "scripts/prepare_release_seed.py",
         "scripts/embed_python_runtime.py",
         "web/index.html", "web/app.js", "web/data/releases.json",
-        "web/data/releases-data.js", "config/tasks.json",
+        "web/data/releases-data.js", "config/tasks.json", "config/discovery-evaluation.json",
     ]
     for relative in required:
         source = ROOT / relative

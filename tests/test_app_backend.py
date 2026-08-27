@@ -136,6 +136,50 @@ class AppServicesTests(unittest.TestCase):
         self.assertEqual(result["removed_count"], 1)
         self.assertEqual(result["discovery"]["candidates"], [])
 
+    def test_remove_graph_node_archives_file_and_rebuilds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            papers = Path(directory)
+            source = papers / "01_系统" / "Example.pdf"
+            source.parent.mkdir()
+            source.write_bytes(b"pdf")
+            graph = {"nodes": [{
+                "id": "p1", "title": "Example", "path": "01_系统/Example.pdf",
+            }]}
+            completed = SimpleNamespace(returncode=0, stdout="ok", stderr="")
+            service = app_services.AppServices(papers)
+
+            def fake_load(path, default):
+                return graph if path == app_services.DEFAULT_GRAPH else default
+
+            with (
+                patch.object(app_services, "load_json", side_effect=fake_load),
+                patch.object(service, "_run_graph_update", return_value=completed),
+                patch.object(app_services.library_health, "validate_library", return_value={"status": "healthy"}),
+            ):
+                result = service.remove_graph_node({"id": "p1"})
+
+            archived = papers / result["removed_path"]
+            self.assertFalse(source.exists())
+            self.assertTrue(archived.is_file())
+            self.assertTrue((papers / ".paper-atlas-removed" / "manifest.json").is_file())
+
+    def test_remove_graph_node_rolls_back_when_rebuild_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            papers = Path(directory)
+            source = papers / "01_系统" / "Example.pdf"
+            source.parent.mkdir()
+            source.write_bytes(b"pdf")
+            graph = {"nodes": [{"id": "p1", "path": "01_系统/Example.pdf"}]}
+            failed = SimpleNamespace(returncode=1, stdout="", stderr="failed")
+            service = app_services.AppServices(papers)
+            with (
+                patch.object(app_services, "load_json", return_value=graph),
+                patch.object(service, "_run_graph_update", return_value=failed),
+            ):
+                with self.assertRaisesRegex(ValueError, "failed"):
+                    service.remove_graph_node({"id": "p1"})
+            self.assertTrue(source.is_file())
+
 
 class NativeBridgeTests(unittest.TestCase):
     def test_prepare_uses_embedded_python_without_bootstrapping(self):

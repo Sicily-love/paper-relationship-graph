@@ -10,6 +10,9 @@ from pathlib import Path
 import build_graph
 
 
+REMOVED_LIBRARY_DIR = ".paper-atlas-removed"
+
+
 def paper_files(papers_dir: Path) -> list[Path]:
     return sorted(
         path
@@ -17,6 +20,7 @@ def paper_files(papers_dir: Path) -> list[Path]:
         if path.is_file()
         and path.suffix.lower() in {".pdf", ".pptx"}
         and build_graph.REPO_ROOT not in path.parents
+        and REMOVED_LIBRARY_DIR not in path.relative_to(papers_dir).parts
     )
 
 

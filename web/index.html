@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#090c13" media="(prefers-color-scheme: dark)">
   <title>Paper Atlas · 论文关系图谱</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=203">
+  <link rel="stylesheet" href="styles.css?v=214">
 </head>
 <body>
   <main class="app-shell">
@@ -62,7 +62,7 @@
       </dl>
       <footer class="app-footer">
         <button type="button" id="version-history" class="version-history-button" aria-haspopup="dialog">
-          <strong>Paper Atlas 1.3.0</strong>
+          <strong>Paper Atlas 1.4.0</strong>
           <span>查看更新记录</span>
         </button>
       </footer>
@@ -72,9 +72,9 @@
       <section class="graph-card" aria-labelledby="graph-heading">
         <header class="graph-card-header">
           <div class="graph-header-copy">
-            <h2 id="graph-heading">时间泳道</h2>
+            <h2 id="graph-heading">论文图谱</h2>
           </div>
-          <div class="graph-header-actions" aria-label="时间泳道控制">
+          <div class="graph-header-actions" aria-label="论文图谱控制">
             <label class="search-control graph-header-search" for="paper-search">
               <span class="search-shell">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
@@ -99,7 +99,7 @@
             <span class="legend-incoming">引用本文 <b id="legend-incoming-count">0</b></span>
           </div>
           <svg id="graph-svg" viewBox="0 0 960 680" role="img" aria-labelledby="graph-title graph-description">
-            <title id="graph-title">论文引用时间泳道图</title>
+            <title id="graph-title">论文引用图谱</title>
             <desc id="graph-description">每个节点代表一篇唯一论文，横向位置表示年份，纵向泳道表示论文类别。节点越大表示被库内论文引用越多。选择节点后，橙色表示本文引用，蓝色表示引用本文。单击节点聚焦引用关系，双击打开论文详情。</desc>
             <defs>
               <filter id="node-glow" x="-100%" y="-100%" width="300%" height="300%">
@@ -125,6 +125,7 @@
         </div>
         <div class="system-actions">
           <button type="button" id="run-diagnostics" class="toolbar-action">运行诊断</button>
+          <button type="button" id="open-runtime-logs" class="toolbar-action">运行日志</button>
           <button type="button" id="rebuild-graph" class="toolbar-action">重新检查并构建</button>
           <button type="button" id="export-backup" class="toolbar-action">导出备份</button>
           <button type="button" id="import-backup" class="toolbar-action">恢复备份</button>
@@ -167,10 +168,7 @@
         <div id="task-list" class="task-list"></div>
       </div>
 
-      <details class="discovery-debug-log">
-        <summary>发现调试日志</summary>
-        <pre id="discovery-debug-output">尚无日志</pre>
-      </details>
+      <pre id="discovery-debug-output" hidden>尚无日志</pre>
     </section>
 
     <div id="detail-backdrop" class="detail-backdrop" hidden></div>
@@ -183,14 +181,16 @@
           <h2 id="detail-title"></h2>
           <p id="detail-meta" class="detail-meta"></p>
           <p id="detail-authors" class="detail-authors"></p>
-          <a id="detail-pdf" class="pdf-button" target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M14 3h5v5"></path>
-              <path d="m10 14 9-9"></path>
-              <path d="M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"></path>
-            </svg>
-            打开本地 PDF
-          </a>
+          <div class="detail-file-actions">
+            <a id="detail-pdf" class="pdf-button" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14 3h5v5"></path>
+                <path d="m10 14 9-9"></path>
+                <path d="M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"></path>
+              </svg>
+              打开本地 PDF
+            </a>
+          </div>
 
           <section class="relation-overview" aria-label="论文引用关系">
             <article class="relation-panel relation-outgoing">
@@ -210,6 +210,11 @@
             <h3 id="abstract-heading">摘要</h3>
             <p id="detail-abstract"></p>
           </section>
+
+          <footer class="detail-removal-actions">
+            <span>论文不再需要时，可以从当前图谱移出，原 PDF 会保存在可恢复归档中。</span>
+            <button type="button" id="remove-graph-node" class="remove-node-button">从图谱移出</button>
+          </footer>
         </div>
     </aside>
 
@@ -238,12 +243,29 @@
     <section id="release-notes-dialog" class="topics-dialog release-notes-dialog" role="dialog" aria-modal="true" aria-labelledby="release-notes-title" hidden>
       <header class="topics-dialog-header">
         <div>
-          <span class="release-current-badge">当前版本 · 1.3.0</span>
+          <span class="release-current-badge">当前版本 · 1.4.0</span>
           <h2 id="release-notes-title">更新记录</h2>
         </div>
         <button type="button" id="release-notes-close" class="detail-close" aria-label="关闭更新记录">×</button>
       </header>
       <div id="release-notes-list" class="release-notes-list"></div>
+    </section>
+
+    <div id="logs-backdrop" class="detail-backdrop" hidden></div>
+    <section id="logs-dialog" class="topics-dialog logs-dialog" role="dialog" aria-modal="true" aria-labelledby="logs-title" hidden>
+      <header class="topics-dialog-header">
+        <div>
+          <span class="release-current-badge">本机运行记录</span>
+          <h2 id="logs-title">运行日志</h2>
+        </div>
+        <button type="button" id="logs-close" class="detail-close" aria-label="关闭运行日志">×</button>
+      </header>
+      <div id="logs-tabs" class="logs-tabs" role="tablist" aria-label="日志来源"></div>
+      <pre id="logs-output" class="logs-output">正在读取…</pre>
+      <footer class="logs-actions">
+        <button type="button" id="refresh-logs" class="toolbar-action">刷新</button>
+        <button type="button" id="copy-log" class="toolbar-action primary-action">复制当前日志</button>
+      </footer>
     </section>
 
     <div id="app-toast" class="app-toast" role="status" aria-live="polite" hidden></div>
@@ -257,23 +279,24 @@
             <span id="discovery-updated" hidden>尚未运行发现任务</span>
           </div>
         </div>
-        <div class="discovery-header-actions">
-          <button type="button" id="manage-topics" class="toolbar-action">搜索主题</button>
-          <details class="discovery-command-menu">
-            <summary class="toolbar-action primary-action">发现论文⌄</summary>
-            <div class="discovery-command-panel">
-              <button type="button" id="run-discovery" class="command-row"><span>最新 arXiv</span><b>按主题</b></button>
-              <div class="command-row command-row-with-input">
-                <button type="button" id="run-highly-cited"><span>领域高被引</span></button>
-                <label for="highly-cited-minimum">下限 <input id="highly-cited-minimum" type="number" min="1" max="1000000" step="1" value="50" aria-label="高被引次数下限"></label>
-              </div>
-              <div class="command-row command-row-with-input">
-                <button type="button" id="run-shared-discovery"><span>共同引用</span></button>
-                <label for="shared-reference-minimum">下限 <input id="shared-reference-minimum" type="number" min="2" max="20" step="1" value="2" aria-label="共同引用次数下限"></label>
-              </div>
-              <button type="button" id="clear-candidates" class="command-row command-danger"><span>清空待审核</span></button>
+        <div class="discovery-header-actions discovery-action-groups">
+          <section class="discovery-action-group topic-discovery-actions" aria-labelledby="topic-actions-title">
+            <header><strong id="topic-actions-title">搜索主题控制</strong><button type="button" id="manage-topics">编辑主题</button></header>
+            <div>
+              <button type="button" id="run-discovery">最新 arXiv</button>
+              <button type="button" id="run-highly-cited">领域高被引</button>
+              <label for="highly-cited-minimum">被引下限 <input id="highly-cited-minimum" type="number" min="1" max="1000000" step="1" value="50" aria-label="高被引次数下限"></label>
+              <button type="button" id="run-topic-discovery" class="primary-action">两项一起发现</button>
             </div>
-          </details>
+          </section>
+          <section class="discovery-action-group library-discovery-actions" aria-labelledby="library-actions-title">
+            <header><strong id="library-actions-title">论文库关系</strong></header>
+            <div>
+              <button type="button" id="run-shared-discovery">共同引用</button>
+              <label for="shared-reference-minimum">共同次数 <input id="shared-reference-minimum" type="number" min="2" max="20" step="1" value="2" aria-label="共同引用次数下限"></label>
+              <button type="button" id="clear-candidates" class="command-danger">清空待审核</button>
+            </div>
+          </section>
         </div>
       </header>
 
@@ -328,7 +351,7 @@
     document.write(`<script src="data/graph-data.js?v=${Date.now()}"><\/script>`);
   </script>
   <script src="data/discovery-data.js?v=202"></script>
-  <script src="data/releases-data.js?v=130"></script>
-  <script src="app.js?v=205"></script>
+  <script src="data/releases-data.js?v=140"></script>
+  <script src="app.js?v=214"></script>
 </body>
 </html>

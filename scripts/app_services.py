@@ -31,6 +31,8 @@ from discovery_utils import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+REMOVED_LIBRARY_DIR = ".paper-atlas-removed"
+REMOVED_MANIFEST = "manifest.json"
 DISCOVERY_MESSAGES = {
     "topics": "主题论文发现已完成",
     "arxiv": "arXiv 搜索已完成",
@@ -136,7 +138,7 @@ def clear_new_candidates(data: dict) -> int:
 def validated_discovery() -> dict:
     data = load_json(DEFAULT_DISCOVERY_JSON, {"metadata": {}, "candidates": []})
     for candidate in data.get("candidates", []):
-        if not candidate.get("suggested_category"):
+        if candidate.get("suggested_category") not in build_graph.STANDARD_CATEGORIES:
             candidate.update(discover_papers.classify_candidate(candidate))
         candidate.update(discover_papers.candidate_validation(candidate))
     return data
@@ -160,6 +162,28 @@ def discovery_debug_log(limit: int = 80) -> list[dict]:
         if isinstance(event, dict):
             events.append(event)
     return events
+
+
+def tail_text(path: Path, limit: int = 40_000) -> str:
+    """Read the useful tail of a runtime log without loading an unbounded file."""
+    if not path.is_file():
+        return "尚无日志"
+    with path.open("rb") as handle:
+        handle.seek(0, 2)
+        size = handle.tell()
+        handle.seek(max(0, size - limit))
+        content = handle.read().decode("utf-8", errors="replace")
+    return content.lstrip("\n") or "尚无日志"
+
+
+def unique_destination(path: Path) -> Path:
+    if not path.exists():
+        return path
+    for index in range(2, 10_000):
+        candidate = path.with_name(f"{path.stem} ({index}){path.suffix}")
+        if not candidate.exists():
+            return candidate
+    raise ValueError("移出目录中同名文件过多，请先整理该目录")
 
 
 class AppServices:
@@ -191,6 +215,80 @@ class AppServices:
                 f"{graph_stat.st_mtime_ns}:{graph_stat.st_size}" if graph_stat else None
             ),
             "discovery_log": discovery_debug_log(),
+        }
+
+    def runtime_logs(self, _body: dict | None = None) -> dict:
+        cache = REPO_ROOT / ".cache"
+        logs = [
+            {
+                "id": "operations",
+                "label": "操作记录",
+                "content": tail_text(cache / "operation-log.jsonl"),
+            },
+            {
+                "id": "discovery",
+                "label": "论文发现",
+                "content": tail_text(discover_papers.DEFAULT_DEBUG_LOG),
+            },
+            {
+                "id": "application",
+                "label": "App 后端",
+                "content": tail_text(cache / "paper-atlas-app.log"),
+            },
+        ]
+        for task in task_center.task_state().get("tasks", []):
+            if task.get("last_log"):
+                logs.append({
+                    "id": f"task-{task.get('id')}",
+                    "label": f"每日任务 · {task.get('label')}",
+                    "content": str(task["last_log"]),
+                })
+        return {"logs": logs, "generated_at": datetime.now(timezone.utc).isoformat()}
+
+    def remove_graph_node(self, body: dict) -> dict:
+        node_id = str(body.get("id") or "").strip()
+        graph = load_json(DEFAULT_GRAPH, {"nodes": []})
+        node = next((item for item in graph.get("nodes", []) if item.get("id") == node_id), None)
+        if node is None:
+            raise ValueError("论文节点不存在或已经移出")
+        source = (self.papers_dir / str(node.get("path") or "")).resolve()
+        try:
+            source.relative_to(self.papers_dir)
+        except ValueError as error:
+            raise ValueError("论文文件路径无效") from error
+        if not source.is_file() or source.suffix.lower() not in {".pdf", ".pptx"}:
+            raise ValueError("节点对应的论文文件已不存在")
+
+        archive_root = self.papers_dir / REMOVED_LIBRARY_DIR
+        destination = unique_destination(archive_root / source.parent.name / source.name)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        source.replace(destination)
+        try:
+            result = self._run_graph_update()
+            if result.returncode:
+                raise ValueError(command_error(result, "图谱更新失败"))
+        except Exception:
+            source.parent.mkdir(parents=True, exist_ok=True)
+            destination.replace(source)
+            raise
+
+        manifest_path = archive_root / REMOVED_MANIFEST
+        manifest = load_json(manifest_path, {"version": 1, "items": []})
+        if not isinstance(manifest, dict):
+            manifest = {"version": 1, "items": []}
+        manifest.setdefault("items", []).append({
+            "id": node_id,
+            "title": node.get("title"),
+            "original_path": str(source.relative_to(self.papers_dir)),
+            "archived_path": str(destination.relative_to(self.papers_dir)),
+            "removed_at": datetime.now(timezone.utc).isoformat(),
+        })
+        write_json_atomic(manifest_path, manifest)
+        return {
+            "message": "已从论文图谱移出；原文件保存在可恢复归档中",
+            "graph_updated": True,
+            "removed_path": str(destination.relative_to(self.papers_dir)),
+            "health": library_health.validate_library(self.papers_dir),
         }
 
     def review_classification(self, body: dict) -> dict:
@@ -439,6 +537,13 @@ class AppServices:
         mode = discovery_mode(body.get("mode"))
         arguments = [sys.executable, str(REPO_ROOT / "scripts" / "discover_papers.py")]
         if mode == "topics":
+            config = load_json(DEFAULT_CONFIG, {})
+            minimum = validate_highly_cited_minimum(
+                body.get("min_citations", config.get("highly_cited", {}).get("min_citations", 50))
+            )
+            if "min_citations" in body:
+                config.setdefault("highly_cited", {})["min_citations"] = minimum
+                write_json_atomic(DEFAULT_CONFIG, config)
             arguments.append("--skip-shared")
         elif mode == "arxiv":
             arguments.extend(("--skip-shared", "--skip-highly-cited"))

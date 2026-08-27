@@ -12,10 +12,14 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import urllib.error
+import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
 import build_graph
 from discovery_utils import (
@@ -30,6 +34,7 @@ from discovery_utils import (
 
 
 USER_AGENT = "PaperAtlas/1.0 (local research library discovery)"
+REMOVED_LIBRARY_DIR = ".paper-atlas-removed"
 
 
 @dataclass
@@ -85,6 +90,7 @@ def library_paper_files(papers_dir: Path) -> list[Path]:
         if path.is_file()
         and path.suffix.lower() in {".pdf", ".pptx"}
         and build_graph.REPO_ROOT not in path.parents
+        and REMOVED_LIBRARY_DIR not in path.relative_to(papers_dir).parts
     )
 
 
@@ -92,23 +98,148 @@ def is_standard_location(path: Path, papers_dir: Path) -> bool:
     return path.parent.parent == papers_dir and path.parent.name in build_graph.STANDARD_CATEGORIES
 
 
+def arxiv_id_from_value(value: object) -> str | None:
+    text = str(value or "")
+    match = re.search(r"arxiv\.org/(?:abs|pdf)/([^?#/]+)", text, flags=re.IGNORECASE)
+    if not match:
+        match = re.fullmatch(r"(?:arxiv:)?(\d{4}\.\d{4,5})(?:v\d+)?", text, flags=re.IGNORECASE)
+    if not match:
+        return None
+    return re.sub(r"v\d+$", "", match.group(1), flags=re.IGNORECASE)
+
+
+def candidate_pdf_urls(candidate: dict) -> list[str]:
+    """Collect direct and arXiv PDF alternatives already present in candidate metadata."""
+    values: list[object] = [
+        candidate.get("pdf_url"), candidate.get("url"), candidate.get("arxiv_id"),
+    ]
+    for version in candidate.get("versions") or []:
+        if isinstance(version, dict):
+            values.extend((version.get("pdf_url"), version.get("url"), version.get("arxiv_id")))
+    urls: list[str] = []
+    for value in values:
+        text = str(value or "").strip()
+        if text and (text.lower().endswith(".pdf") or "/pdf/" in text.lower() or "doi/pdf" in text.lower()):
+            urls.append(text)
+        arxiv_id = arxiv_id_from_value(text)
+        if arxiv_id:
+            urls.append(f"https://arxiv.org/pdf/{arxiv_id}")
+    return list(dict.fromkeys(urls))
+
+
+def openalex_pdf_urls(candidate: dict) -> list[str]:
+    """Resolve OA alternatives on demand when a publisher PDF rejects the request."""
+    work_id = str(candidate.get("openalex_id") or "").strip().rsplit("/", 1)[-1]
+    if not work_id:
+        return []
+    url = (
+        f"https://api.openalex.org/works/{urllib.parse.quote(work_id)}"
+        "?select=ids,best_oa_location,locations"
+    )
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            work = json.load(response)
+    except (OSError, ValueError, urllib.error.URLError):
+        return []
+    if not isinstance(work, dict):
+        return []
+    locations = [work.get("best_oa_location"), *(work.get("locations") or [])]
+    values: list[object] = list((work.get("ids") or {}).values())
+    for location in locations:
+        if isinstance(location, dict):
+            values.extend((location.get("pdf_url"), location.get("landing_page_url")))
+    resolved: list[str] = []
+    for value in values:
+        text = str(value or "").strip()
+        if text and (text.lower().endswith(".pdf") or "/pdf/" in text.lower() or "doi/pdf" in text.lower()):
+            resolved.append(text)
+        arxiv_id = arxiv_id_from_value(text)
+        if arxiv_id:
+            resolved.append(f"https://arxiv.org/pdf/{arxiv_id}")
+    return list(dict.fromkeys(resolved))
+
+
+def arxiv_title_pdf_urls(candidate: dict) -> list[str]:
+    """Find the preprint when publisher/OpenAlex metadata omits its arXiv identifier."""
+    title = str(candidate.get("title") or "").strip()
+    normalized = normalize_title(title)
+    if len(normalized) < 12:
+        return []
+    query = urllib.parse.urlencode({
+        "search_query": f'ti:"{title}"',
+        "start": 0,
+        "max_results": 5,
+    })
+    request = urllib.request.Request(
+        f"https://export.arxiv.org/api/query?{query}", headers={"User-Agent": USER_AGENT},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            root = ET.parse(response).getroot()
+    except (OSError, ET.ParseError, urllib.error.URLError):
+        return []
+    namespace = {"atom": "http://www.w3.org/2005/Atom"}
+    matches: list[str] = []
+    for entry in root.findall("atom:entry", namespace):
+        entry_title = normalize_title(entry.findtext("atom:title", default="", namespaces=namespace))
+        if not entry_title or not (
+            entry_title == normalized
+            or (len(entry_title) >= 24 and (entry_title in normalized or normalized in entry_title))
+        ):
+            continue
+        for link in entry.findall("atom:link", namespace):
+            href = str(link.attrib.get("href") or "")
+            if link.attrib.get("title") == "pdf" or link.attrib.get("type") == "application/pdf":
+                matches.append(href)
+        identifier = arxiv_id_from_value(entry.findtext("atom:id", default="", namespaces=namespace))
+        if identifier:
+            matches.append(f"https://arxiv.org/pdf/{identifier}")
+    return list(dict.fromkeys(filter(None, matches)))
+
+
+def download_candidate_pdf(candidate: dict, destination: Path) -> str:
+    urls = candidate_pdf_urls(candidate)
+    if not urls and not candidate.get("openalex_id"):
+        raise SystemExit("该候选没有可下载的 PDF，请从来源页人工获取")
+    failures: list[str] = []
+    tried: set[str] = set()
+    resolvers = (
+        lambda: urls,
+        lambda: openalex_pdf_urls(candidate),
+        lambda: arxiv_title_pdf_urls(candidate),
+    )
+    for resolver in resolvers:
+        candidates = resolver()
+        for url in candidates:
+            if url in tried:
+                continue
+            tried.add(url)
+            try:
+                destination.unlink(missing_ok=True)
+                request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+                with urllib.request.urlopen(request, timeout=90) as response, destination.open("wb") as output:
+                    shutil.copyfileobj(response, output)
+                reader = PdfReader(destination)
+                if not reader.pages:
+                    raise ValueError("文件没有页面")
+                return url
+            except (OSError, ValueError, urllib.error.URLError, PdfReadError) as error:
+                status = getattr(error, "code", None)
+                failures.append(f"{urllib.parse.urlsplit(url).netloc or '来源'} {status or type(error).__name__}")
+    detail = "、".join(dict.fromkeys(failures)) or "未找到开放 PDF 地址"
+    raise SystemExit(f"PDF 下载失败：{detail}。可稍后重试或从来源页人工获取")
+
+
 def archive_candidate(candidate: dict, category: str, papers_dir: Path) -> ArchiveReceipt:
     if category not in build_graph.STANDARD_CATEGORIES:
         raise SystemExit(f"未知类别：{category}")
-    pdf_url = candidate.get("pdf_url")
-    if not pdf_url:
-        raise SystemExit("该候选没有可下载的 PDF，请从来源页人工获取")
     destination = papers_dir / category / safe_filename(candidate["title"])
 
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temporary:
         temporary_path = Path(temporary.name)
     try:
-        request = urllib.request.Request(str(pdf_url), headers={"User-Agent": USER_AGENT})
-        with urllib.request.urlopen(request, timeout=90) as response, temporary_path.open("wb") as output:
-            shutil.copyfileobj(response, output)
-        reader = PdfReader(temporary_path)
-        if not reader.pages:
-            raise SystemExit("下载文件不是可读 PDF")
+        download_candidate_pdf(candidate, temporary_path)
         new_hash = file_hash(temporary_path)
         matches = [path for path in library_paper_files(papers_dir) if file_hash(path) == new_hash]
         categorized_match = next(
@@ -141,9 +272,6 @@ def replace_candidate(candidate: dict, replace_path: str, papers_dir: Path) -> A
         raise SystemExit("被替换论文路径无效") from error
     if not original.is_file() or original.suffix.lower() != ".pdf":
         raise SystemExit("被替换的库内论文已不存在")
-    pdf_url = candidate.get("pdf_url")
-    if not pdf_url:
-        raise SystemExit("该候选没有可下载的 PDF，无法替换版本")
     destination = original.parent / safe_filename(candidate["title"])
     if destination != original and destination.exists():
         raise SystemExit("目标类别中已有同名论文，无法替换版本")
@@ -154,12 +282,7 @@ def replace_candidate(candidate: dict, replace_path: str, papers_dir: Path) -> A
     backup.unlink(missing_ok=True)
     completed = False
     try:
-        request = urllib.request.Request(str(pdf_url), headers={"User-Agent": USER_AGENT})
-        with urllib.request.urlopen(request, timeout=90) as response, downloaded.open("wb") as output:
-            shutil.copyfileobj(response, output)
-        reader = PdfReader(downloaded)
-        if not reader.pages:
-            raise SystemExit("下载文件不是可读 PDF")
+        download_candidate_pdf(candidate, downloaded)
         original.replace(backup)
         try:
             downloaded.replace(destination)

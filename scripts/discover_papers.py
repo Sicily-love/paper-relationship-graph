@@ -68,45 +68,50 @@ ARXIV_QUERY_GROUPS = {
 }
 
 CATEGORY_LABELS = {
-    "01_模型架构与训练优化": "模型架构与训练优化",
-    "02_注意力机制与长上下文": "注意力机制与长上下文",
-    "03_MoE与稀疏模型": "MoE 与稀疏模型",
-    "04_量化与低精度计算": "量化与低精度计算",
-    "05_分布式训练与数据基础设施": "分布式训练与数据基础设施",
-    "06_GPU内核_编译器与性能工程": "GPU 内核、编译器与性能工程",
-    "07_GPU内核智能体与自动调优": "GPU 内核智能体与自动调优",
-    "08_通用智能体与自主学习": "通用智能体与自主学习",
-    "09_生成模型与视频系统": "生成模型与视频系统",
-    "10_大模型技术报告与推理训练": "大模型技术报告与推理训练",
+    "01_模型架构与基础组件": "模型架构与基础组件",
+    "02_训练方法与优化器": "训练方法与优化器",
+    "03_注意力机制与长上下文": "注意力机制与长上下文",
+    "04_MoE与稀疏模型": "MoE 与稀疏模型",
+    "05_量化与低精度计算": "量化与低精度计算",
+    "06_分布式训练与数据基础设施": "分布式训练与数据基础设施",
+    "07_GPU内核_编译器与性能工程": "GPU 内核、编译器与性能工程",
+    "08_GPU内核智能体与自动调优": "GPU 内核智能体与自动调优",
+    "09_通用智能体与自主发现": "通用智能体与自主发现",
+    "10_生成模型与视频系统": "生成模型与视频系统",
+    "11_大模型技术报告与推理训练": "大模型技术报告与推理训练",
 }
 
 # These phrases encode the same primary-topic boundaries as the paper-organizer
 # skill. They favor the application domain for cross-disciplinary work: for
 # example, kernel-generation agents belong to category 06.
 CATEGORY_RULES = {
-    "01_模型架构与训练优化": (
+    "01_模型架构与基础组件": (
         "transformer architecture", "vision transformer", "positional encoding",
-        "normalization", "optimizer", "regularization", "knowledge distillation",
-        "activation function", "residual connection", "training method", "scaling laws",
-        "automatic differentiation", "convolutional network", "convolutional networks",
-        "neural network", "language model", "language modeling", "long short-term memory",
-        "speech recognition", "u-net", "stochastic optimization", "pointer sentinel",
+        "normalization", "activation function", "residual connection", "hyper connection",
+        "model architecture", "architectural component", "embedding architecture",
     ),
-    "02_注意力机制与长上下文": (
+    "02_训练方法与优化器": (
+        "optimizer", "optimization algorithm", "weight decay", "regularization",
+        "knowledge distillation", "on-policy distillation", "training method",
+        "stochastic optimization", "automatic differentiation", "scaling laws",
+        "learning rate", "gradient descent", "training objective",
+    ),
+    "03_注意力机制与长上下文": (
         "attention", "long context", "long-context", "context window", "kv cache",
         "flashattention", "sageattention", "sparse attention", "block attention",
         "linear attention", "ring attention", "memory attention",
-        "sparse transformer", "sparse transformers", "pagedattention", "multi-query", "non-local neural",
+        "sparse transformer", "sparse transformers", "pagedattention", "multi-query",
+        "online softmax", "softmax normalizer", "non-local neural",
     ),
-    "03_MoE与稀疏模型": (
+    "04_MoE与稀疏模型": (
         "mixture of experts", "mixture-of-experts", "moe", "expert routing",
         "expert parallel", "sparse model", "sparse experts", "load balancing expert",
     ),
-    "04_量化与低精度计算": (
+    "05_量化与低精度计算": (
         "quantization", "quantized", "low precision", "low-precision", "mixed precision",
         "int8", "int4", "fp8", "fp4", "bitnet", "weight-only", "post-training quantization",
     ),
-    "05_分布式训练与数据基础设施": (
+    "06_分布式训练与数据基础设施": (
         "distributed training", "data parallel", "model parallel", "pipeline parallel",
         "tensor parallel", "fsdp", "megatron", "collective communication",
         "all-reduce", "training infrastructure", "cluster scheduling",
@@ -114,7 +119,7 @@ CATEGORY_RULES = {
         "pretraining data", "pre-training data", "data curation", "checkpoint loading",
         "storage system", "data preprocessing", "data mixture",
     ),
-    "06_GPU内核_编译器与性能工程": (
+    "07_GPU内核_编译器与性能工程": (
         "gpu kernel", "cuda kernel", "triton kernel", "kernel optimization",
         "kernel fusion", "tensor compiler", "gpu compiler",
         "cuda optimization", "ptx", "gpu benchmark", "code generation for gpu",
@@ -122,7 +127,7 @@ CATEGORY_RULES = {
         "triton", "gpu programming", "gpu compilation", "gpu offload",
         "automatic kernel generation", "polyhedral transformation", "polyhedral transformations",
     ),
-    "07_GPU内核智能体与自动调优": (
+    "08_GPU内核智能体与自动调优": (
         "gpu kernel agent", "cuda agent", "kernel agent", "kernel agents",
         "agentic kernel", "kernel generation agent", "kernel optimization agent",
         "autonomous gpu kernel", "multi-agent kernel", "kernel design agents",
@@ -130,17 +135,18 @@ CATEGORY_RULES = {
         "llms write efficient gpu kernels", "language models write efficient gpu kernels",
         "language models to generate gpu kernels", "language models optimize gpu kernels",
     ),
-    "08_通用智能体与自主学习": (
+    "09_通用智能体与自主发现": (
         "ai agent", "llm agent", "agentic", "multi-agent", "autonomous agent",
         "tool use", "tool-use", "planning agent", "research agent", "self-play",
-        "autonomous search", "computer use", "web agent",
+        "autonomous search", "open-ended discovery", "evolutionary search",
+        "code optimization agent", "computer use", "web agent",
     ),
-    "09_生成模型与视频系统": (
+    "10_生成模型与视频系统": (
         "video generation", "text-to-video", "image-to-video", "video diffusion",
         "diffusion transformer", "frame interpolation", "video inference",
         "world model video", "streaming video generation", "video model", "diffusion model",
     ),
-    "10_大模型技术报告与推理训练": (
+    "11_大模型技术报告与推理训练": (
         "technical report", "reasoning model", "reasoning training", "reasoning llm",
         "reinforcement learning for reasoning", "rlhf", "grpo", "large language model report",
         "foundation model", "inference-time scaling", "test-time scaling",
@@ -155,6 +161,7 @@ ML_DOMAIN_ANCHORS = (
 
 TOPIC_DOMAIN_ANCHORS = {
     "category-01-model-architecture": ML_DOMAIN_ANCHORS,
+    "category-02-training-optimization": ML_DOMAIN_ANCHORS,
     "category-02-attention-context": ("attention", "transformer", "language model", "llm", "kv cache"),
     "category-03-moe-sparse": ("mixture of experts", "moe", "expert", "language model", "transformer"),
     "category-04-quantization": ML_DOMAIN_ANCHORS,
@@ -167,16 +174,17 @@ TOPIC_DOMAIN_ANCHORS = {
 }
 
 TOPIC_CATEGORY_MAP = {
-    "category-01-model-architecture": "01_模型架构与训练优化",
-    "category-02-attention-context": "02_注意力机制与长上下文",
-    "category-03-moe-sparse": "03_MoE与稀疏模型",
-    "category-04-quantization": "04_量化与低精度计算",
-    "category-05-distributed-data": "05_分布式训练与数据基础设施",
-    "category-06-gpu-performance": "06_GPU内核_编译器与性能工程",
-    "category-07-kernel-agents": "07_GPU内核智能体与自动调优",
-    "category-08-general-agents": "08_通用智能体与自主学习",
-    "category-09-generative-video": "09_生成模型与视频系统",
-    "category-10-model-reports": "10_大模型技术报告与推理训练",
+    "category-01-model-architecture": "01_模型架构与基础组件",
+    "category-02-training-optimization": "02_训练方法与优化器",
+    "category-02-attention-context": "03_注意力机制与长上下文",
+    "category-03-moe-sparse": "04_MoE与稀疏模型",
+    "category-04-quantization": "05_量化与低精度计算",
+    "category-05-distributed-data": "06_分布式训练与数据基础设施",
+    "category-06-gpu-performance": "07_GPU内核_编译器与性能工程",
+    "category-07-kernel-agents": "08_GPU内核智能体与自动调优",
+    "category-08-general-agents": "09_通用智能体与自主发现",
+    "category-09-generative-video": "10_生成模型与视频系统",
+    "category-10-model-reports": "11_大模型技术报告与推理训练",
 }
 
 PROFILE_STOPWORDS = {
@@ -330,10 +338,10 @@ def classify_candidate(candidate: dict) -> dict:
             scores[category] += 3
 
     combined = f" {normalize_title(' '.join((title, abstract, topics)))} "
-    video_category = "09_生成模型与视频系统"
-    kernel_category = "06_GPU内核_编译器与性能工程"
-    kernel_agent_category = "07_GPU内核智能体与自动调优"
-    attention_category = "02_注意力机制与长上下文"
+    video_category = "10_生成模型与视频系统"
+    kernel_category = "07_GPU内核_编译器与性能工程"
+    kernel_agent_category = "08_GPU内核智能体与自动调优"
+    attention_category = "03_注意力机制与长上下文"
     if any(marker in combined for marker in (" video generation ", " text to video ", " image to video ")):
         scores[video_category] += 24
     kernel_markers = (
