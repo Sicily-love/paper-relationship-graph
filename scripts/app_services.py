@@ -15,6 +15,7 @@ import build_graph
 import classify_library
 import discover_papers
 import library_health
+import maintenance_actions
 import manage_candidate
 import system_diagnostics
 import task_center
@@ -470,6 +471,57 @@ class AppServices:
             "graph_updated": True,
             "health": library_health.validate_library(self.papers_dir),
         }
+
+    def run_maintenance(self, body: dict | None = None) -> dict:
+        """Run a whitelisted repair exposed by health and diagnostic results."""
+        action = str((body or {}).get("action") or "rebuild")
+        if action not in maintenance_actions.ACTION_SPECS:
+            raise ValueError("未知维护操作")
+        if action == "rebuild":
+            return self.rebuild_graph()
+        if action == "ensure-categories":
+            created = maintenance_actions.ensure_category_directories(self.papers_dir)
+            result = self.rebuild_graph()
+            result["message"] = (
+                f"已补齐 {len(created)} 个分类目录并重新生成图谱"
+                if created else "分类目录已完整，图谱已重新生成"
+            )
+            result["created_categories"] = created
+            return result
+        if action == "classify":
+            result = task_center.run_task("classification", self.papers_dir)
+            return {
+                **result,
+                "message": "论文分类整理已完成",
+                "classification_review": classify_library.load_review_queue(),
+                "health": library_health.validate_library(self.papers_dir),
+                "graph_updated": bool(result.get("result", {}).get("graph_updated")),
+            }
+        if action == "repair-data":
+            repaired = maintenance_actions.repair_discovery_pair()
+            return {
+                "message": "候选数据已修复并重新同步",
+                "repair": repaired,
+                "discovery": validated_discovery(),
+                "health": library_health.validate_library(self.papers_dir),
+            }
+        if action == "refresh-shared":
+            config = load_json(DEFAULT_CONFIG, {})
+            result = self.run_discovery({
+                "mode": "shared",
+                "min_library_citations": config.get("shared_references", {}).get(
+                    "min_library_citations", 2,
+                ),
+            })
+            result["health"] = library_health.validate_library(self.papers_dir)
+            return result
+
+        discovery = load_json(DEFAULT_DISCOVERY_JSON, {"metadata": {}})
+        previous_mode = str((discovery.get("metadata") or {}).get("run_mode") or "topics")
+        mode = previous_mode if previous_mode in DISCOVERY_MESSAGES else "topics"
+        result = self.run_discovery({"mode": mode})
+        result["health"] = library_health.validate_library(self.papers_dir)
+        return result
 
     def run_diagnostics(self, body: dict | None = None) -> dict:
         report = system_diagnostics.run(

@@ -23,7 +23,7 @@ COMMAND_METHODS = {
     "feedback": "candidate_feedback",
     "classification": "review_classification",
     "clear": "clear_candidates",
-    "maintenance": "rebuild_graph",
+    "maintenance": "run_maintenance",
     "diagnostics": "run_diagnostics",
     "tasks": "manage_tasks",
     "backup": "manage_backup",

@@ -13,6 +13,7 @@ from pathlib import Path
 import discovery_evaluation
 import discover_papers
 import library_health
+import maintenance_actions
 import task_center
 from discovery_utils import DEFAULT_CONFIG, DEFAULT_DISCOVERY_JSON, DEFAULT_GRAPH, load_json
 
@@ -20,14 +21,24 @@ from discovery_utils import DEFAULT_CONFIG, DEFAULT_DISCOVERY_JSON, DEFAULT_GRAP
 USER_AGENT = "PaperAtlas/1.0 (local diagnostics)"
 
 
-def check(identifier: str, label: str, status: str, summary: str, details: object = None) -> dict:
-    return {
+def check(
+    identifier: str,
+    label: str,
+    status: str,
+    summary: str,
+    details: object = None,
+    actions: list[dict] | None = None,
+) -> dict:
+    result = {
         "id": identifier,
         "label": label,
         "status": status,
         "summary": summary,
         "details": details,
     }
+    if actions:
+        result["actions"] = actions
+    return result
 
 
 def provider_probe(url: str, timeout: int = 12) -> dict:
@@ -94,6 +105,7 @@ def run(papers_dir: Path, include_network: bool = True) -> dict:
         "library", "论文库与图谱",
         "passed" if health.get("status") == "healthy" else "warning" if health.get("status") == "warning" else "failed",
         health.get("summary") or "状态未知", health.get("issues") or [],
+        health.get("actions") or [],
     ))
 
     graph = load_json(DEFAULT_GRAPH, {"metadata": {}})
@@ -109,6 +121,7 @@ def run(papers_dir: Path, include_network: bool = True) -> dict:
             "reused_papers": graph_metadata.get("reused_papers", 0),
             "parsed_papers": graph_metadata.get("parsed_papers", 0),
         },
+        [] if "external_references" in graph else [maintenance_actions.action_spec("rebuild")],
     ))
 
     try:
@@ -148,6 +161,7 @@ def run(papers_dir: Path, include_network: bool = True) -> dict:
         "passed" if cache_ok and reference_index else "warning",
         f"缓存版本 {cache.get('version') or '未知'}，持久证据 {len(reference_index) if isinstance(reference_index, dict) else 0} 篇",
         {"path": str(cache_path), "reference_index_count": len(reference_index) if isinstance(reference_index, dict) else 0},
+        [] if cache_ok and reference_index else [maintenance_actions.action_spec("refresh-shared")],
     ))
 
     discovery = load_json(DEFAULT_DISCOVERY_JSON, {"metadata": {}, "candidates": [], "decisions": {}})
@@ -175,6 +189,7 @@ def run(papers_dir: Path, include_network: bool = True) -> dict:
                 for status in ("accepted", "dismissed", "rejected", "replaced", "purged")
             },
         },
+        [maintenance_actions.action_spec("retry-discovery")] if errors else [],
     ))
 
     task_state = task_center.task_state()
@@ -234,8 +249,18 @@ def run(papers_dir: Path, include_network: bool = True) -> dict:
             "config": str(DEFAULT_CONFIG),
         },
     }
+    report["actions"] = _report_actions(checks)
     report["copy_text"] = report_text(report)
     return report
+
+
+def _report_actions(checks: list[dict]) -> list[dict]:
+    """Return one button per repair operation even when checks overlap."""
+    result = {}
+    for item in checks:
+        for action in item.get("actions") or []:
+            result.setdefault(action["id"], action)
+    return list(result.values())
 
 
 def main() -> None:

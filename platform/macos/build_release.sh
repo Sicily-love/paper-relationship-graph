@@ -40,5 +40,5 @@ if [[ -n "${PAPER_ATLAS_NOTARY_PROFILE:-}" ]]; then
   xcrun stapler validate "$DMG"
 fi
 
-shasum -a 256 "$DMG" > "$DMG.sha256"
+(cd "$DIST" && shasum -a 256 "${DMG:t}" > "${DMG:t}.sha256")
 echo "Paper Atlas $VERSION 发布包：$DMG"

@@ -43,6 +43,7 @@ def check_release(papers_dir: Path | None, public_release: bool = False) -> list
     runtime = ROOT / "Paper Atlas.app" / "Contents" / "Resources" / "runtime"
     required = [
         "VERSION", "requirements.txt", "scripts/app_backend.py", "scripts/app_services.py",
+        "scripts/maintenance_actions.py",
         "scripts/generate_release_notes.py", "scripts/library_health.py",
         "scripts/task_center.py", "scripts/prepare_release_seed.py",
         "scripts/embed_python_runtime.py",

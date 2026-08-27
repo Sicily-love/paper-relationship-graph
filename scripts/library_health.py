@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import build_graph
+import maintenance_actions
 from discovery_utils import DEFAULT_DISCOVERY_JS, DEFAULT_DISCOVERY_JSON, DEFAULT_GRAPH, load_json
 
 
@@ -31,6 +32,9 @@ def issue(code: str, severity: str, title: str, detail: str, action: str | None 
     value = {"code": code, "severity": severity, "title": title, "detail": detail}
     if action:
         value["action"] = action
+        spec = maintenance_actions.action_spec(action)
+        value["action_label"] = spec["label"]
+        value["action_description"] = spec["description"]
     return value
 
 
@@ -76,7 +80,7 @@ def validate_library(
     if missing_categories:
         issues.append(issue(
             "categories-missing", "error", "缺少标准分类目录",
-            "、".join(missing_categories), "rebuild",
+            "、".join(missing_categories), "ensure-categories",
         ))
 
     library_files = [
@@ -149,6 +153,7 @@ def validate_library(
         "checked_at": datetime.now(timezone.utc).isoformat(),
         "summary": "论文库状态正常" if status == "healthy" else f"发现 {len(issues)} 项需要处理",
         "issues": issues,
+        "actions": maintenance_actions.actions_for_issues(issues),
         "stats": {
             "papers": len(nodes),
             "pdf_files": len(pdf_paths),

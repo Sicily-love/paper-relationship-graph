@@ -80,6 +80,7 @@
   const diagnosticsSummary = document.getElementById('diagnostics-summary');
   const diagnosticsMetrics = document.getElementById('diagnostics-metrics');
   const diagnosticsChecks = document.getElementById('diagnostics-checks');
+  const diagnosticsActions = document.getElementById('diagnostics-actions');
   const copyDiagnosticsButton = document.getElementById('copy-diagnostics');
   const openRuntimeLogsButton = document.getElementById('open-runtime-logs');
   const logsDialog = document.getElementById('logs-dialog');
@@ -103,6 +104,8 @@
   const releaseNotesBackdrop = document.getElementById('release-notes-backdrop');
   const releaseNotesClose = document.getElementById('release-notes-close');
   const releaseNotesList = document.getElementById('release-notes-list');
+  const resetViewButton = document.getElementById('reset-view');
+  const resetViewLabel = resetViewButton.querySelector('.reset-label');
   const viewButtons = [...document.querySelectorAll('[data-view]')];
   const viewPanels = [...document.querySelectorAll('[data-view-panel]')];
   const ns = 'http://www.w3.org/2000/svg';
@@ -178,13 +181,15 @@
     },
   ].map(template => ({enabled: true, exclude_keywords: [], max_results: 5, ...template}));
 
+  const displayCategoryLabel = label => String(label || '').replace(/_/g, ' · ');
+
   let selectedNode = null;
   let searchTerm = '';
   let discoverySource = 'all';
   let selectedCandidateId = null;
   let activeView = 'graph';
   let apiTopics = (discovery.topics || []).map(topic => ({enabled: true, max_results: 10, ...topic}));
-  let reviewCategories = graph.categories.map(category => ({id: category.id, label: category.label}));
+  let reviewCategories = graph.categories.map(category => ({id: category.id, label: displayCategoryLabel(category.label)}));
   let toastTimer = null;
   let discoveryBusyTimer = null;
   let discoveryHighlightTimer = null;
@@ -249,7 +254,11 @@
   metricPapers.textContent = String(graph.metadata.unique_papers);
   metricCitations.textContent = String(graph.metadata.citation_edges);
   metricCategories.textContent = String(graph.categories.length);
-  metricYears.textContent = `${yearMin}–${yearMax}`;
+  const fullYearSpan = `${yearMin}–${yearMax}`;
+  const shortYear = year => String(year).slice(-2).padStart(2, '0');
+  metricYears.textContent = `${shortYear(yearMin)}–${shortYear(yearMax)}`;
+  metricYears.title = fullYearSpan;
+  metricYears.setAttribute('aria-label', fullYearSpan);
 
   function activateView(view, remember = true) {
     if (!viewPanels.some(panel => panel.dataset.viewPanel === view)) view = 'graph';
@@ -309,7 +318,7 @@
         y: (y + laneHeight / 2 + 4).toFixed(1),
         class: 'lane-label',
       });
-      label.textContent = category.label;
+      label.textContent = displayCategoryLabel(category.label);
       timelineGrid.append(fill, rule, label);
     });
 
@@ -327,7 +336,7 @@
         y: 25,
         class: 'year-label',
       });
-      label.textContent = String(year);
+      label.textContent = `’${shortYear(year)}`;
       timelineGrid.append(rule, label);
     }
   }
@@ -401,16 +410,34 @@
       mark.style.fill = `var(--cat-${categoryIndex})`;
       groupElement.appendChild(mark);
 
+      const outgoingStem = document.createElementNS(ns, 'line');
+      outgoingStem.setAttribute('class', 'node-port-stem outgoing-port-stem');
+      outgoingStem.setAttribute('x1', String(-node.radius * 0.82));
+      outgoingStem.setAttribute('y1', String(node.radius * 0.55));
+      outgoingStem.setAttribute('x2', String(-(node.radius + 7)));
+      outgoingStem.setAttribute('y2', '6');
+      groupElement.appendChild(outgoingStem);
+
+      const incomingStem = document.createElementNS(ns, 'line');
+      incomingStem.setAttribute('class', 'node-port-stem incoming-port-stem');
+      incomingStem.setAttribute('x1', String(node.radius * 0.82));
+      incomingStem.setAttribute('y1', String(-node.radius * 0.55));
+      incomingStem.setAttribute('x2', String(node.radius + 7));
+      incomingStem.setAttribute('y2', '-6');
+      groupElement.appendChild(incomingStem);
+
       const incomingPort = document.createElementNS(ns, 'circle');
       incomingPort.setAttribute('class', 'node-port incoming-port');
-      incomingPort.setAttribute('cx', String(-(node.radius + 3)));
-      incomingPort.setAttribute('r', '2.7');
+      incomingPort.setAttribute('cx', String(node.radius + 7));
+      incomingPort.setAttribute('cy', '-6');
+      incomingPort.setAttribute('r', '3.6');
       groupElement.appendChild(incomingPort);
 
       const outgoingPort = document.createElementNS(ns, 'circle');
       outgoingPort.setAttribute('class', 'node-port outgoing-port');
-      outgoingPort.setAttribute('cx', String(node.radius + 3));
-      outgoingPort.setAttribute('r', '2.7');
+      outgoingPort.setAttribute('cx', String(-(node.radius + 7)));
+      outgoingPort.setAttribute('cy', '6');
+      outgoingPort.setAttribute('r', '3.6');
       groupElement.appendChild(outgoingPort);
 
       const label = document.createElementNS(ns, 'text');
@@ -445,6 +472,8 @@
       node.labelElement = label;
       node.incomingPortElement = incomingPort;
       node.outgoingPortElement = outgoingPort;
+      node.incomingStemElement = incomingStem;
+      node.outgoingStemElement = outgoingStem;
       nodeLayer.appendChild(groupElement);
     });
   });
@@ -484,7 +513,7 @@
     const outgoingOrder = new Map(outgoingEdges.map((edge, index) => [edge, index]));
     const incomingOrder = new Map(incomingEdges.map((edge, index) => [edge, index]));
     const selected = selectedNode ? nodesById[selectedNode] : null;
-    const spreadOffset = (index, count) => (index - (count - 1) / 2) * Math.min(7, 34 / Math.max(1, count - 1));
+    const spreadOffset = (index, count) => (index - (count - 1) / 2) * Math.min(8, 44 / Math.max(1, count - 1));
     const boundaryPoint = (node, toward) => {
       const dx = toward.x - node.position.x;
       const dy = toward.y - node.position.y;
@@ -510,35 +539,42 @@
 
       let start;
       let end;
-      let control1;
-      let control2;
+      let direction;
       if (edge.source === selectedNode) {
         const fan = spreadOffset(outgoingOrder.get(edge), outgoingEdges.length);
         start = {
-          x: selected.position.x + (selected.radius + 3) * selected.position.scale,
-          y: selected.position.y,
+          x: selected.position.x - (selected.radius + 7) * selected.position.scale,
+          y: selected.position.y + 6 * selected.position.scale,
         };
         end = boundaryPoint(targetNode, start);
-        const endDistance = Math.hypot(start.x - targetNode.position.x, start.y - targetNode.position.y) || 1;
-        control1 = {x: start.x + 42, y: start.y + fan};
-        control2 = {
-          x: end.x + (start.x - targetNode.position.x) / endDistance * 30,
-          y: end.y + (start.y - targetNode.position.y) / endDistance * 30,
-        };
+        direction = {fan, polarity: 1};
       } else {
         const fan = spreadOffset(incomingOrder.get(edge), incomingEdges.length);
         end = {
-          x: selected.position.x - (selected.radius + 3) * selected.position.scale,
-          y: selected.position.y,
+          x: selected.position.x + (selected.radius + 7) * selected.position.scale,
+          y: selected.position.y - 6 * selected.position.scale,
         };
         start = boundaryPoint(sourceNode, end);
-        const startDistance = Math.hypot(end.x - sourceNode.position.x, end.y - sourceNode.position.y) || 1;
-        control1 = {
-          x: start.x + (end.x - sourceNode.position.x) / startDistance * 30,
-          y: start.y + (end.y - sourceNode.position.y) / startDistance * 30,
-        };
-        control2 = {x: end.x - 42, y: end.y + fan};
+        direction = {fan, polarity: -1};
       }
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const distance = Math.hypot(dx, dy) || 1;
+      const unitX = dx / distance;
+      const unitY = dy / distance;
+      const normalX = -unitY;
+      const normalY = unitX;
+      const handle = Math.min(88, Math.max(28, distance * 0.32));
+      const baseBend = Math.min(34, Math.max(10, distance * 0.09)) * direction.polarity;
+      const bend = baseBend + direction.fan;
+      const control1 = {
+        x: start.x + unitX * handle + normalX * bend,
+        y: start.y + unitY * handle + normalY * bend,
+      };
+      const control2 = {
+        x: end.x - unitX * handle + normalX * bend,
+        y: end.y - unitY * handle + normalY * bend,
+      };
       edge.element.setAttribute(
         'd',
         `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} C ${control1.x.toFixed(1)} ${control1.y.toFixed(1)}, ${control2.x.toFixed(1)} ${control2.y.toFixed(1)}, ${end.x.toFixed(1)} ${end.y.toFixed(1)}`,
@@ -566,8 +602,10 @@
       const alignLeft = node.position.x > (TIMELINE_LEFT + TIMELINE_RIGHT) / 2;
       node.labelElement.setAttribute('x', alignLeft ? '-15' : '15');
       node.labelElement.setAttribute('text-anchor', alignLeft ? 'end' : 'start');
-      node.outgoingPortElement.style.display = node.id === selectedNode && outgoingEdges.length ? '' : 'none';
-      node.incomingPortElement.style.display = node.id === selectedNode && incomingEdges.length ? '' : 'none';
+      node.outgoingPortElement.style.display = node.id === selectedNode && outgoingEdges.length ? 'inline' : 'none';
+      node.incomingPortElement.style.display = node.id === selectedNode && incomingEdges.length ? 'inline' : 'none';
+      node.outgoingStemElement.style.display = node.id === selectedNode && outgoingEdges.length ? 'inline' : 'none';
+      node.incomingStemElement.style.display = node.id === selectedNode && incomingEdges.length ? 'inline' : 'none';
       nodeLayer.appendChild(node.element);
     });
 
@@ -1534,6 +1572,57 @@
     });
   }
 
+  async function runMaintenanceAction(action, button) {
+    if (!action?.id) return;
+    const originalLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = '处理中…';
+    try {
+      const result = await apiRequest('/api/maintenance/rebuild', {
+        method: 'POST', body: JSON.stringify({action: action.id}),
+      });
+      if (result.health) renderHealth(result.health);
+      if (result.classification_review) renderClassificationReview(result.classification_review);
+      if (result.discovery) {
+        discovery = result.discovery;
+        renderDiscovery();
+      }
+      if (result.tasks) renderTasks(result.tasks);
+      showToast(result.message || `${action.label || '处理'}已完成`);
+      if (result.graph_updated) {
+        setTimeout(() => window.location.reload(), 600);
+      } else {
+        const state = await apiRequest('/api/state');
+        if (state.health) renderHealth(state.health);
+        if (state.classification_review) renderClassificationReview(state.classification_review);
+        if (state.discovery) {
+          discovery = state.discovery;
+          renderDiscovery();
+        }
+        if (state.tasks) renderTasks(state.tasks);
+        const diagnostics = await apiRequest('/api/diagnostics', {
+          method: 'POST', body: JSON.stringify({include_network: false}),
+        });
+        renderDiagnostics(diagnostics.diagnostics);
+      }
+    } catch (error) {
+      showToast(error.message, 'error');
+    } finally {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
+
+  function maintenanceButton(action, className = 'health-action-button') {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = className;
+    button.textContent = action.label || '立即处理';
+    if (action.description) button.title = action.description;
+    button.addEventListener('click', () => runMaintenanceAction(action, button));
+    return button;
+  }
+
   function renderHealth(health) {
     apiHealth = health || {status: 'error', summary: '无法读取论文库状态', issues: []};
     healthPanel.dataset.status = apiHealth.status;
@@ -1546,16 +1635,36 @@
       healthIssues.appendChild(message);
       return;
     }
+    const renderedActions = new Set();
     (apiHealth.issues || []).forEach(item => {
       const issue = document.createElement('article');
       issue.className = `health-issue health-${item.severity}`;
+      const copy = document.createElement('div');
+      copy.className = 'health-issue-copy';
       const title = document.createElement('strong');
       title.textContent = item.title;
       const detail = document.createElement('span');
       detail.textContent = item.detail;
-      issue.append(title, detail);
+      copy.append(title, detail);
+      issue.appendChild(copy);
+      if (item.action) {
+        const action = {
+          id: item.action,
+          label: item.action_label || '立即处理',
+          description: item.action_description || '',
+        };
+        issue.appendChild(maintenanceButton(action));
+        renderedActions.add(action.id);
+      }
       healthIssues.appendChild(issue);
     });
+    const extraActions = (apiHealth.actions || []).filter(action => action?.id && !renderedActions.has(action.id));
+    if (extraActions.length) {
+      const actionBar = document.createElement('div');
+      actionBar.className = 'health-action-bar';
+      extraActions.forEach(action => actionBar.appendChild(maintenanceButton(action)));
+      healthIssues.appendChild(actionBar);
+    }
   }
 
   function renderClassificationReview(review = {}) {
@@ -1765,6 +1874,7 @@
       item.append(strong, caption);
       return item;
     }));
+    const renderedActionIds = new Set();
     diagnosticsChecks.replaceChildren(...(report.checks || []).map(check => {
       const item = document.createElement('article');
       item.className = 'diagnostics-check';
@@ -1778,8 +1888,22 @@
       summary.textContent = check.summary;
       copy.append(label, summary);
       item.append(dot, copy);
+      if ((check.actions || []).length) {
+        const actions = document.createElement('div');
+        actions.className = 'diagnostics-check-actions';
+        check.actions.forEach(action => {
+          actions.appendChild(maintenanceButton(action, 'diagnostics-action-button'));
+          renderedActionIds.add(action.id);
+        });
+        item.appendChild(actions);
+      }
       return item;
     }));
+    const remainingActions = (report.actions || []).filter(action => !renderedActionIds.has(action.id));
+    diagnosticsActions.replaceChildren(...remainingActions.map(action =>
+      maintenanceButton(action, 'diagnostics-action-button'),
+    ));
+    diagnosticsActions.hidden = !remainingActions.length;
   }
 
   async function runDiagnostics() {
@@ -1860,7 +1984,9 @@
       apiTopics = state.topics || [];
       sharedReferenceMinimum.value = String(state.shared_reference_minimum || 2);
       highlyCitedMinimum.value = String(state.highly_cited_minimum || 50);
-      reviewCategories = state.categories || reviewCategories;
+      reviewCategories = (state.categories || reviewCategories).map(category => ({
+        ...category, label: displayCategoryLabel(category.label),
+      }));
       apiGraphRevision = state.graph_revision || apiGraphRevision;
       renderHealth(state.health);
       renderTasks(state.tasks);
@@ -1946,7 +2072,7 @@
     paperDetail.scrollTop = 0;
     document.body.classList.add('detail-open');
     detailTitle.textContent = node.title;
-    detailMeta.textContent = `${node.year ?? '年份未知'} · ${node.category.replace(/^\d+_/, '')}${node.is_main ? ' · 类别主节点' : ''}`;
+    detailMeta.textContent = `${node.year ?? '年份未知'} · ${displayCategoryLabel(node.category.replace(/^\d+_/, ''))}${node.is_main ? ' · 类别主节点' : ''}`;
     detailAuthors.textContent = node.authors ? `作者：${node.authors}` : '作者：未从 PDF 中可靠提取';
     detailAbstract.textContent = node.abstract || '未从 PDF 中提取到结构化摘要。';
     detailMainBadge.hidden = !node.is_main;
@@ -1980,7 +2106,7 @@
     if (!id) return;
     if (!window.confirm(`确定将“${title}”从论文图谱移出吗？\n\nPDF 不会被删除，而会保存在论文库的可恢复归档中。`)) return;
     removeGraphNodeButton.disabled = true;
-    removeGraphNodeButton.textContent = '正在移出…';
+    removeGraphNodeButton.querySelector('span').textContent = '正在移出…';
     try {
       const result = await apiRequest('/api/graph/node/remove', {
         method: 'POST', body: JSON.stringify({id}),
@@ -1991,7 +2117,7 @@
     } catch (error) {
       showToast(error.message, 'error');
       removeGraphNodeButton.disabled = false;
-      removeGraphNodeButton.textContent = '从图谱移出';
+      removeGraphNodeButton.querySelector('span').textContent = '移出图谱';
     }
   }
 
@@ -2003,6 +2129,7 @@
   function selectNode(nodeId) {
     const node = nodesById[nodeId];
     if (!node) return;
+    hideTooltip();
     selectedNode = nodeId;
     render();
   }
@@ -2015,6 +2142,10 @@
   }
 
   function showTooltip(node) {
+    if (node.id === selectedNode) {
+      hideTooltip();
+      return;
+    }
     const panel = document.querySelector('.graph-stage');
     const panelBox = panel.getBoundingClientRect();
     const point = svg.createSVGPoint();
@@ -2102,10 +2233,21 @@
     button.addEventListener('click', () => activateView(button.dataset.view));
   });
 
-  document.getElementById('reset-view').addEventListener('click', () => {
+  let resetFeedbackTimer = null;
+  resetViewButton.addEventListener('click', () => {
     selectedNode = null;
     clearPaperDetail();
     render();
+    resetViewButton.classList.remove('is-confirmed');
+    void resetViewButton.offsetWidth;
+    resetViewButton.classList.add('is-confirmed');
+    resetViewLabel.textContent = '已重置';
+    showToast('图谱视图已重置');
+    if (resetFeedbackTimer) clearTimeout(resetFeedbackTimer);
+    resetFeedbackTimer = setTimeout(() => {
+      resetViewButton.classList.remove('is-confirmed');
+      resetViewLabel.textContent = '重置视图';
+    }, 1500);
   });
 
   svg.addEventListener('click', event => {

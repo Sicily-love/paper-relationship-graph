@@ -103,7 +103,7 @@ class GraphRequestHandler(SimpleHTTPRequestHandler):
             "/api/classification/action": self.services.review_classification,
             "/api/candidates/clear": self.services.clear_candidates,
             "/api/discover": self.services.run_discovery,
-            "/api/maintenance/rebuild": self.services.rebuild_graph,
+            "/api/maintenance/rebuild": self.services.run_maintenance,
             "/api/diagnostics": self.services.run_diagnostics,
             "/api/tasks": self.services.manage_tasks,
             "/api/backup": self.services.manage_backup,
