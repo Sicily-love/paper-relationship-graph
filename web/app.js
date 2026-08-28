@@ -26,23 +26,21 @@
   const detailAbstract = document.getElementById('detail-abstract');
   const detailPdf = document.getElementById('detail-pdf');
   const removeGraphNodeButton = document.getElementById('remove-graph-node');
-  const detailOutgoing = document.getElementById('detail-outgoing');
-  const detailIncoming = document.getElementById('detail-incoming');
   const detailMainBadge = document.getElementById('detail-main-badge');
-  const outgoingCount = document.getElementById('outgoing-count');
-  const incomingCount = document.getElementById('incoming-count');
   const paperSearch = document.getElementById('paper-search');
   const clearSearch = document.getElementById('clear-search');
-  const searchStatus = document.getElementById('search-status');
+  const candidateSourceFilter = document.getElementById('candidate-source-filter');
+  const candidateCategoryFilter = document.getElementById('candidate-category-filter');
   const discoveryList = document.getElementById('discovery-list');
   const discoveryEmpty = document.getElementById('discovery-empty');
   const discoveryCount = document.getElementById('discovery-count');
   const discoveryUpdated = document.getElementById('discovery-updated');
   const manageTopics = document.getElementById('manage-topics');
   const runDiscoveryButton = document.getElementById('run-discovery');
-  const runTopicDiscoveryButton = document.getElementById('run-topic-discovery');
   const runHighlyCitedButton = document.getElementById('run-highly-cited');
   const runSharedDiscoveryButton = document.getElementById('run-shared-discovery');
+  const runSelectedDiscoveryButton = document.getElementById('run-selected-discovery');
+  const discoverySelectionSummary = document.getElementById('discovery-selection-summary');
   const clearCandidatesButton = document.getElementById('clear-candidates');
   const highlyCitedMinimum = document.getElementById('highly-cited-minimum');
   const sharedReferenceMinimum = document.getElementById('shared-reference-minimum');
@@ -106,6 +104,79 @@
   const releaseNotesList = document.getElementById('release-notes-list');
   const resetViewButton = document.getElementById('reset-view');
   const resetViewLabel = resetViewButton.querySelector('.reset-label');
+  const graphSearchResults = document.getElementById('graph-search-results');
+  const graphSearchCount = document.getElementById('graph-search-count');
+  const graphSearchPosition = document.getElementById('graph-search-position');
+  const graphSearchPrev = document.getElementById('graph-search-prev');
+  const graphSearchNext = document.getElementById('graph-search-next');
+  const graphWorkspace = document.getElementById('graph-workspace');
+  const graphInspector = document.getElementById('graph-inspector');
+  const graphInspectorEmpty = document.getElementById('graph-inspector-empty');
+  const graphInspectorContent = document.getElementById('graph-inspector-content');
+  const graphInspectorTitle = document.getElementById('graph-inspector-title');
+  const graphInspectorYear = document.getElementById('graph-inspector-year');
+  const graphInspectorCategory = document.getElementById('graph-inspector-category');
+  const graphInspectorAuthors = document.getElementById('graph-inspector-authors');
+  const graphInspectorPreview = document.getElementById('graph-inspector-preview');
+  const graphInspectorOpenPdf = document.getElementById('graph-inspector-open-pdf');
+  const inspectorOutgoingCount = document.getElementById('inspector-outgoing-count');
+  const inspectorIncomingCount = document.getElementById('inspector-incoming-count');
+  const inspectorOutgoingList = document.getElementById('inspector-outgoing-list');
+  const inspectorIncomingList = document.getElementById('inspector-incoming-list');
+  const toggleGraphInspector = document.getElementById('toggle-graph-inspector');
+  const graphResizer = document.getElementById('graph-resizer');
+  const reviewWorkspace = document.getElementById('review-workspace');
+  const reviewResizer = document.getElementById('review-resizer');
+  const sidebarCollapse = document.getElementById('sidebar-collapse');
+  const openDiscoverySheetButton = document.getElementById('open-discovery-sheet');
+  const discoverySheet = document.getElementById('discovery-sheet');
+  const discoverySheetBackdrop = document.getElementById('discovery-sheet-backdrop');
+  const discoverySheetClose = document.getElementById('discovery-sheet-close');
+  const discoveryManageTopics = document.getElementById('discovery-manage-topics');
+  const automationTopicSummary = document.getElementById('automation-topic-summary');
+  const batchToolbar = document.getElementById('batch-toolbar');
+  const batchCount = document.getElementById('batch-count');
+  const batchSelectAll = document.getElementById('batch-select-all');
+  const batchDismiss = document.getElementById('batch-dismiss');
+  const batchClear = document.getElementById('batch-clear');
+  const activityTimeline = document.getElementById('activity-timeline');
+  const activityCenter = document.getElementById('activity-center');
+  const activityCenterTitle = document.getElementById('activity-center-title');
+  const activityCenterDetail = document.getElementById('activity-center-detail');
+  const activityCenterClose = document.getElementById('activity-center-close');
+  const commandBackdrop = document.getElementById('command-backdrop');
+  const commandPalette = document.getElementById('command-palette');
+  const commandSearch = document.getElementById('command-search');
+  const commandResults = document.getElementById('command-results');
+  const groupToolbarActions = (view, ids, className = 'toolbar-actions') => {
+    const toolbar = document.querySelector(`[data-view-panel="${view}"] .page-toolbar`);
+    if (!toolbar) return;
+    const actions = document.createElement('div');
+    actions.className = className;
+    ids.map(id => document.getElementById(id)).filter(Boolean).forEach(control => {
+      if (control.parentElement?.classList.contains('toolbar-select')) actions.appendChild(control.parentElement);
+      else actions.appendChild(control);
+    });
+    toolbar.appendChild(actions);
+  };
+  groupToolbarActions('automation', ['manage-topics', 'save-tasks']);
+  groupToolbarActions('system', ['run-diagnostics', 'open-runtime-logs', 'version-history']);
+  const discoveryToolbar = document.querySelector('[data-view-panel="discovery"] .page-toolbar');
+  if (discoveryToolbar) {
+    const reviewActions = document.createElement('div');
+    reviewActions.className = 'toolbar-actions review-toolbar-actions';
+    clearCandidatesButton.textContent = '清空审核';
+    clearCandidatesButton.title = '移出当前全部待审核候选';
+    [candidateSourceFilter, candidateCategoryFilter, openDiscoverySheetButton, clearCandidatesButton]
+      .filter(Boolean)
+      .forEach(control => {
+        const parent = control.parentElement?.classList.contains('toolbar-select')
+          ? control.parentElement
+          : control;
+        reviewActions.appendChild(parent);
+      });
+    discoveryToolbar.appendChild(reviewActions);
+  }
   const viewButtons = [...document.querySelectorAll('[data-view]')];
   const viewPanels = [...document.querySelectorAll('[data-view-panel]')];
   const ns = 'http://www.w3.org/2000/svg';
@@ -186,6 +257,9 @@
   let selectedNode = null;
   let searchTerm = '';
   let discoverySource = 'all';
+  let discoveryCategory = 'all';
+  const selectedDiscoveryModes = new Set(['arxiv']);
+  let graphSearchIndex = 0;
   let selectedCandidateId = null;
   let activeView = 'graph';
   let apiTopics = (discovery.topics || []).map(topic => ({enabled: true, max_results: 10, ...topic}));
@@ -201,8 +275,20 @@
   let apiStatePollBusy = false;
   let runtimeLogs = [];
   let activeLogId = '';
+  let visibleCandidateIds = [];
+  let selectedCandidateIds = new Set();
+  let activityEvents = loadLocalJson('paper-atlas-activity', []);
+  let commandItems = [];
+  let activeCommandIndex = 0;
+  let detailReturnFocus = null;
+  let discoverySheetReturnFocus = null;
+  let topicsReturnFocus = null;
+  let logsReturnFocus = null;
+  let releaseNotesReturnFocus = null;
+  const candidateCategoryOverrides = new Map(Object.entries(loadLocalJson('paper-atlas-category-overrides', {})));
   const topicTemplateButtons = new Map();
   const nativeRequests = new Map();
+  const apiToken = document.querySelector('meta[name="paper-atlas-token"]')?.content || '';
 
   window.__paperAtlasNativeResolve = (id, encodedPayload) => {
     const pending = nativeRequests.get(id);
@@ -212,8 +298,12 @@
     try {
       const bytes = Uint8Array.from(atob(encodedPayload), character => character.charCodeAt(0));
       const payload = JSON.parse(new TextDecoder().decode(bytes));
-      if (payload.error) pending.reject(new Error(payload.error));
-      else pending.resolve(payload);
+      if (payload.error) {
+        const detail = typeof payload.error === 'string' ? payload.error : payload.error.message;
+        pending.reject(new Error(detail || '本地任务运行失败'));
+      } else {
+        pending.resolve(payload.data !== undefined ? payload.data : payload);
+      }
     } catch (_error) {
       pending.reject(new Error('应用返回的数据无法读取'));
     }
@@ -232,6 +322,7 @@
           id,
           path,
           method: options.method || 'GET',
+          headers: options.headers || {},
           body: options.body || '',
         });
       } catch (_error) {
@@ -244,6 +335,35 @@
 
   function normalizeSearch(value) {
     return String(value || '').toLocaleLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  // Map the score itself onto a continuous traffic-light palette.  Each
+  // candidate receives one solid colour; the track no longer contains a
+  // misleading left-to-right rainbow.
+  function scoreColor(value) {
+    const score = Math.max(0, Math.min(100, Number(value) || 0));
+    const stops = [[0, [223, 91, 103]], [50, [239, 177, 61]], [100, [56, 184, 106]]];
+    let lower = stops[0];
+    let upper = stops[stops.length - 1];
+    for (let index = 1; index < stops.length; index += 1) {
+      if (score <= stops[index][0]) { upper = stops[index]; lower = stops[index - 1]; break; }
+    }
+    const ratio = (score - lower[0]) / Math.max(1, upper[0] - lower[0]);
+    const rgb = lower[1].map((channel, index) => Math.round(channel + (upper[1][index] - channel) * ratio));
+    return `rgb(${rgb.join(', ')})`;
+  }
+
+  function loadLocalJson(key, fallback) {
+    try {
+      const value = JSON.parse(localStorage.getItem(key) || 'null');
+      return value && typeof value === 'object' ? value : fallback;
+    } catch (_error) {
+      return fallback;
+    }
+  }
+
+  function saveLocalJson(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (_error) { /* optional */ }
   }
 
   function nodeMatchesSearch(node) {
@@ -259,7 +379,6 @@
   metricYears.textContent = `${shortYear(yearMin)}–${shortYear(yearMax)}`;
   metricYears.title = fullYearSpan;
   metricYears.setAttribute('aria-label', fullYearSpan);
-
   function activateView(view, remember = true) {
     if (!viewPanels.some(panel => panel.dataset.viewPanel === view)) view = 'graph';
     activeView = view;
@@ -336,7 +455,7 @@
         y: 25,
         class: 'year-label',
       });
-      label.textContent = `’${shortYear(year)}`;
+      label.textContent = shortYear(year);
       timelineGrid.append(rule, label);
     }
   }
@@ -397,7 +516,7 @@
       groupElement.dataset.node = node.id;
       groupElement.setAttribute('role', 'button');
       groupElement.setAttribute('tabindex', '0');
-      groupElement.setAttribute('aria-label', `${node.title}，${node.year ?? '年份未知'}，被库内引用 ${node.citation_count} 次。单击查看引用关系，双击打开论文详情`);
+      groupElement.setAttribute('aria-label', `${node.title}，${node.year ?? '年份未知'}，被库内引用 ${node.citation_count} 次。单击查看引用关系，按 Enter 或空格快速预览`);
 
       const hitArea = document.createElementNS(ns, 'circle');
       hitArea.setAttribute('class', 'node-hit');
@@ -452,11 +571,6 @@
       groupElement.addEventListener('click', event => {
         event.stopPropagation();
         selectNode(node.id);
-      });
-      groupElement.addEventListener('dblclick', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        openNodeDetail(node.id);
       });
       groupElement.addEventListener('keydown', event => {
         if (event.key === 'Enter') {
@@ -620,21 +734,62 @@
     } else {
       relationLegend.hidden = true;
     }
+    renderGraphSearchNavigator();
+    renderGraphInspector();
   }
 
-  function candidateMatchesSearch(candidate) {
-    if (!searchTerm) return true;
-    const supportTitles = (candidate.supporting_papers || []).map(paper => paper.title).join(' ');
-    return normalizeSearch([
-      candidate.title,
-      (candidate.authors || []).join(' '),
-      candidate.abstract,
-      candidate.reason,
-      candidate.category_label,
-      candidate.category_reason,
-      (candidate.topics || []).join(' '),
-      supportTitles,
-    ].join(' ')).includes(searchTerm);
+  function graphSearchMatches() {
+    return searchTerm ? graph.nodes.filter(nodeMatchesSearch) : [];
+  }
+
+  function renderGraphSearchNavigator() {
+    const matches = graphSearchMatches();
+    graphSearchResults.hidden = !searchTerm;
+    if (!searchTerm) return;
+    graphSearchIndex = Math.max(0, Math.min(graphSearchIndex, Math.max(0, matches.length - 1)));
+    graphSearchCount.textContent = `${matches.length} 个结果`;
+    graphSearchPosition.textContent = matches.length ? `${graphSearchIndex + 1} / ${matches.length}` : '没有匹配';
+    graphSearchPrev.disabled = matches.length < 2;
+    graphSearchNext.disabled = matches.length < 2;
+  }
+
+  function stepGraphSearch(direction) {
+    const matches = graphSearchMatches();
+    if (!matches.length) return;
+    graphSearchIndex = (graphSearchIndex + direction + matches.length) % matches.length;
+    selectNode(matches[graphSearchIndex].id);
+    matches[graphSearchIndex].element?.focus({preventScroll: true});
+  }
+
+  function inspectorRelationItem(node, edge) {
+    if (!node) return null;
+    const item = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = `${node.year || '—'} · ${node.title}`;
+    button.title = edge.evidence || '本地参考文献标题匹配';
+    button.addEventListener('click', () => selectNode(node.id));
+    item.appendChild(button);
+    return item;
+  }
+
+  function renderGraphInspector() {
+    const node = selectedNode ? nodesById[selectedNode] : null;
+    graphInspectorEmpty.hidden = Boolean(node);
+    graphInspectorContent.hidden = !node;
+    if (!node) return;
+    const outgoing = graph.edges.citation.filter(edge => edge.source === node.id);
+    const incoming = graph.edges.citation.filter(edge => edge.target === node.id);
+    graphInspectorTitle.textContent = node.title;
+    graphInspectorYear.textContent = String(node.year || '年份未知');
+    graphInspectorCategory.textContent = displayCategoryLabel(node.category.replace(/^\d+_/, ''));
+    graphInspectorAuthors.textContent = node.authors || '作者信息未可靠提取';
+    inspectorOutgoingCount.textContent = String(outgoing.length);
+    inspectorIncomingCount.textContent = String(incoming.length);
+    inspectorOutgoingList.replaceChildren(...outgoing.map(edge => inspectorRelationItem(nodesById[edge.target], edge)).filter(Boolean));
+    inspectorIncomingList.replaceChildren(...incoming.map(edge => inspectorRelationItem(nodesById[edge.source], edge)).filter(Boolean));
+    graphInspectorPreview.dataset.nodeId = node.id;
+    graphInspectorOpenPdf.dataset.nodeId = node.id;
   }
 
   function candidateSourceLabel(source) {
@@ -672,6 +827,46 @@
     toastTimer = setTimeout(() => { appToast.hidden = true; }, 4200);
   }
 
+  function activityNotice(title, detail = '') {
+    activityCenterTitle.textContent = title;
+    activityCenterDetail.textContent = detail;
+    activityCenter.hidden = false;
+  }
+
+  function recordActivity(title, detail = '') {
+    const event = {title, detail, timestamp: new Date().toISOString()};
+    activityEvents = [event, ...activityEvents].slice(0, 40);
+    saveLocalJson('paper-atlas-activity', activityEvents);
+    renderActivityTimeline();
+    activityNotice(title, detail);
+  }
+
+  function renderActivityTimeline() {
+    if (!activityEvents.length) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = '活动将在任务运行后显示。';
+      activityTimeline.replaceChildren(empty);
+      return;
+    }
+    activityTimeline.replaceChildren(...activityEvents.map(event => {
+      const article = document.createElement('article');
+      article.className = 'activity-item';
+      const time = document.createElement('time');
+      const date = new Date(event.timestamp);
+      time.textContent = Number.isNaN(date.valueOf()) ? '—' : date.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
+      const dot = document.createElement('i');
+      const copy = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = event.title;
+      const detail = document.createElement('span');
+      detail.textContent = event.detail;
+      copy.append(title, detail);
+      article.append(time, dot, copy);
+      return article;
+    }));
+  }
+
   function renderReleaseNotes() {
     releaseNotesList.replaceChildren(...(releases.releases || []).map(release => {
       const article = document.createElement('article');
@@ -695,6 +890,7 @@
   }
 
   function openReleaseNotes() {
+    releaseNotesReturnFocus = document.activeElement;
     renderReleaseNotes();
     releaseNotesDialog.hidden = false;
     releaseNotesBackdrop.hidden = false;
@@ -706,7 +902,8 @@
     releaseNotesDialog.hidden = true;
     releaseNotesBackdrop.hidden = true;
     document.body.classList.remove('topics-open');
-    versionHistoryButton.focus({preventScroll: true});
+    (releaseNotesReturnFocus?.isConnected ? releaseNotesReturnFocus : versionHistoryButton)?.focus({preventScroll: true});
+    releaseNotesReturnFocus = null;
   }
 
   function renderRuntimeLogs() {
@@ -744,6 +941,7 @@
   }
 
   function openRuntimeLogs() {
+    logsReturnFocus = document.activeElement;
     logsDialog.hidden = false;
     logsBackdrop.hidden = false;
     document.body.classList.add('topics-open');
@@ -756,7 +954,29 @@
     logsDialog.hidden = true;
     logsBackdrop.hidden = true;
     document.body.classList.remove('topics-open');
-    openRuntimeLogsButton.focus({preventScroll: true});
+    (logsReturnFocus?.isConnected ? logsReturnFocus : openRuntimeLogsButton)?.focus({preventScroll: true});
+    logsReturnFocus = null;
+  }
+
+  // Keep keyboard focus inside a sheet/Quick Look panel. WKWebView does not
+  // provide the browser's native dialog focus management for custom dialogs.
+  function installFocusTrap(dialog) {
+    dialog.addEventListener('keydown', event => {
+      if (event.key !== 'Tab' || dialog.hidden) return;
+      const focusable = [...dialog.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )].filter(element => element.getClientRects().length > 0);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus({preventScroll: true});
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus({preventScroll: true});
+      }
+    });
   }
 
   async function copyCurrentLog() {
@@ -775,6 +995,42 @@
   }
 
   async function apiRequest(path, options = {}) {
+    const prepared = prepareApiRequest(path, options);
+    const payload = await sendApiRequest(prepared.path, prepared.options);
+    if (!prepared.awaitJob || !payload?.job) return payload;
+    return waitForApiJob(payload.job.id);
+  }
+
+  function prepareApiRequest(path, options = {}) {
+    const method = String(options.method || 'GET').toUpperCase();
+    let body = {};
+    try { body = options.body ? JSON.parse(options.body) : {}; } catch (_error) { body = {}; }
+    const prepared = {...options, method};
+    const encode = value => encodeURIComponent(String(value || ''));
+    if (path === '/api/state') return {path: '/api/v1/state', options: prepared};
+    if (path === '/api/topics') return {path: '/api/v1/topics', options: prepared};
+    if (path === '/api/logs') return {path: '/api/v1/logs', options: {...prepared, method: 'GET', body: undefined}};
+    if (path === '/api/discover') return {path: '/api/v1/discovery-runs', options: prepared, awaitJob: true};
+    if (path === '/api/candidates/action') return {path: `/api/v1/candidates/${encode(body.id)}/decision`, options: prepared, awaitJob: true};
+    if (path === '/api/candidates/feedback') return {path: `/api/v1/candidates/${encode(body.id)}/feedback`, options: prepared};
+    if (path === '/api/candidates/clear') return {path: '/api/v1/candidates', options: {...prepared, method: 'DELETE'}};
+    if (path === '/api/classification/action') return {path: `/api/v1/classification-reviews/${encode(body.id)}/decision`, options: prepared, awaitJob: true};
+    if (path === '/api/maintenance/rebuild') return {path: '/api/v1/maintenance-runs', options: prepared, awaitJob: true};
+    if (path === '/api/diagnostics') return {path: '/api/v1/diagnostic-runs', options: prepared, awaitJob: true};
+    if (path === '/api/graph/node/remove') return {path: `/api/v1/graph/nodes/${encode(body.id)}`, options: {...prepared, method: 'DELETE'}, awaitJob: true};
+    if (path === '/api/tasks') {
+      if (body.action === 'state') return {path: '/api/v1/tasks', options: {...prepared, method: 'GET', body: undefined}};
+      if (body.action === 'run') return {path: `/api/v1/tasks/${encode(body.task_id)}/runs`, options: prepared, awaitJob: true};
+      if (body.action === 'configure') return {path: '/api/v1/tasks', options: {...prepared, method: 'PUT'}};
+    }
+    if (path === '/api/backup') {
+      if (body.action === 'restore') return {path: '/api/v1/backup-restores', options: prepared, awaitJob: true};
+      return {path: '/api/v1/backups', options: prepared, awaitJob: true};
+    }
+    return {path, options};
+  }
+
+  async function sendApiRequest(path, options = {}) {
     if (window.webkit?.messageHandlers?.paperAtlas) {
       return nativeApiRequest(path, options);
     }
@@ -785,24 +1041,112 @@
     try {
       response = await fetch(path, {
         ...options,
-        headers: {'Content-Type': 'application/json', ...(options.headers || {})},
+        headers: {'Content-Type': 'application/json', ...(apiToken ? {'X-Paper-Atlas-Token': apiToken} : {}), ...(options.headers || {})},
       });
     } catch (_error) {
       throw new Error('应用管理功能未连接，请重新打开 Paper Atlas');
     }
     let payload = {};
     try { payload = await response.json(); } catch (_error) { /* handled below */ }
-    if (!response.ok || payload.error) throw new Error(payload.error || '本地任务运行失败');
-    return payload;
+    if (!response.ok || payload.error) {
+      const error = payload.error;
+      throw new Error(typeof error === 'string' ? error : error?.message || '本地任务运行失败');
+    }
+    return payload.data !== undefined ? payload.data : payload;
+  }
+
+  async function waitForApiJob(jobId) {
+    if (!jobId) return {};
+    for (let attempt = 0; attempt < 1200; attempt += 1) {
+      const record = await sendApiRequest(`/api/v1/jobs/${encodeURIComponent(jobId)}`, {method: 'GET'});
+      if (record.status === 'succeeded') return record.result || {};
+      if (['failed', 'cancelled', 'interrupted'].includes(record.status)) {
+        throw new Error(record.error?.message || '任务未完成');
+      }
+      await new Promise(resolve => setTimeout(resolve, Math.min(2000, 250 + attempt * 25)));
+    }
+    throw new Error('任务等待超时，请到运行日志查看详情');
   }
 
   function suggestedCategory(candidate) {
+    if (candidateCategoryOverrides.has(candidate.id)) return candidateCategoryOverrides.get(candidate.id);
     if (candidate.suggested_category) return candidate.suggested_category;
     const counts = {};
     (candidate.supporting_papers || []).forEach(paper => {
       if (paper.category) counts[paper.category] = (counts[paper.category] || 0) + 1;
     });
     return Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || '';
+  }
+
+  function candidateCategory(candidate) {
+    const id = suggestedCategory(candidate);
+    const rank = reviewCategories.findIndex(category => category.id === id);
+    const known = rank >= 0 ? reviewCategories[rank] : null;
+    return {
+      id: id || 'unclassified',
+      label: known?.label || displayCategoryLabel(candidate.category_label) || '待确认类别',
+      rank: rank >= 0 ? rank : reviewCategories.length,
+    };
+  }
+
+  function renderCandidateCategoryFilter(candidates) {
+    const counts = new Map();
+    candidates.forEach(candidate => {
+      const category = candidateCategory(candidate);
+      counts.set(category.id, (counts.get(category.id) || 0) + 1);
+    });
+    const options = [];
+    const all = document.createElement('option');
+    all.value = 'all';
+    all.textContent = `全部类别 · ${candidates.length}`;
+    options.push(all);
+    reviewCategories.forEach(category => {
+      const count = counts.get(category.id) || 0;
+      if (!count) return;
+      const option = document.createElement('option');
+      option.value = category.id;
+      option.textContent = `${category.label} · ${count}`;
+      options.push(option);
+    });
+    const unclassifiedCount = counts.get('unclassified') || 0;
+    if (unclassifiedCount) {
+      const option = document.createElement('option');
+      option.value = 'unclassified';
+      option.textContent = `待确认类别 · ${unclassifiedCount}`;
+      options.push(option);
+    }
+    if (!options.some(option => option.value === discoveryCategory)) discoveryCategory = 'all';
+    candidateCategoryFilter.replaceChildren(...options);
+    candidateCategoryFilter.value = discoveryCategory;
+  }
+
+  function renderCandidateGroupHeader(category, count) {
+    const header = document.createElement('div');
+    header.className = 'candidate-group-header';
+    header.dataset.categoryId = category.id;
+    const label = document.createElement('strong');
+    label.textContent = category.label;
+    const total = document.createElement('span');
+    total.textContent = String(count);
+    header.append(label, total);
+    if (category.id !== 'unclassified') {
+      header.addEventListener('dragover', event => {
+        event.preventDefault();
+        header.classList.add('drop-target');
+      });
+      header.addEventListener('dragleave', () => header.classList.remove('drop-target'));
+      header.addEventListener('drop', event => {
+        event.preventDefault();
+        header.classList.remove('drop-target');
+        const candidateId = event.dataTransfer?.getData('text/paper-atlas-candidate');
+        if (!candidateId) return;
+        candidateCategoryOverrides.set(candidateId, category.id);
+        saveLocalJson('paper-atlas-category-overrides', Object.fromEntries(candidateCategoryOverrides));
+        showToast(`已将候选调整为“${category.label}”`);
+        renderDiscovery();
+      });
+    }
+    return header;
   }
 
   async function reviewCandidate(candidate, action, categorySelectControl, article, extras = {}) {
@@ -909,48 +1253,189 @@
   }
 
   function renderCandidateRow(candidate) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'candidate-row';
-    button.dataset.candidateId = candidate.id;
-    button.classList.toggle('active', candidate.id === selectedCandidateId);
-    button.classList.toggle('is-discovery-result', highlightedCandidateIds.has(candidate.id));
-    button.setAttribute('aria-pressed', String(candidate.id === selectedCandidateId));
+    const row = document.createElement('div');
+    row.className = 'candidate-row';
+    row.dataset.candidateId = candidate.id;
+    row.classList.toggle('active', candidate.id === selectedCandidateId);
+    row.classList.toggle('is-discovery-result', highlightedCandidateIds.has(candidate.id));
+    row.setAttribute('role', 'button');
+    row.setAttribute('tabindex', '0');
+    row.setAttribute('aria-pressed', String(candidate.id === selectedCandidateId));
+    row.draggable = true;
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'candidate-row-select';
+    checkbox.checked = selectedCandidateIds.has(candidate.id);
+    checkbox.setAttribute('aria-label', `选择 ${candidate.title}`);
+    checkbox.addEventListener('click', event => event.stopPropagation());
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) selectedCandidateIds.add(candidate.id);
+      else selectedCandidateIds.delete(candidate.id);
+      updateBatchToolbar();
+    });
 
     const source = document.createElement('span');
     source.className = `candidate-row-source source-${(candidate.sources || [])[0] || 'unknown'}`;
     source.textContent = candidateSourceLabel((candidate.sources || [])[0] || '推荐');
+    const scoreValue = Number(candidate.recommendation_score);
+    const score = document.createElement('span');
+    score.className = 'candidate-row-score';
+    const normalizedScore = Number.isFinite(scoreValue) ? Math.max(0, Math.min(100, scoreValue)) : null;
+    score.dataset.tone = normalizedScore === null ? 'unknown' : normalizedScore >= 70 ? 'high' : normalizedScore >= 45 ? 'medium' : 'low';
+    score.setAttribute('aria-label', normalizedScore === null ? '暂无推荐分' : `推荐分 ${normalizedScore}`);
+    const scoreLabel = document.createElement('span');
+    scoreLabel.textContent = normalizedScore === null ? '—' : String(Math.round(normalizedScore));
+    const scoreTrack = document.createElement('span');
+    scoreTrack.className = 'candidate-score-track';
+    const scoreFill = document.createElement('i');
+    scoreFill.style.width = `${normalizedScore || 0}%`;
+    if (normalizedScore !== null) scoreFill.style.backgroundColor = scoreColor(normalizedScore);
+    scoreTrack.appendChild(scoreFill);
+    score.append(scoreLabel, scoreTrack);
     const title = document.createElement('strong');
     title.textContent = candidate.title;
     const category = document.createElement('span');
     category.className = 'candidate-row-category';
-    category.textContent = candidate.category_label || '待确认类别';
+    category.textContent = candidateCategory(candidate).label;
     const meta = document.createElement('span');
     meta.className = 'candidate-row-meta';
     const citations = Number(candidate.cited_by_count);
     meta.textContent = `${candidate.year || '年份未知'}${Number.isFinite(citations) && citations > 0 ? ` · 被引 ${citations.toLocaleString('zh-CN')}` : ''}`;
-    button.append(source, title, category, meta);
-    button.addEventListener('click', () => {
+    row.append(checkbox, source, score, title, category, meta);
+    const selectCandidate = () => {
       selectedCandidateId = candidate.id;
       renderDiscovery();
+    };
+    row.addEventListener('click', selectCandidate);
+    row.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        selectCandidate();
+      }
     });
-    return button;
+    row.addEventListener('dragstart', event => {
+      event.dataTransfer?.setData('text/paper-atlas-candidate', candidate.id);
+      event.dataTransfer.effectAllowed = 'move';
+    });
+    return row;
   }
 
-  async function sendCandidateFeedback(candidate, feedback, container) {
-    const controls = container.querySelectorAll('button');
-    controls.forEach(control => { control.disabled = true; });
+  function updateBatchToolbar() {
+    selectedCandidateIds = new Set([...selectedCandidateIds].filter(id =>
+      (discovery.candidates || []).some(candidate => candidate.id === id && candidate.status === 'new'),
+    ));
+    batchToolbar.hidden = selectedCandidateIds.size === 0;
+    batchCount.textContent = `已选择 ${selectedCandidateIds.size} 篇`;
+  }
+
+  async function dismissSelectedCandidates() {
+    const ids = [...selectedCandidateIds];
+    if (!ids.length) return;
+    batchDismiss.disabled = true;
+    activityNotice('正在批量移除', `${ids.length} 篇候选正在处理`);
     try {
-      const result = await apiRequest('/api/candidates/feedback', {
-        method: 'POST', body: JSON.stringify({id: candidate.id, feedback}),
-      });
-      discovery = result.discovery;
-      showToast(result.message);
+      for (const id of ids) {
+        const result = await apiRequest('/api/candidates/action', {
+          method: 'POST', body: JSON.stringify({id, action: 'dismiss', category: ''}),
+        });
+        discovery = result.discovery || discovery;
+      }
+      selectedCandidateIds.clear();
       renderDiscovery();
+      showToast(`已移除 ${ids.length} 篇候选`);
+      recordActivity('批量审核完成', `移除 ${ids.length} 篇待审核论文`);
     } catch (error) {
-      controls.forEach(control => { control.disabled = false; });
       showToast(error.message, 'error');
+    } finally {
+      batchDismiss.disabled = false;
+      updateBatchToolbar();
     }
+  }
+
+  async function sendCandidateFeedback(candidate, feedback) {
+    const result = await apiRequest('/api/candidates/feedback', {
+      method: 'POST', body: JSON.stringify({id: candidate.id, feedback}),
+    });
+    discovery = result.discovery;
+    return result;
+  }
+
+  function openCandidateFeedbackDialog(candidate, onComplete) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop candidate-feedback-backdrop';
+    const dialog = document.createElement('section');
+    dialog.className = 'feedback-dialog';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'candidate-feedback-title');
+    const header = document.createElement('header');
+    header.className = 'dialog-header';
+    const heading = document.createElement('div');
+    const title = document.createElement('h2');
+    title.id = 'candidate-feedback-title';
+    title.textContent = '这条推荐是否准确？';
+    const summary = document.createElement('p');
+    summary.textContent = candidate.title;
+    heading.append(title, summary);
+    header.appendChild(heading);
+    const body = document.createElement('div');
+    body.className = 'feedback-dialog-options';
+    const options = [
+      ['accurate', '准确', '与当前研究方向相关'],
+      ['irrelevant', '不相关', '与论文库主题无关'],
+      ['wrong_category', '分类不准', '论文有价值，但类别需要调整'],
+    ];
+    const close = () => {
+      backdrop.remove();
+      dialog.remove();
+    };
+    options.forEach(([value, label, detail]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'feedback-option';
+      const strong = document.createElement('strong');
+      strong.textContent = label;
+      const caption = document.createElement('span');
+      caption.textContent = detail;
+      button.append(strong, caption);
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        body.querySelectorAll('button').forEach(item => { item.disabled = true; });
+        try {
+          await sendCandidateFeedback(candidate, value);
+          close();
+          renderDiscovery();
+          showToast('推荐评价已记录');
+          onComplete?.();
+        } catch (error) {
+          body.querySelectorAll('button').forEach(item => { item.disabled = false; });
+          showToast(error.message, 'error');
+        }
+      });
+      body.appendChild(button);
+    });
+    backdrop.addEventListener('click', close);
+    document.body.append(backdrop, dialog);
+    requestAnimationFrame(() => body.querySelector('button')?.focus());
+  }
+
+  function beginCandidateAction(candidate, action, article, categoryControl, extras = {}) {
+    if (action === 'accept' && !categoryControl.value) {
+      categoryControl.focus();
+      showToast('请先为这篇论文选择类别', 'error');
+      return;
+    }
+    const run = () => {
+      const currentArticle = [...candidatePreview.querySelectorAll('[data-candidate-id]')]
+        .find(item => item.dataset.candidateId === candidate.id) || article;
+      const currentCategory = currentArticle?.querySelector('select[aria-label^="为 "]') || categoryControl;
+      if (currentCategory && categoryControl.value) currentCategory.value = categoryControl.value;
+      if (action === 'reject' && !window.confirm(`以后不再推荐“${candidate.title}”？`)) return;
+      reviewCandidate(candidate, action, currentCategory, currentArticle, extras);
+    };
+    if (candidate.user_feedback) run();
+    else openCandidateFeedbackDialog(candidate, run);
   }
 
   function renderCandidate(candidate) {
@@ -1017,9 +1502,12 @@
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(index === 0));
       tab.dataset.tab = id;
+      const panelId = `candidate-panel-${candidate.id.replace(/[^a-zA-Z0-9_-]/g, '-')}-${id}`;
+      tab.setAttribute('aria-controls', panelId);
       const panel = document.createElement('section');
       panel.className = 'candidate-detail-panel';
       panel.dataset.panel = id;
+      panel.id = panelId;
       panel.hidden = index !== 0;
       tabButtons.push(tab);
       tabPanels.push(panel);
@@ -1081,24 +1569,6 @@
       versions.textContent = `已合并 ${candidate.versions.length} 条版本或来源记录`;
       tabPanels[2].appendChild(versions);
     }
-    const feedback = document.createElement('div');
-    feedback.className = 'candidate-feedback';
-    const feedbackLabel = document.createElement('span');
-    feedbackLabel.textContent = candidate.user_feedback ? '反馈已记录' : '这条推荐是否准确？';
-    feedback.appendChild(feedbackLabel);
-    [
-      ['accurate', '准确'],
-      ['irrelevant', '不相关'],
-      ['wrong_category', '分类不准'],
-    ].forEach(([value, label]) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = label;
-      button.classList.toggle('active', candidate.user_feedback === value);
-      button.addEventListener('click', () => sendCandidateFeedback(candidate, value, feedback));
-      feedback.appendChild(button);
-    });
-    tabPanels[2].appendChild(feedback);
     if ((candidate.supporting_papers || []).length) {
       const supportList = document.createElement('div');
       supportList.className = 'candidate-support-list';
@@ -1139,22 +1609,24 @@
     dismiss.className = 'candidate-action candidate-action-quiet';
     dismiss.textContent = '移除';
     dismiss.title = '本次移出候选，下次发现时仍可重新出现';
-    dismiss.addEventListener('click', () => reviewCandidate(candidate, 'dismiss', category, article));
+    dismiss.addEventListener('click', () => {
+      beginCandidateAction(candidate, 'dismiss', article, category);
+    });
     const reject = document.createElement('button');
     reject.type = 'button';
     reject.className = 'candidate-action candidate-action-quiet candidate-action-danger';
     reject.textContent = '忽略';
     reject.title = '以后发现到相同论文时不再推荐';
     reject.addEventListener('click', () => {
-      if (window.confirm(`以后不再推荐“${candidate.title}”？`)) {
-        reviewCandidate(candidate, 'reject', category, article);
-      }
+      beginCandidateAction(candidate, 'reject', article, category);
     });
     const accept = document.createElement('button');
     accept.type = 'button';
     accept.className = 'candidate-action primary-action';
     accept.textContent = '加入论文库';
-    accept.addEventListener('click', () => reviewCandidate(candidate, 'accept', category, article));
+    accept.addEventListener('click', () => {
+      beginCandidateAction(candidate, 'accept', article, category);
+    });
     footer.append(category, dismiss, reject, accept);
 
     article.append(header, title, meta, classification, tabs, panels, footer);
@@ -1170,20 +1642,45 @@
 
   function renderDiscovery() {
     const activeCandidates = (discovery.candidates || []).filter(candidate => candidate.status === 'new');
-    const visible = activeCandidates
-      .filter(candidate => {
-        const sourceMatch = discoverySource === 'all' || (candidate.sources || []).includes(discoverySource);
-        return sourceMatch && candidateMatchesSearch(candidate);
-      })
-      .sort((a, b) => candidateTimestamp(b) - candidateTimestamp(a) || a.title.localeCompare(b.title));
+    const sourceCandidates = activeCandidates.filter(candidate => {
+      const sourceMatch = discoverySource === 'all' || (candidate.sources || []).includes(discoverySource);
+      return sourceMatch;
+    });
+    renderCandidateCategoryFilter(sourceCandidates);
+    const visible = sourceCandidates
+      .filter(candidate => discoveryCategory === 'all' || candidateCategory(candidate).id === discoveryCategory)
+      .sort((a, b) => {
+        if (discoveryCategory === 'all') {
+          const categoryOrder = candidateCategory(a).rank - candidateCategory(b).rank;
+          if (categoryOrder) return categoryOrder;
+        }
+        return candidateTimestamp(b) - candidateTimestamp(a) || a.title.localeCompare(b.title);
+      });
     if (!visible.some(candidate => candidate.id === selectedCandidateId)) {
       selectedCandidateId = visible[0]?.id || null;
     }
     const selectedCandidate = visible.find(candidate => candidate.id === selectedCandidateId);
-    discoveryList.replaceChildren(...visible.map(renderCandidateRow));
+    visibleCandidateIds = visible.map(candidate => candidate.id);
+    const candidateNodes = [];
+    if (discoveryCategory === 'all') {
+      const groups = new Map();
+      visible.forEach(candidate => {
+        const category = candidateCategory(candidate);
+        if (!groups.has(category.id)) groups.set(category.id, {category, candidates: []});
+        groups.get(category.id).candidates.push(candidate);
+      });
+      groups.forEach(group => {
+        candidateNodes.push(renderCandidateGroupHeader(group.category, group.candidates.length));
+        candidateNodes.push(...group.candidates.map(renderCandidateRow));
+      });
+    } else {
+      candidateNodes.push(...visible.map(renderCandidateRow));
+    }
+    discoveryList.replaceChildren(...candidateNodes);
     discoveryEmpty.hidden = visible.length > 0;
     candidatePreviewEmpty.hidden = Boolean(selectedCandidate);
     candidatePreview.replaceChildren(selectedCandidate ? renderCandidate(selectedCandidate) : candidatePreviewEmpty);
+    updateBatchToolbar();
     discoveryCount.textContent = String(activeCandidates.length);
     navDiscoveryCount.textContent = String(activeCandidates.length);
     navDiscoveryCount.hidden = activeCandidates.length === 0;
@@ -1193,10 +1690,6 @@
         ? '发现任务已运行'
         : `更新于 ${updated.toLocaleString('zh-CN', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'})}`;
     }
-    const graphMatches = graph.nodes.filter(nodeMatchesSearch).length;
-    searchStatus.textContent = searchTerm
-      ? `论文库 ${graphMatches} 篇 · 推荐 ${visible.length} 篇匹配`
-      : `${visible.length} 篇候选`;
   }
 
   function sameDiscoveryTime(value, updatedAt) {
@@ -1209,7 +1702,9 @@
 
   function discoveryRunSummary(currentDiscovery, mode) {
     const updatedAt = currentDiscovery.metadata?.updated_at;
-    const expectedSources = mode === 'topics'
+    const expectedSources = mode === 'multi'
+      ? ['arxiv_topic', 'highly_cited', 'shared_reference']
+      : mode === 'topics'
       ? ['arxiv_topic', 'highly_cited']
       : [mode === 'shared' ? 'shared_reference' : mode === 'highly_cited' ? 'highly_cited' : 'arxiv_topic'];
     const activeCandidates = (currentDiscovery.candidates || []).filter(candidate => candidate.status === 'new');
@@ -1230,9 +1725,7 @@
 
   function selectDiscoverySource(source) {
     discoverySource = source;
-    document.querySelectorAll('.filter-pill').forEach(item => {
-      item.classList.toggle('active', item.dataset.source === source);
-    });
+    candidateSourceFilter.value = source;
   }
 
   function highlyCitedPipeline(metadata = {}) {
@@ -1265,18 +1758,20 @@
     return `库内另有 ${matches.length} 篇语义命中但低于当前 OpenAlex 阈值：${sample}`;
   }
 
-  function showDiscoveryOutcome(currentDiscovery, mode) {
-    const summary = discoveryRunSummary(currentDiscovery, mode);
+  function showDiscoveryOutcome(currentDiscovery, mode, summaryOverride = null) {
+    const summary = summaryOverride || discoveryRunSummary(currentDiscovery, mode);
     const highlyCited = highlyCitedPipeline(currentDiscovery.metadata);
     const libraryMatches = libraryMatchSummary(currentDiscovery.metadata, mode);
     const belowThresholdMatches = mode === 'highly_cited'
       ? belowThresholdLibrarySummary(currentDiscovery.metadata)
       : '';
-    const sourceLabel = mode === 'topics'
+    const sourceLabel = mode === 'multi'
+      ? '论文发现'
+      : mode === 'topics'
       ? '主题发现'
       : mode === 'shared' ? '共同引用' : mode === 'highly_cited' ? '领域高被引' : 'arXiv 搜索';
     selectDiscoverySource(
-      mode === 'topics' ? 'all' : mode === 'shared' ? 'shared_reference' : mode === 'highly_cited' ? 'highly_cited' : 'arxiv_topic',
+      mode === 'multi' || mode === 'topics' ? 'all' : mode === 'shared' ? 'shared_reference' : mode === 'highly_cited' ? 'highly_cited' : 'arxiv_topic',
     );
     clearTimeout(discoveryHighlightTimer);
     highlightedCandidateIds = new Set(summary.ids);
@@ -1295,12 +1790,12 @@
             ? `${highlyCited.text}；可以提高每个主题的入选数量`
             : `${highlyCited.text}；${belowThresholdMatches || '可以降低被引下限或调整主题描述'}`
       : summary.found
-        ? mode === 'topics'
+        ? mode === 'multi' || mode === 'topics'
         ? `arXiv ${summary.arxiv} 篇 · 高被引 ${summary.highlyCited} 篇 · 新增 ${summary.added} 篇；下方结果已高亮`
         : `其中新增 ${summary.added} 篇；下方对应结果已高亮${libraryMatches ? `；${libraryMatches}` : ''}`
       : mode === 'shared'
         ? libraryMatches || '可以降低共同引用次数下限后再次计算'
-        : mode === 'topics'
+        : mode === 'multi' || mode === 'topics'
             ? '可以调整搜索主题、扩大 arXiv 时间范围或降低高被引下限'
         : '可以调整搜索主题或扩大时间范围后再次尝试';
     renderDiscovery();
@@ -1327,14 +1822,16 @@
     row.className = 'topic-row';
     row.dataset.id = topic.id || '';
     row.innerHTML = `
-      <div class="topic-row-heading">
+      <header class="topic-row-heading">
         <label class="topic-enabled"><input type="checkbox" ${topic.enabled === false ? '' : 'checked'}><span>启用</span></label>
+        <input class="topic-label" type="text" maxlength="80" placeholder="主题名称，例如：长上下文优化" aria-label="主题名称">
+        <label class="topic-maximum-field"><span>每天最多发现</span><input class="topic-maximum" type="number" min="1" max="50" value="${Number(topic.max_results) || 10}"></label>
         <button type="button" class="topic-remove" aria-label="删除这个搜索主题">删除</button>
+      </header>
+      <div class="topic-row-fields">
+        <label><span>搜索关键词</span><textarea class="topic-keywords" rows="2" placeholder="long context, KV cache"></textarea></label>
+        <label><span>排除词</span><textarea class="topic-excludes" rows="2" placeholder="可选，用逗号分隔"></textarea></label>
       </div>
-      <label>主题名称<input class="topic-label" type="text" maxlength="80" placeholder="例如：长上下文优化"></label>
-      <label>搜索关键词<textarea class="topic-keywords" rows="2" placeholder="用逗号分隔，例如：long context, KV cache"></textarea></label>
-      <label>排除词<textarea class="topic-excludes" rows="2" placeholder="可选，用逗号分隔"></textarea></label>
-      <label>每天最多发现<input class="topic-maximum" type="number" min="1" max="50" value="${Number(topic.max_results) || 10}"></label>
     `;
     row.querySelector('.topic-label').value = topic.label || '';
     row.querySelector('.topic-keywords').value = (topic.keywords || []).join('，');
@@ -1407,6 +1904,7 @@
   }
 
   function openTopicsDialog() {
+    topicsReturnFocus = document.activeElement;
     topicsList.replaceChildren(...apiTopics.map(topicRow));
     refreshTopicTemplateStates();
     topicsDialog.hidden = false;
@@ -1419,10 +1917,91 @@
     topicsDialog.hidden = true;
     topicsBackdrop.hidden = true;
     document.body.classList.remove('topics-open');
+    (topicsReturnFocus?.isConnected ? topicsReturnFocus : manageTopics)?.focus({preventScroll: true});
+    topicsReturnFocus = null;
+  }
+
+  function openDiscoverySheet() {
+    discoverySheetReturnFocus = document.activeElement;
+    discoverySheet.hidden = false;
+    discoverySheetBackdrop.hidden = false;
+    syncDiscoverySelection();
+    requestAnimationFrame(() => discoverySheetClose.focus({preventScroll: true}));
+  }
+
+  const discoveryModeLabels = {arxiv: '最新 arXiv', highly_cited: '领域高被引', shared: '共同引用'};
+  function syncDiscoverySelection() {
+    const buttons = [runDiscoveryButton, runHighlyCitedButton, runSharedDiscoveryButton];
+    buttons.forEach(button => {
+      const mode = button.dataset.discoveryMode;
+      const selected = selectedDiscoveryModes.has(mode);
+      button.classList.toggle('is-selected', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    });
+    const selectedLabels = [...selectedDiscoveryModes].map(mode => discoveryModeLabels[mode]).filter(Boolean);
+    discoverySelectionSummary.textContent = selectedLabels.length
+      ? `已选择：${selectedLabels.join('、')}`
+      : '请选择至少一种发现方式';
+    runSelectedDiscoveryButton.disabled = selectedLabels.length === 0;
+  }
+
+  function toggleDiscoveryMode(mode) {
+    if (!mode) return;
+    if (selectedDiscoveryModes.has(mode)) selectedDiscoveryModes.delete(mode);
+    else selectedDiscoveryModes.add(mode);
+    syncDiscoverySelection();
+  }
+
+  function closeDiscoverySheet() {
+    discoverySheet.hidden = true;
+    discoverySheetBackdrop.hidden = true;
+    (discoverySheetReturnFocus?.isConnected ? discoverySheetReturnFocus : openDiscoverySheetButton)?.focus({preventScroll: true});
+    discoverySheetReturnFocus = null;
+  }
+
+  function renderAutomationTopicSummary() {
+    const enabledTopics = apiTopics.filter(topic => topic.enabled !== false);
+    if (!enabledTopics.length) {
+      const empty = document.createElement('div');
+      empty.className = 'topic-summary-empty';
+      empty.textContent = '暂无启用的搜索主题';
+      automationTopicSummary.replaceChildren(empty);
+      return;
+    }
+    automationTopicSummary.replaceChildren(...enabledTopics.map(topic => {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'topic-summary-card';
+      card.setAttribute('aria-label', `管理搜索主题：${topic.label || '未命名主题'}`);
+      const heading = document.createElement('span');
+      heading.className = 'topic-summary-heading';
+      const title = document.createElement('strong');
+      title.textContent = topic.label || '未命名主题';
+      const state = document.createElement('span');
+      state.textContent = `最多 ${Number(topic.max_results) || 10} 篇/日`;
+      heading.append(title, state);
+      const keywords = document.createElement('span');
+      keywords.className = 'topic-summary-keywords';
+      const terms = (topic.keywords || []).slice(0, 4);
+      if (terms.length) {
+        terms.forEach(term => {
+          const chip = document.createElement('i');
+          chip.textContent = term;
+          keywords.appendChild(chip);
+        });
+      } else {
+        const chip = document.createElement('i');
+        chip.textContent = '尚未设置关键词';
+        keywords.appendChild(chip);
+      }
+      card.append(heading, keywords);
+      card.addEventListener('click', openTopicsDialog);
+      return card;
+    }));
   }
 
   function setDiscoveryBusy(busy, label = '正在搜索 arXiv…') {
-    [runDiscoveryButton, runHighlyCitedButton, runSharedDiscoveryButton, clearCandidatesButton, saveTopicsButton, saveAndDiscoverButton, addTopicButton, ...topicTemplateButtons.values()].forEach(button => {
+    [runDiscoveryButton, runHighlyCitedButton, runSharedDiscoveryButton, runSelectedDiscoveryButton, clearCandidatesButton, saveTopicsButton, saveAndDiscoverButton, addTopicButton, ...topicTemplateButtons.values()].forEach(button => {
       button.disabled = busy;
     });
     sharedReferenceMinimum.disabled = busy;
@@ -1431,9 +2010,15 @@
     const isHighlyCited = label.includes('高被引');
     const isShared = label.includes('共同引用');
     const isTopicDiscovery = label.includes('主题发现');
-    runDiscoveryButton.textContent = busy && isArxiv ? '搜索中…' : '搜索 arXiv';
-    runHighlyCitedButton.textContent = busy && isHighlyCited ? '搜索中…' : '领域高被引';
-    runSharedDiscoveryButton.textContent = busy && isShared ? '计算中…' : '共同引用';
+    const isMultiDiscovery = label.includes('所选发现');
+    const setMethodLabel = (button, text) => {
+      const strong = button?.querySelector('strong');
+      if (strong) strong.textContent = text;
+      else if (button) button.textContent = text;
+    };
+    setMethodLabel(runDiscoveryButton, busy && isArxiv ? '搜索中…' : '最新 arXiv');
+    setMethodLabel(runHighlyCitedButton, busy && isHighlyCited ? '搜索中…' : '领域高被引');
+    setMethodLabel(runSharedDiscoveryButton, busy && isShared ? '计算中…' : '共同引用');
     clearInterval(discoveryBusyTimer);
     discoveryBusyTimer = null;
     discoveryProgress.hidden = !busy;
@@ -1442,7 +2027,9 @@
     highlightedCandidateIds.clear();
     clearTimeout(discoveryHighlightTimer);
     discoveryBusyStarted = Date.now();
-    discoveryProgressTitle.textContent = isTopicDiscovery
+    discoveryProgressTitle.textContent = isMultiDiscovery
+      ? '正在执行所选发现方式'
+      : isTopicDiscovery
       ? '正在搜索 arXiv 与领域高被引论文'
       : isShared
       ? '正在计算共同引用'
@@ -1457,7 +2044,9 @@
       const elapsed = Math.max(0, Math.floor((Date.now() - discoveryBusyStarted) / 1000));
       const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
       const seconds = String(elapsed % 60).padStart(2, '0');
-      discoveryProgressMeta.textContent = isTopicDiscovery
+      discoveryProgressMeta.textContent = isMultiDiscovery
+        ? `将依次运行 ${selectedDiscoveryModes.size} 种发现方式 · 已用时 ${minutes}:${seconds}`
+        : isTopicDiscovery
         ? `正在按搜索主题合并两类结果 · 已用时 ${minutes}:${seconds}`
         : isShared
         ? `下限 ${sharedReferenceMinimum.value} 次 · 正在分析库内论文引用 · 已用时 ${minutes}:${seconds}`
@@ -1481,6 +2070,7 @@
         body: JSON.stringify({topics: collectTopics()}),
       });
       apiTopics = saved.topics;
+      renderAutomationTopicSummary();
       if (runAfterSave) {
         closeTopicsDialog();
         const result = await apiRequest('/api/discover', {
@@ -1501,40 +2091,78 @@
   }
 
   async function runDiscoveryNow(mode = 'arxiv') {
+    const requestedModes = [...new Set(Array.isArray(mode) ? mode : [mode])]
+      .filter(item => ['arxiv', 'highly_cited', 'shared'].includes(item));
+    if (!requestedModes.length) {
+      showToast('请选择至少一种发现方式', 'error');
+      return;
+    }
+    const modes = [];
+    const hasArxiv = requestedModes.includes('arxiv');
+    const hasHighlyCited = requestedModes.includes('highly_cited');
+    if (hasArxiv && hasHighlyCited) modes.push('topics');
+    else if (hasArxiv) modes.push('arxiv');
+    else if (hasHighlyCited) modes.push('highly_cited');
+    if (requestedModes.includes('shared')) modes.push('shared');
     const sharedMinimum = Number(sharedReferenceMinimum.value);
     const citationMinimum = Number(highlyCitedMinimum.value);
-    if (mode === 'shared' && (!Number.isInteger(sharedMinimum) || sharedMinimum < 2 || sharedMinimum > 20)) {
+    if (modes.includes('shared') && (!Number.isInteger(sharedMinimum) || sharedMinimum < 2 || sharedMinimum > 20)) {
       sharedReferenceMinimum.focus();
       showToast('共同引用次数下限需要是 2–20 之间的整数', 'error');
       return;
     }
-    if (['highly_cited', 'topics'].includes(mode) && (!Number.isInteger(citationMinimum) || citationMinimum < 1 || citationMinimum > 1000000)) {
+    if (modes.includes('topics') || modes.includes('highly_cited')) {
+      if (!Number.isInteger(citationMinimum) || citationMinimum < 1 || citationMinimum > 1000000) {
       highlyCitedMinimum.focus();
       showToast('高被引次数下限需要是 1–1,000,000 之间的整数', 'error');
       return;
+      }
     }
+    closeDiscoverySheet();
     runDiscoveryButton.closest('details')?.removeAttribute('open');
+    const busyLabel = modes.length > 1
+      ? '正在执行所选发现…'
+      : modes[0] === 'shared'
+        ? '正在计算共同引用…'
+        : modes[0] === 'highly_cited'
+          ? '正在搜索领域高被引…'
+          : modes[0] === 'topics'
+            ? '正在搜索 arXiv 与领域高被引…'
+            : '正在搜索 arXiv…';
     setDiscoveryBusy(
       true,
-      mode === 'shared'
-        ? '正在计算共同引用…'
-        : mode === 'highly_cited'
-          ? '正在搜索领域高被引…'
-          : mode === 'topics'
-            ? '正在搜索 arXiv 与领域高被引…'
-            : '正在搜索 arXiv…',
+      busyLabel,
     );
     try {
-      const result = await apiRequest('/api/discover', {
-        method: 'POST',
-        body: JSON.stringify({
-          mode,
-          ...(mode === 'shared' ? {min_library_citations: sharedMinimum} : {}),
-          ...(['highly_cited', 'topics'].includes(mode) ? {min_citations: citationMinimum} : {}),
-        }),
-      });
-      discovery = result.discovery;
-      showDiscoveryOutcome(discovery, mode);
+      let lastResult = null;
+      const combined = {ids: [], found: 0, added: 0, arxiv: 0, highlyCited: 0, shared: 0};
+      for (const selectedMode of modes) {
+        lastResult = await apiRequest('/api/discover', {
+          method: 'POST',
+          body: JSON.stringify({
+            mode: selectedMode,
+            ...(selectedMode === 'shared' ? {min_library_citations: sharedMinimum} : {}),
+            ...(['highly_cited', 'topics'].includes(selectedMode) ? {min_citations: citationMinimum} : {}),
+          }),
+        });
+        discovery = lastResult.discovery;
+        if (modes.length > 1) {
+          const runSummary = discoveryRunSummary(discovery, selectedMode);
+          combined.ids.push(...runSummary.ids);
+          combined.found += runSummary.found;
+          combined.added += runSummary.added;
+          combined.arxiv += runSummary.arxiv;
+          combined.highlyCited += runSummary.highlyCited;
+          combined.shared += runSummary.shared;
+        }
+      }
+      if (modes.length > 1) {
+        combined.ids = [...new Set(combined.ids)];
+        combined.found = combined.ids.length;
+      }
+      showDiscoveryOutcome(discovery, modes.length > 1 ? 'multi' : modes[0], modes.length > 1 ? combined : null);
+      const labels = requestedModes.map(item => discoveryModeLabels[item]).join('、');
+      recordActivity('论文发现完成', lastResult?.message || `${labels} 已完成`);
     } catch (error) {
       showToast(error.message, 'error');
     } finally {
@@ -1695,7 +2323,7 @@
       });
       const confirm = document.createElement('button');
       confirm.type = 'button';
-      confirm.className = 'toolbar-action primary-action';
+      confirm.className = 'primary-button';
       confirm.textContent = '确认归档';
       confirm.addEventListener('click', async () => {
         confirm.disabled = true;
@@ -1764,22 +2392,10 @@
       actions.className = 'task-actions';
       const run = document.createElement('button');
       run.type = 'button';
-      run.className = 'toolbar-action';
+      run.className = 'secondary-button';
       run.textContent = '立即运行';
       run.addEventListener('click', () => runTaskNow(task.id, run));
       actions.appendChild(run);
-      if (task.last_log) {
-        const log = document.createElement('details');
-        log.className = 'task-log';
-        const summary = document.createElement('summary');
-        const logLabel = document.createElement('span');
-        logLabel.textContent = '运行日志';
-        summary.appendChild(logLabel);
-        const pre = document.createElement('pre');
-        pre.textContent = task.last_log;
-        log.append(summary, pre);
-        actions.appendChild(log);
-      }
       article.append(heading, status, actions);
       taskList.appendChild(article);
     });
@@ -1794,6 +2410,7 @@
       });
       renderTasks(result);
       showToast(result.message);
+      recordActivity('每日任务已运行', result.message || taskId);
       const state = await apiRequest('/api/state');
       if (state.health) renderHealth(state.health);
       if (state.discovery) {
@@ -1919,7 +2536,7 @@
       showToast(error.message, 'error');
     } finally {
       runDiagnosticsButton.disabled = false;
-      runDiagnosticsButton.textContent = '运行诊断';
+    runDiagnosticsButton.textContent = '检查系统';
     }
   }
 
@@ -1982,6 +2599,7 @@
       const state = await apiRequest('/api/state');
       discovery = state.discovery;
       apiTopics = state.topics || [];
+      renderAutomationTopicSummary();
       sharedReferenceMinimum.value = String(state.shared_reference_minimum || 2);
       highlyCitedMinimum.value = String(state.highly_cited_minimum || 50);
       reviewCategories = (state.categories || reviewCategories).map(category => ({
@@ -2021,9 +2639,94 @@
 
   function updateSearch(value) {
     searchTerm = normalizeSearch(value);
+    graphSearchIndex = 0;
     clearSearch.hidden = !searchTerm;
     render();
-    renderDiscovery();
+  }
+
+  function installPaneResizer(resizer, cssVariable, storageKey, min, max) {
+    let dragging = false;
+    const update = clientX => {
+      const shellRect = document.querySelector('.app-shell').getBoundingClientRect();
+      const value = cssVariable === '--candidate-list-width'
+        ? clientX - shellRect.left - document.querySelector('.app-sidebar').getBoundingClientRect().width
+        : shellRect.right - clientX;
+      const bounded = Math.max(min, Math.min(max, value));
+      document.documentElement.style.setProperty(cssVariable, `${bounded}px`);
+      try { localStorage.setItem(storageKey, String(bounded)); } catch (_error) { /* optional */ }
+    };
+    resizer.addEventListener('pointerdown', event => {
+      dragging = true;
+      resizer.setPointerCapture(event.pointerId);
+    });
+    resizer.addEventListener('pointermove', event => { if (dragging) update(event.clientX); });
+    resizer.addEventListener('pointerup', event => {
+      dragging = false;
+      resizer.releasePointerCapture(event.pointerId);
+    });
+    resizer.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+      event.preventDefault();
+      const current = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(cssVariable)) || min;
+      const delta = event.key === 'ArrowLeft' ? -16 : 16;
+      const next = cssVariable === '--candidate-list-width' ? current + delta : current - delta;
+      const bounded = Math.max(min, Math.min(max, next));
+      document.documentElement.style.setProperty(cssVariable, `${bounded}px`);
+      try { localStorage.setItem(storageKey, String(bounded)); } catch (_error) { /* optional */ }
+    });
+    try {
+      const saved = Number(localStorage.getItem(storageKey));
+      if (Number.isFinite(saved) && saved >= min && saved <= max) {
+        document.documentElement.style.setProperty(cssVariable, `${saved}px`);
+      }
+    } catch (_error) { /* optional */ }
+  }
+
+  function commandCatalog() {
+    return [
+      {label: '打开论文图谱', detail: '⌘1', run: () => activateView('graph')},
+      {label: '打开待审核', detail: '⌘2', run: () => activateView('discovery')},
+      {label: '打开自动化', detail: '⌘3', run: () => activateView('automation')},
+      {label: '打开系统状态', detail: '⌘4', run: () => activateView('system')},
+      {label: '发现论文', detail: '待审核', run: () => { activateView('discovery'); openDiscoverySheet(); }},
+      {label: '检查系统', detail: '系统状态', run: () => { activateView('system'); runDiagnostics(); }},
+      ...graph.nodes.slice(0, 120).map(node => ({label: node.title, detail: `${node.year || '—'} · 论文`, run: () => { activateView('graph'); selectNode(node.id); }})),
+    ];
+  }
+
+  function renderCommands() {
+    const query = normalizeSearch(commandSearch.value);
+    commandItems = commandCatalog().filter(item => !query || normalizeSearch(`${item.label} ${item.detail}`).includes(query)).slice(0, 18);
+    activeCommandIndex = Math.max(0, Math.min(activeCommandIndex, Math.max(0, commandItems.length - 1)));
+    commandResults.replaceChildren(...commandItems.map((item, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'command-item';
+      button.classList.toggle('active', index === activeCommandIndex);
+      const marker = document.createElement('strong');
+      marker.textContent = item.detail === '论文' ? '●' : '⌘';
+      const label = document.createElement('strong');
+      label.textContent = item.label;
+      const detail = document.createElement('span');
+      detail.textContent = item.detail;
+      button.append(marker, label, detail);
+      button.addEventListener('click', () => { closeCommandPalette(); item.run(); });
+      return button;
+    }));
+  }
+
+  function openCommandPalette() {
+    commandPalette.hidden = false;
+    commandBackdrop.hidden = false;
+    commandSearch.value = '';
+    activeCommandIndex = 0;
+    renderCommands();
+    requestAnimationFrame(() => commandSearch.focus());
+  }
+
+  function closeCommandPalette() {
+    commandPalette.hidden = true;
+    commandBackdrop.hidden = true;
   }
 
   function paperUrl(node) {
@@ -2031,41 +2734,8 @@
     return window.location.protocol === 'file:' ? `../../${encodedPath}` : `/papers/${encodedPath}`;
   }
 
-  function renderRelationList(container, relatedItems, emptyText) {
-    container.replaceChildren();
-    if (!relatedItems.length) {
-      const item = document.createElement('li');
-      item.className = 'empty-relation';
-      item.textContent = emptyText;
-      container.appendChild(item);
-      return;
-    }
-    relatedItems
-      .sort((a, b) => (a.node.year ?? 0) - (b.node.year ?? 0) || a.node.title.localeCompare(b.node.title))
-      .forEach(({node, edge}) => {
-        const item = document.createElement('li');
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'relation-button';
-        button.textContent = `${node.year ?? '—'} · ${node.title}`;
-        button.addEventListener('click', () => openNodeDetail(node.id));
-        const confidence = document.createElement('span');
-        confidence.className = `relation-confidence confidence-${edge.confidence || 'medium'}`;
-        confidence.textContent = edge.confidence === 'high' ? '高可信' : '需核验';
-        confidence.title = edge.evidence || '本地参考文献标题匹配';
-        item.append(button, confidence);
-        container.appendChild(item);
-      });
-  }
-
   function showPaperDetail(node) {
-    const outgoingNodes = graph.edges.citation
-      .filter(edge => edge.source === node.id)
-      .map(edge => ({node: nodesById[edge.target], edge}));
-    const incomingNodes = graph.edges.citation
-      .filter(edge => edge.target === node.id)
-      .map(edge => ({node: nodesById[edge.source], edge}));
-
+    detailReturnFocus = document.activeElement;
     paperDetail.hidden = false;
     detailBackdrop.hidden = false;
     detailContent.hidden = false;
@@ -2076,14 +2746,10 @@
     detailAuthors.textContent = node.authors ? `作者：${node.authors}` : '作者：未从 PDF 中可靠提取';
     detailAbstract.textContent = node.abstract || '未从 PDF 中提取到结构化摘要。';
     detailMainBadge.hidden = !node.is_main;
-    outgoingCount.textContent = String(outgoingNodes.length);
-    incomingCount.textContent = String(incomingNodes.length);
     detailPdf.href = paperUrl(node);
     detailPdf.setAttribute('aria-label', `打开 ${node.title} 的本地 PDF`);
     removeGraphNodeButton.dataset.nodeId = node.id;
     removeGraphNodeButton.dataset.nodeTitle = node.title;
-    renderRelationList(detailOutgoing, outgoingNodes, '未检测到本文引用的库内论文');
-    renderRelationList(detailIncoming, incomingNodes, '未检测到库内其他论文引用本文');
     requestAnimationFrame(() => detailClose.focus({preventScroll: true}));
   }
 
@@ -2092,10 +2758,6 @@
     detailBackdrop.hidden = true;
     document.body.classList.remove('detail-open');
     detailMainBadge.hidden = true;
-    outgoingCount.textContent = '0';
-    incomingCount.textContent = '0';
-    detailOutgoing.replaceChildren();
-    detailIncoming.replaceChildren();
     delete removeGraphNodeButton.dataset.nodeId;
     delete removeGraphNodeButton.dataset.nodeTitle;
   }
@@ -2124,6 +2786,8 @@
   function closePaperDetail() {
     clearPaperDetail();
     render();
+    (detailReturnFocus?.isConnected ? detailReturnFocus : nodesById[selectedNode]?.element)?.focus({preventScroll: true});
+    detailReturnFocus = null;
   }
 
   function selectNode(nodeId) {
@@ -2165,14 +2829,26 @@
   }
 
   renderTopicTemplates();
+  renderAutomationTopicSummary();
+  renderActivityTimeline();
+  [paperDetail, discoverySheet, topicsDialog, releaseNotesDialog, logsDialog, commandPalette].forEach(installFocusTrap);
+  installPaneResizer(graphResizer, '--inspector-width', 'paper-atlas-inspector-width', 280, 480);
+  installPaneResizer(reviewResizer, '--candidate-list-width', 'paper-atlas-candidate-width', 280, 520);
   detailClose.addEventListener('click', closePaperDetail);
   detailBackdrop.addEventListener('click', closePaperDetail);
   removeGraphNodeButton.addEventListener('click', removeGraphNode);
   manageTopics.addEventListener('click', openTopicsDialog);
-  runDiscoveryButton.addEventListener('click', () => runDiscoveryNow('arxiv'));
-  runTopicDiscoveryButton.addEventListener('click', () => runDiscoveryNow('topics'));
-  runHighlyCitedButton.addEventListener('click', () => runDiscoveryNow('highly_cited'));
-  runSharedDiscoveryButton.addEventListener('click', () => runDiscoveryNow('shared'));
+  discoveryManageTopics.addEventListener('click', () => {
+    closeDiscoverySheet();
+    openTopicsDialog();
+  });
+  openDiscoverySheetButton.addEventListener('click', openDiscoverySheet);
+  discoverySheetClose.addEventListener('click', closeDiscoverySheet);
+  discoverySheetBackdrop.addEventListener('click', closeDiscoverySheet);
+  runDiscoveryButton.addEventListener('click', () => toggleDiscoveryMode('arxiv'));
+  runHighlyCitedButton.addEventListener('click', () => toggleDiscoveryMode('highly_cited'));
+  runSharedDiscoveryButton.addEventListener('click', () => toggleDiscoveryMode('shared'));
+  runSelectedDiscoveryButton.addEventListener('click', () => runDiscoveryNow([...selectedDiscoveryModes]));
   clearCandidatesButton.addEventListener('click', clearCandidates);
   rebuildGraphButton.addEventListener('click', rebuildGraph);
   runDiagnosticsButton.addEventListener('click', runDiagnostics);
@@ -2200,33 +2876,105 @@
   });
   saveTopicsButton.addEventListener('click', () => saveTopics(false));
   saveAndDiscoverButton.addEventListener('click', () => saveTopics(true));
+  graphSearchPrev.addEventListener('click', () => stepGraphSearch(-1));
+  graphSearchNext.addEventListener('click', () => stepGraphSearch(1));
+  toggleGraphInspector.addEventListener('click', () => {
+    const hidden = graphWorkspace.classList.toggle('inspector-hidden');
+    toggleGraphInspector.classList.toggle('active', !hidden);
+    toggleGraphInspector.setAttribute('aria-pressed', String(!hidden));
+    try { localStorage.setItem('paper-atlas-inspector-hidden', String(hidden)); } catch (_error) { /* optional */ }
+  });
+  graphInspectorPreview.addEventListener('click', () => {
+    if (graphInspectorPreview.dataset.nodeId) openNodeDetail(graphInspectorPreview.dataset.nodeId);
+  });
+  graphInspectorOpenPdf.addEventListener('click', () => {
+    const node = nodesById[graphInspectorOpenPdf.dataset.nodeId];
+    if (node) window.open(paperUrl(node), '_blank', 'noopener');
+  });
+  document.querySelectorAll('.relation-tab').forEach(tab => tab.addEventListener('click', () => {
+    const relation = tab.dataset.relationTab;
+    document.querySelectorAll('.relation-tab').forEach(item => {
+      const active = item === tab;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-selected', String(active));
+    });
+    inspectorOutgoingList.hidden = relation !== 'outgoing';
+    inspectorIncomingList.hidden = relation !== 'incoming';
+  }));
+  document.querySelector('.relation-tab[data-relation-tab="outgoing"]')?.setAttribute('aria-controls', 'inspector-outgoing-list');
+  document.querySelector('.relation-tab[data-relation-tab="incoming"]')?.setAttribute('aria-controls', 'inspector-incoming-list');
+  sidebarCollapse.addEventListener('click', () => {
+    const collapsed = document.querySelector('.app-shell').classList.toggle('sidebar-collapsed');
+    sidebarCollapse.setAttribute('aria-label', collapsed ? '展开侧栏' : '折叠侧栏');
+    try { localStorage.setItem('paper-atlas-sidebar-collapsed', String(collapsed)); } catch (_error) { /* optional */ }
+  });
+  batchSelectAll.addEventListener('click', () => {
+    visibleCandidateIds.forEach(id => selectedCandidateIds.add(id));
+    renderDiscovery();
+  });
+  batchClear.addEventListener('click', () => {
+    selectedCandidateIds.clear();
+    renderDiscovery();
+  });
+  batchDismiss.addEventListener('click', dismissSelectedCandidates);
+  activityCenterClose.addEventListener('click', () => { activityCenter.hidden = true; });
+  commandBackdrop.addEventListener('click', closeCommandPalette);
+  commandSearch.addEventListener('input', () => { activeCommandIndex = 0; renderCommands(); });
+  commandSearch.addEventListener('keydown', event => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      activeCommandIndex = (activeCommandIndex + direction + Math.max(1, commandItems.length)) % Math.max(1, commandItems.length);
+      renderCommands();
+    } else if (event.key === 'Enter' && commandItems[activeCommandIndex]) {
+      event.preventDefault();
+      const item = commandItems[activeCommandIndex];
+      closeCommandPalette();
+      item.run();
+    }
+  });
   document.addEventListener('keydown', event => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      openCommandPalette();
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && ['1', '2', '3', '4'].includes(event.key)) {
+      event.preventDefault();
+      activateView({1: 'graph', 2: 'discovery', 3: 'automation', 4: 'system'}[event.key]);
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      paperSearch.focus();
+      return;
+    }
+    if (event.key === ' ' && activeView === 'graph' && selectedNode && !['INPUT', 'SELECT', 'BUTTON', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+      event.preventDefault();
+      openNodeDetail(selectedNode);
+      return;
+    }
     if (event.key !== 'Escape') return;
-    const openLog = document.querySelector('.task-log[open]');
-    if (openLog) openLog.removeAttribute('open');
+    if (!commandPalette.hidden) closeCommandPalette();
+    else if (!discoverySheet.hidden) closeDiscoverySheet();
     else if (!logsDialog.hidden) closeRuntimeLogs();
     else if (!releaseNotesDialog.hidden) closeReleaseNotes();
     else if (!topicsDialog.hidden) closeTopicsDialog();
     else if (!paperDetail.hidden) closePaperDetail();
   });
-  document.addEventListener('click', event => {
-    document.querySelectorAll('.task-log[open]').forEach(log => {
-      if (!log.contains(event.target)) log.removeAttribute('open');
-    });
-  });
-
   paperSearch.addEventListener('input', event => updateSearch(event.target.value));
   clearSearch.addEventListener('click', () => {
     paperSearch.value = '';
     paperSearch.focus();
     updateSearch('');
   });
-
-  document.querySelectorAll('.filter-pill').forEach(button => {
-    button.addEventListener('click', () => {
-      selectDiscoverySource(button.dataset.source);
-      renderDiscovery();
-    });
+  candidateSourceFilter.addEventListener('change', event => {
+    selectDiscoverySource(event.target.value || 'all');
+    renderDiscovery();
+  });
+  candidateCategoryFilter.addEventListener('change', event => {
+    discoveryCategory = event.target.value || 'all';
+    renderDiscovery();
   });
 
   viewButtons.forEach(button => {
@@ -2260,6 +3008,13 @@
 
   let initialView = 'graph';
   try { initialView = sessionStorage.getItem('paper-atlas-view') || 'graph'; } catch (_error) { /* optional */ }
+  try {
+    document.querySelector('.app-shell').classList.toggle('sidebar-collapsed', localStorage.getItem('paper-atlas-sidebar-collapsed') === 'true');
+    const inspectorHidden = localStorage.getItem('paper-atlas-inspector-hidden') === 'true';
+    graphWorkspace.classList.toggle('inspector-hidden', inspectorHidden);
+    toggleGraphInspector.classList.toggle('active', !inspectorHidden);
+    toggleGraphInspector.setAttribute('aria-pressed', String(!inspectorHidden));
+  } catch (_error) { /* optional */ }
   activateView(initialView, false);
   renderDiscovery();
   loadApiState();

@@ -6,7 +6,11 @@
 @property(nonatomic, strong) NSURL *projectRoot;
 @property(nonatomic, strong) NSURL *papersDirectory;
 @property(nonatomic, strong) NSURL *pythonExecutable;
-- (NSData *)runBackendCommand:(NSString *)command body:(NSData *)body;
+@property(nonatomic, strong) NSTask *workerTask;
+@property(nonatomic, strong) NSFileHandle *workerInput;
+@property(nonatomic, strong) NSFileHandle *workerOutput;
+- (BOOL)startWorker:(NSError **)error;
+- (NSData *)runBackendRequestPath:(NSString *)path method:(NSString *)method body:(NSData *)body;
 @end
 
 
@@ -40,40 +44,76 @@
     return body;
 }
 
-- (NSData *)runBackendCommand:(NSString *)command body:(NSData *)body {
+- (NSData *)runBackendRequestPath:(NSString *)path method:(NSString *)method body:(NSData *)body {
+    @synchronized (self) {
+        NSError *startError = nil;
+        if (![self startWorker:&startError]) {
+            NSDictionary *failure = @{ @"error": [NSString stringWithFormat:@"应用操作启动失败：%@", startError.localizedDescription ?: @"未知错误"] };
+            return [NSJSONSerialization dataWithJSONObject:failure options:0 error:nil];
+        }
+        id bodyObject = @{};
+        if (body.length > 0) {
+            bodyObject = [NSJSONSerialization JSONObjectWithData:body options:0 error:nil] ?: @{};
+        }
+        NSString *identifier = [NSUUID UUID].UUIDString;
+        NSDictionary *envelope = @{ @"id": identifier, @"path": path ?: @"", @"method": method ?: @"GET", @"body": bodyObject };
+        NSData *encoded = [NSJSONSerialization dataWithJSONObject:envelope options:0 error:nil];
+        NSMutableData *line = [encoded mutableCopy];
+        [line appendBytes:"\n" length:1];
+        @try {
+            [self.workerInput writeData:line];
+            NSMutableData *response = [NSMutableData data];
+            while (YES) {
+                NSData *chunk = [self.workerOutput readDataOfLength:1];
+                if (chunk.length == 0) break;
+                [response appendData:chunk];
+                const uint8_t *bytes = response.bytes;
+                if (bytes[response.length - 1] == '\n') break;
+                if (response.length > 4 * 1024 * 1024) break;
+            }
+            if (response.length > 0) {
+                NSData *frame = [response subdataWithRange:NSMakeRange(0, response.length - 1)];
+                NSDictionary *envelope = [NSJSONSerialization JSONObjectWithData:frame options:0 error:nil];
+                id payload = [envelope isKindOfClass:NSDictionary.class] ? envelope[@"body"] : nil;
+                if (payload != nil) {
+                    return [NSJSONSerialization dataWithJSONObject:payload options:0 error:nil];
+                }
+                return frame;
+            }
+        } @catch (NSException *exception) {
+            self.workerTask = nil;
+        }
+        NSDictionary *failure = @{ @"error": @"应用操作没有返回结果，请查看运行日志" };
+        return [NSJSONSerialization dataWithJSONObject:failure options:0 error:nil];
+    }
+}
+
+- (BOOL)startWorker:(NSError **)error {
+    if (self.workerTask != nil && self.workerTask.isRunning) return YES;
     NSURL *backend = [self.projectRoot URLByAppendingPathComponent:@"scripts/app_backend.py"];
     NSTask *task = [[NSTask alloc] init];
     task.executableURL = self.pythonExecutable;
-    task.arguments = @[backend.path, command, @"--papers-dir", self.papersDirectory.path];
+    task.arguments = @[backend.path, @"worker", @"--papers-dir", self.papersDirectory.path];
     task.currentDirectoryURL = self.projectRoot;
     NSMutableDictionary *environment = [NSProcessInfo.processInfo.environment mutableCopy];
+    environment[@"PAPER_ATLAS_USE_CURRENT_PYTHON"] = @"1";
     environment[@"PYTHONDONTWRITEBYTECODE"] = @"1";
     environment[@"PYTHONNOUSERSITE"] = @"1";
     environment[@"SSL_CERT_FILE"] = @"/etc/ssl/cert.pem";
     task.environment = environment;
-
-    NSPipe *output = [NSPipe pipe];
-    task.standardOutput = output;
     NSPipe *input = [NSPipe pipe];
+    NSPipe *output = [NSPipe pipe];
     task.standardInput = input;
-    NSURL *logURL = [[self.projectRoot URLByAppendingPathComponent:@".cache"]
-        URLByAppendingPathComponent:@"paper-atlas-app.log"];
+    task.standardOutput = output;
+    NSURL *logURL = [[self.projectRoot URLByAppendingPathComponent:@".cache"] URLByAppendingPathComponent:@"paper-atlas-app.log"];
     NSFileHandle *log = [NSFileHandle fileHandleForWritingAtPath:logURL.path];
     [log seekToEndOfFile];
     task.standardError = log;
-
-    NSError *error = nil;
-    if (![task launchAndReturnError:&error]) {
-        NSDictionary *failure = @{ @"error": [NSString stringWithFormat:@"应用操作启动失败：%@", error.localizedDescription] };
-        return [NSJSONSerialization dataWithJSONObject:failure options:0 error:nil];
-    }
-    if (body.length > 0) [[input fileHandleForWriting] writeData:body];
-    [[input fileHandleForWriting] closeFile];
-    NSData *result = [[output fileHandleForReading] readDataToEndOfFile];
-    [task waitUntilExit];
-    if (result.length > 0) return result;
-    NSDictionary *failure = @{ @"error": @"应用操作没有返回结果，请查看运行日志" };
-    return [NSJSONSerialization dataWithJSONObject:failure options:0 error:nil];
+    if (![task launchAndReturnError:error]) return NO;
+    self.workerTask = task;
+    self.workerInput = input.fileHandleForWriting;
+    self.workerOutput = output.fileHandleForReading;
+    return YES;
 }
 
 - (NSString *)mimeTypeForPath:(NSString *)path {
@@ -100,28 +140,8 @@
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         NSString *path = urlSchemeTask.request.URL.path ?: @"/";
         if ([path hasPrefix:@"/api/"]) {
-            NSDictionary *commands = @{
-                @"/api/state": @"state",
-                @"/api/topics": @"topics",
-                @"/api/discover": @"discover",
-                @"/api/candidates/action": @"candidate",
-                @"/api/candidates/feedback": @"feedback",
-                @"/api/classification/action": @"classification",
-                @"/api/candidates/clear": @"clear",
-                @"/api/maintenance/rebuild": @"maintenance",
-                @"/api/diagnostics": @"diagnostics",
-                @"/api/tasks": @"tasks",
-                @"/api/backup": @"backup",
-                @"/api/logs": @"logs",
-                @"/api/graph/node/remove": @"remove_node",
-            };
-            NSString *command = commands[path];
             NSData *data;
-            if (command == nil) {
-                data = [NSJSONSerialization dataWithJSONObject:@{@"error": @"接口不存在"} options:0 error:nil];
-            } else {
-                data = [self runBackendCommand:command body:[self requestBody:urlSchemeTask.request]];
-            }
+            data = [self runBackendRequestPath:path method:urlSchemeTask.request.HTTPMethod ?: @"GET" body:[self requestBody:urlSchemeTask.request]];
             [self respondToTask:urlSchemeTask data:data mimeType:@"application/json"];
             return;
         }
@@ -146,7 +166,7 @@
 }
 
 - (void)webView:(WKWebView *)webView stopURLSchemeTask:(id<WKURLSchemeTask>)urlSchemeTask {
-    // The file and command operations are short-lived and safely finish in the background.
+    // Resource and API requests are completed by the shared Worker in the background.
 }
 
 @end
@@ -295,6 +315,7 @@
 - (void)applicationWillTerminate:(NSNotification *)notification {
     [self.webView.configuration.userContentController removeScriptMessageHandlerForName:@"paperAtlas"];
     if (self.prepareTask.running) [self.prepareTask terminate];
+    if (self.schemeHandler.workerTask.running) [self.schemeHandler.workerTask terminate];
 }
 
 - (void)buildWindow {
@@ -466,22 +487,6 @@
     NSString *identifier = [request[@"id"] isKindOfClass:NSString.class] ? request[@"id"] : @"";
     NSString *path = [request[@"path"] isKindOfClass:NSString.class] ? request[@"path"] : @"";
     NSString *bodyText = [request[@"body"] isKindOfClass:NSString.class] ? request[@"body"] : @"";
-    NSDictionary *commands = @{
-        @"/api/state": @"state",
-        @"/api/topics": @"topics",
-        @"/api/discover": @"discover",
-        @"/api/candidates/action": @"candidate",
-        @"/api/candidates/feedback": @"feedback",
-        @"/api/classification/action": @"classification",
-        @"/api/candidates/clear": @"clear",
-        @"/api/maintenance/rebuild": @"maintenance",
-        @"/api/diagnostics": @"diagnostics",
-        @"/api/tasks": @"tasks",
-        @"/api/backup": @"backup",
-        @"/api/logs": @"logs",
-        @"/api/graph/node/remove": @"remove_node",
-    };
-    NSString *command = commands[path];
     if (identifier.length == 0) return;
 
     __weak PaperAtlasDelegate *weakSelf = self;
@@ -489,17 +494,14 @@
         PaperAtlasDelegate *strongSelf = weakSelf;
         if (strongSelf == nil) return;
         NSData *result;
-        if (command == nil) {
-            result = [NSJSONSerialization dataWithJSONObject:@{@"error": @"应用接口不存在"} options:0 error:nil];
-        } else {
-            @synchronized (strongSelf.schemeHandler) {
-                result = [strongSelf.schemeHandler runBackendCommand:command
-                    body:[bodyText dataUsingEncoding:NSUTF8StringEncoding]];
-            }
+        @synchronized (strongSelf.schemeHandler) {
+            result = [strongSelf.schemeHandler runBackendRequestPath:path
+                method:[request[@"method"] isKindOfClass:NSString.class] ? request[@"method"] : @"GET"
+                body:[bodyText dataUsingEncoding:NSUTF8StringEncoding]];
         }
         NSISO8601DateFormatter *dateFormatter = [[NSISO8601DateFormatter alloc] init];
         NSDictionary *bridgeStatus = @{
-            @"command": command ?: @"unknown",
+            @"path": path ?: @"unknown",
             @"completed": @YES,
             @"updated_at": [dateFormatter stringFromDate:[NSDate date]],
         };

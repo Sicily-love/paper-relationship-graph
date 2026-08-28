@@ -9,9 +9,12 @@ import json
 import os
 import sys
 import traceback
+import time
 from pathlib import Path
 
+from api_contract import ApiRequest, problem_from_exception
 from app_services import AppServices
+from api_logging import log_event
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -73,7 +76,7 @@ def prepare(papers_dir: Path) -> dict:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["prepare", *COMMAND_METHODS])
+    parser.add_argument("command", choices=["prepare", "worker", *COMMAND_METHODS])
     parser.add_argument("--papers-dir", type=Path, default=REPO_ROOT.parent)
     return parser.parse_args()
 
@@ -86,8 +89,62 @@ def dispatch(command: str, papers_dir: Path) -> dict:
     return method() if command == "state" else method(read_body())
 
 
+def run_worker(papers_dir: Path) -> None:
+    """Serve newline-delimited JSON requests from a single long-lived process.
+
+    The macOS bridge can adopt this protocol without knowing any business
+    command names.  Keeping it on stdout makes it work with the embedded
+    Python runtime and with simple test fixtures.
+    """
+    from api_controller import ApiController
+    controller = ApiController(papers_dir)
+    for line in sys.stdin:
+        if not line.strip():
+            continue
+        started = time.monotonic()
+        operation_name = "worker"
+        response_status = "failed"
+        request_id = ""
+        try:
+            envelope = json.loads(line)
+            if not isinstance(envelope, dict):
+                raise ValueError("请求内容格式无效")
+            request_id = str(envelope.get("id") or "")
+            command = str(envelope.get("command") or "")
+            path = str(envelope.get("path") or "")
+            operation_name = command or path or "worker"
+            method = str(envelope.get("method") or "POST").upper()
+            body = envelope.get("body") or {}
+            if isinstance(body, str):
+                body = json.loads(body or "{}")
+            if not isinstance(body, dict):
+                raise ValueError("请求内容格式无效")
+            # Worker requests use the same legacy path registry as HTTP.  The
+            # controller is intentionally not imported here to keep the CLI
+            # command compatibility path lightweight.
+            if command:
+                if command not in COMMAND_METHODS:
+                    raise ValueError("未知的后端操作")
+                service_method = getattr(controller.services, COMMAND_METHODS[command])
+                payload = service_method() if command == "state" else service_method(body)
+                status = 200
+            else:
+                status, payload = controller.handle(ApiRequest(method=method, path=path, body=body, headers=envelope.get("headers") or {}, request_id=request_id or "req_worker"))
+            response_status = "accepted" if status == 202 else "completed"
+            response = {"id": request_id, "status": status, "body": payload}
+        except Exception as error:
+            status, payload = problem_from_exception(error, request_id or "req_worker")
+            response = {"id": request_id, "status": status, "body": payload}
+        log_event(REPO_ROOT / ".cache", operation=operation_name, request_id=request_id or "req_worker",
+                  status=response_status, elapsed_ms=round((time.monotonic() - started) * 1000))
+        print(json.dumps(response, ensure_ascii=False), flush=True)
+
+
 def main() -> None:
     args = parse_args()
+    if args.command == "worker":
+        run_worker(args.papers_dir)
+        return
     result = dispatch(args.command, args.papers_dir)
     record_operation(args.command, "completed", str(result.get("message") or ""))
     print(json.dumps(result, ensure_ascii=False))

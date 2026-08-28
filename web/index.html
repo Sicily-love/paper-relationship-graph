@@ -3,358 +3,89 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Local interactive citation timeline for a categorized paper library">
-  <meta name="theme-color" content="#edf1f8" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#090c13" media="(prefers-color-scheme: dark)">
-  <title>Paper Atlas · 论文关系图谱</title>
-  <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=216">
+  <meta name="description" content="Paper Atlas — 本地论文关系、发现与审核工作台">
+  <meta name="theme-color" content="#f4f4f6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#18181a" media="(prefers-color-scheme: dark)">
+  <title>Paper Atlas</title>
+  <link rel="icon" href="data:image/png;base64,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">
+  <link rel="stylesheet" href="styles.css?v=305">
 </head>
 <body>
-  <main class="app-shell">
-    <header class="hero app-sidebar">
+  <main class="app-shell" data-app-version="Paper Atlas 1.5.0">
+    <aside class="app-sidebar" aria-label="Paper Atlas 导航">
       <div class="brand-lockup">
-        <div class="brand-mark" aria-hidden="true">
-          <span class="brand-orbit orbit-one"></span>
-          <span class="brand-orbit orbit-two"></span>
-          <span class="brand-core"></span>
-        </div>
-        <div>
-          <h1>Paper Atlas</h1>
-          <strong class="brand-subtitle">论文关系图谱</strong>
-        </div>
+      <div class="brand-mark" aria-hidden="true"><img class="brand-mark-image" src="data:image/png;base64,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" alt=""></div>
+        <div class="brand-copy"><h1>Paper Atlas</h1><span>研究工作台</span></div>
       </div>
-
-      <nav class="sidebar-nav" aria-label="主导航">
-        <button type="button" class="sidebar-nav-item active" data-view="graph" aria-pressed="true">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2"></circle><circle cx="18" cy="6" r="2"></circle><circle cx="18" cy="18" r="2"></circle><path d="m8 11 8-4M8 13l8 4"></path></svg>
-          <span>论文图谱</span>
-        </button>
-        <button type="button" class="sidebar-nav-item" data-view="discovery" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"></path><circle cx="12" cy="12" r="8"></circle></svg>
-          <span>待审核</span>
-          <b id="nav-discovery-count" class="nav-count">0</b>
-        </button>
-        <button type="button" class="sidebar-nav-item" data-view="system" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="8" cy="7" r="1.5"></circle><circle cx="16" cy="12" r="1.5"></circle><circle cx="10" cy="17" r="1.5"></circle></svg>
-          <span>运行与数据</span>
-          <i id="nav-health-dot" class="nav-health-dot" aria-hidden="true"></i>
-        </button>
+      <nav class="sidebar-nav" aria-label="工作区">
+        <button type="button" class="sidebar-nav-item active" data-view="graph" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2"></circle><circle cx="18" cy="6" r="2"></circle><circle cx="18" cy="18" r="2"></circle><path d="m8 11 8-4M8 13l8 4"></path></svg><span>论文图谱</span></button>
+        <button type="button" class="sidebar-nav-item" data-view="discovery" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"></path><circle cx="12" cy="12" r="8"></circle></svg><span>待审核</span><b id="nav-discovery-count" class="nav-count">0</b></button>
+        <button type="button" class="sidebar-nav-item" data-view="automation" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16"></path><circle cx="9" cy="7" r="2"></circle><circle cx="15" cy="17" r="2"></circle></svg><span>自动化</span></button>
+        <button type="button" class="sidebar-nav-item" data-view="system" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"></path><path d="M12 7v5l3 2"></path></svg><span>系统状态</span><i id="nav-health-dot" class="nav-health-dot" aria-hidden="true"></i></button>
       </nav>
-
-      <dl class="metric-strip" aria-label="论文库统计">
-        <div>
-          <dt>论文</dt>
-          <dd id="metric-papers">—</dd>
-        </div>
-        <div>
-          <dt>内部引用</dt>
-          <dd id="metric-citations">—</dd>
-        </div>
-        <div>
-          <dt>类别</dt>
-          <dd id="metric-categories">—</dd>
-        </div>
-        <div>
-          <dt>时间跨度</dt>
-          <dd id="metric-years">—</dd>
-        </div>
-      </dl>
-      <footer class="app-footer">
-        <button type="button" id="version-history" class="version-history-button" aria-haspopup="dialog">
-          <strong>Paper Atlas 1.5.0</strong>
-          <span>查看更新记录</span>
-        </button>
-      </footer>
-    </header>
-
-    <div class="workspace app-view active" data-view-panel="graph">
-      <section class="graph-card" aria-labelledby="graph-heading">
-        <header class="graph-card-header">
-          <div class="graph-header-copy">
-            <h2 id="graph-heading">论文图谱</h2>
-          </div>
-          <div class="graph-header-actions" aria-label="论文图谱控制">
-            <label class="search-control graph-header-search" for="paper-search">
-              <span class="search-shell">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
-                <input id="paper-search" type="search" aria-label="搜索论文" placeholder="标题、作者、摘要…" autocomplete="off">
-                <button type="button" id="clear-search" aria-label="清除搜索" hidden>×</button>
-              </span>
-            </label>
-            <button type="button" id="reset-view" class="reset-button" aria-live="polite">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4.9 7.5A8 8 0 1 1 4 13"></path>
-                <path d="M4 4v4h4"></path>
-              </svg>
-              <span class="reset-label">重置视图</span>
-            </button>
-          </div>
-        </header>
-
-        <div class="graph-stage">
-          <div id="relation-legend" class="relation-legend" hidden>
-            <strong id="relation-paper-title"></strong>
-            <span class="legend-outgoing">本文引用 <b id="legend-outgoing-count">0</b></span>
-            <span class="legend-incoming">引用本文 <b id="legend-incoming-count">0</b></span>
-          </div>
-          <svg id="graph-svg" viewBox="0 0 960 680" role="img" aria-labelledby="graph-title graph-description">
-            <title id="graph-title">论文引用图谱</title>
-            <desc id="graph-description">每个节点代表一篇唯一论文，横向位置表示年份，纵向泳道表示论文类别。节点越大表示被库内论文引用越多。选择节点后，橙色表示本文引用，蓝色表示引用本文。单击节点聚焦引用关系，双击打开论文详情。</desc>
-            <defs>
-              <filter id="node-glow" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur stdDeviation="5" result="blur"></feGaussianBlur>
-                <feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
-              </filter>
-            </defs>
-            <g id="timeline-grid" class="timeline-grid" aria-hidden="true"></g>
-            <g id="edge-layer"></g>
-            <g id="node-layer"></g>
-          </svg>
-          <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
-        </div>
-
-      </section>
-    </div>
-
-    <section class="system-card app-view" data-view-panel="system" aria-labelledby="system-heading" hidden>
-      <header class="system-header">
-        <div>
-          <h2 id="system-heading">运行与数据</h2>
-          <p id="health-summary">正在检查论文库</p>
-        </div>
-        <div class="system-actions">
-          <button type="button" id="run-diagnostics" class="toolbar-action">运行诊断</button>
-          <button type="button" id="open-runtime-logs" class="toolbar-action">运行日志</button>
-          <button type="button" id="rebuild-graph" class="toolbar-action">重新检查并构建</button>
-          <button type="button" id="export-backup" class="toolbar-action">导出备份</button>
-          <button type="button" id="import-backup" class="toolbar-action">恢复备份</button>
-          <input id="backup-file" type="file" accept="application/json,.json" hidden>
-        </div>
-      </header>
-      <div id="health-panel" class="health-panel" data-status="checking">
-        <span id="health-indicator" class="health-indicator" aria-hidden="true"></span>
-        <div id="health-issues" class="health-issues"></div>
-      </div>
-
-      <section id="diagnostics-panel" class="diagnostics-panel" hidden>
-        <header>
-          <div>
-            <h3>系统诊断</h3>
-            <p id="diagnostics-summary">尚未运行</p>
-          </div>
-          <button type="button" id="copy-diagnostics" class="toolbar-action">复制报告</button>
-        </header>
-        <div id="diagnostics-metrics" class="diagnostics-metrics"></div>
-        <div id="diagnostics-checks" class="diagnostics-checks"></div>
-        <div id="diagnostics-actions" class="diagnostics-actions"></div>
-      </section>
-
-      <section id="classification-review-panel" class="classification-review-panel" hidden>
-        <header>
-          <div>
-            <h3>分类待审核</h3>
-            <p id="classification-review-summary"></p>
-          </div>
-          <strong id="classification-review-count">0</strong>
-        </header>
-        <div id="classification-review-list" class="classification-review-list"></div>
-      </section>
-
-      <div class="task-center">
-        <header class="task-center-header">
-          <h3>App 本机每日任务</h3>
-          <button type="button" id="save-tasks" class="toolbar-action primary-action">保存并启用</button>
-        </header>
-        <div id="task-list" class="task-list"></div>
-      </div>
-
-      <pre id="discovery-debug-output" hidden>尚无日志</pre>
-    </section>
-
-    <div id="detail-backdrop" class="detail-backdrop" hidden></div>
-    <aside id="paper-detail" class="paper-detail" role="dialog" aria-modal="true" aria-labelledby="detail-title" aria-live="polite" hidden>
-        <div id="detail-content">
-          <div class="detail-heading">
-            <span id="detail-main-badge" class="main-badge" hidden>类别主节点</span>
-            <div class="detail-heading-actions">
-              <button type="button" id="remove-graph-node" class="remove-node-button" title="PDF 会保存在可恢复归档中">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path></svg>
-                <span>移出图谱</span>
-              </button>
-              <button type="button" id="detail-close" class="detail-close" aria-label="关闭论文详情">×</button>
-            </div>
-          </div>
-          <h2 id="detail-title"></h2>
-          <p id="detail-meta" class="detail-meta"></p>
-          <p id="detail-authors" class="detail-authors"></p>
-          <div class="detail-file-actions">
-            <a id="detail-pdf" class="pdf-button" target="_blank" rel="noopener">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M14 3h5v5"></path>
-                <path d="m10 14 9-9"></path>
-                <path d="M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"></path>
-              </svg>
-              打开本地 PDF
-            </a>
-          </div>
-
-          <section class="relation-overview" aria-label="论文引用关系">
-            <article class="relation-panel relation-outgoing">
-              <header id="outgoing-heading"><h3>本文引用</h3><strong id="outgoing-count">0</strong></header>
-              <p>图谱中以橙色显示</p>
-              <ul id="detail-outgoing" class="relation-list" aria-labelledby="outgoing-heading"></ul>
-            </article>
-
-            <article class="relation-panel relation-incoming">
-              <header id="incoming-heading"><h3>引用本文</h3><strong id="incoming-count">0</strong></header>
-              <p>图谱中以蓝色显示</p>
-              <ul id="detail-incoming" class="relation-list" aria-labelledby="incoming-heading"></ul>
-            </article>
-          </section>
-
-          <section class="detail-section abstract-section" aria-labelledby="abstract-heading">
-            <h3 id="abstract-heading">摘要</h3>
-            <p id="detail-abstract"></p>
-          </section>
-
-        </div>
+      <section class="sidebar-library" aria-label="资料库概览"><div class="sidebar-section-label">资料库</div><dl class="sidebar-metrics"><div><dt>论文</dt><dd id="metric-papers">—</dd></div><div><dt>引用</dt><dd id="metric-citations">—</dd></div><div><dt>类别</dt><dd id="metric-categories">—</dd></div><div><dt>时间</dt><dd id="metric-years" title=""></dd></div></dl></section>
+      <div class="sidebar-spacer"></div>
+      <button type="button" id="sidebar-collapse" class="sidebar-utility" aria-label="折叠侧栏" title="折叠侧栏"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 7-5 5 5 5"></path></svg><span>折叠侧栏</span></button>
     </aside>
 
-    <div id="topics-backdrop" class="detail-backdrop" hidden></div>
-    <section id="topics-dialog" class="topics-dialog" role="dialog" aria-modal="true" aria-labelledby="topics-title" hidden>
-      <header class="topics-dialog-header">
-        <div>
-          <h2 id="topics-title">每日搜索主题</h2>
-          <p>关键词用于描述研究方向：arXiv 匹配题目和摘要，高被引搜索按语义相近程度召回论文。</p>
-        </div>
-        <button type="button" id="topics-close" class="detail-close" aria-label="关闭搜索主题">×</button>
+    <section class="app-view active" data-view-panel="graph" aria-labelledby="graph-heading">
+      <header class="page-toolbar">
+        <div class="page-title-group"><h2 id="graph-heading">论文图谱</h2><span id="graph-subtitle">按时间和类别浏览论文关系</span></div><div class="toolbar-spacer"></div>
+        <label class="toolbar-search" for="paper-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="paper-search" type="search" aria-label="搜索论文" placeholder="搜索标题、作者或摘要" autocomplete="off"><button type="button" id="clear-search" aria-label="清除搜索" hidden>×</button></label>
+        <button type="button" id="reset-view" class="toolbar-button" aria-live="polite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7.5A8 8 0 1 1 4 13"></path><path d="M4 4v4h4"></path></svg><span class="reset-label">重置</span></button>
+        <button type="button" id="toggle-graph-inspector" class="toolbar-button active" aria-pressed="true" title="显示或隐藏关系检查器"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M15 4v16"></path></svg><span>检查器</span></button>
       </header>
-      <section class="topic-templates" aria-labelledby="topic-templates-title">
-        <h3 id="topic-templates-title">分类模板</h3>
-        <div id="topic-templates-list" class="topic-templates-list"></div>
-      </section>
-      <div id="topics-list" class="topics-list"></div>
-      <footer class="topics-actions">
-        <button type="button" id="add-topic" class="topic-add-button">＋ 添加主题</button>
-        <button type="button" id="save-topics" class="candidate-action secondary-action">保存主题</button>
-        <button type="button" id="save-and-discover" class="candidate-action primary-action">保存并立即发现</button>
-      </footer>
-    </section>
-
-    <div id="release-notes-backdrop" class="detail-backdrop" hidden></div>
-    <section id="release-notes-dialog" class="topics-dialog release-notes-dialog" role="dialog" aria-modal="true" aria-labelledby="release-notes-title" hidden>
-      <header class="topics-dialog-header">
-        <div>
-          <span class="release-current-badge">当前版本 · 1.5.0</span>
-          <h2 id="release-notes-title">更新记录</h2>
-        </div>
-        <button type="button" id="release-notes-close" class="detail-close" aria-label="关闭更新记录">×</button>
-      </header>
-      <div id="release-notes-list" class="release-notes-list"></div>
-    </section>
-
-    <div id="logs-backdrop" class="detail-backdrop" hidden></div>
-    <section id="logs-dialog" class="topics-dialog logs-dialog" role="dialog" aria-modal="true" aria-labelledby="logs-title" hidden>
-      <header class="topics-dialog-header">
-        <div>
-          <span class="release-current-badge">本机运行记录</span>
-          <h2 id="logs-title">运行日志</h2>
-        </div>
-        <button type="button" id="logs-close" class="detail-close" aria-label="关闭运行日志">×</button>
-      </header>
-      <div id="logs-tabs" class="logs-tabs" role="tablist" aria-label="日志来源"></div>
-      <pre id="logs-output" class="logs-output">正在读取…</pre>
-      <footer class="logs-actions">
-        <button type="button" id="refresh-logs" class="toolbar-action">刷新</button>
-        <button type="button" id="copy-log" class="toolbar-action primary-action">复制当前日志</button>
-      </footer>
-    </section>
-
-    <div id="app-toast" class="app-toast" role="status" aria-live="polite" hidden></div>
-
-    <section class="discovery-card app-view" data-view-panel="discovery" aria-labelledby="discovery-heading" hidden>
-      <header class="discovery-header">
-        <div>
-          <h2 id="discovery-heading">待审核论文</h2>
-          <div class="discovery-summary" aria-label="候选统计">
-            <span><strong id="discovery-count">0</strong> 篇待处理</span>
-            <span id="discovery-updated" hidden>尚未运行发现任务</span>
-          </div>
-        </div>
-        <div class="discovery-header-actions discovery-action-groups">
-          <section class="discovery-action-group topic-discovery-actions" aria-labelledby="topic-actions-title">
-            <header><strong id="topic-actions-title">搜索主题控制</strong><button type="button" id="manage-topics">编辑主题</button></header>
-            <div>
-              <button type="button" id="run-discovery">最新 arXiv</button>
-              <button type="button" id="run-highly-cited">领域高被引</button>
-              <label for="highly-cited-minimum">被引下限 <input id="highly-cited-minimum" type="number" min="1" max="1000000" step="1" value="50" aria-label="高被引次数下限"></label>
-              <button type="button" id="run-topic-discovery" class="primary-action">两项一起发现</button>
-            </div>
-          </section>
-          <section class="discovery-action-group library-discovery-actions" aria-labelledby="library-actions-title">
-            <header><strong id="library-actions-title">论文库关系</strong></header>
-            <div>
-              <button type="button" id="run-shared-discovery">共同引用</button>
-              <label for="shared-reference-minimum">共同次数 <input id="shared-reference-minimum" type="number" min="2" max="20" step="1" value="2" aria-label="共同引用次数下限"></label>
-              <button type="button" id="clear-candidates" class="command-danger">清空待审核</button>
-            </div>
-          </section>
-        </div>
-      </header>
-
-      <div id="discovery-progress" class="discovery-progress" role="status" aria-live="polite" hidden>
-        <span class="discovery-spinner" aria-hidden="true"></span>
-        <div>
-          <strong id="discovery-progress-title">正在搜索 arXiv</strong>
-          <span id="discovery-progress-meta">正在按搜索主题获取最新论文</span>
-        </div>
-      </div>
-
-      <div id="discovery-result" class="discovery-result" role="status" aria-live="polite" hidden>
-        <span class="discovery-result-icon" aria-hidden="true">✓</span>
-        <div>
-          <strong id="discovery-result-title">发现完成</strong>
-          <span id="discovery-result-meta"></span>
-        </div>
-      </div>
-
-      <div id="service-notice" class="service-notice" hidden>
-        <strong>应用管理功能暂未连接</strong>
-        <span>请退出并重新打开 Paper Atlas.app。</span>
-      </div>
-
-      <div class="review-workspace">
-        <aside class="candidate-master" aria-label="候选论文列表">
-          <div class="discovery-toolbar">
-            <div class="filter-pills" role="group" aria-label="候选来源">
-              <button type="button" class="filter-pill active" data-source="all">全部</button>
-              <button type="button" class="filter-pill" data-source="shared_reference">共同引用</button>
-              <button type="button" class="filter-pill" data-source="arxiv_topic">arXiv</button>
-              <button type="button" class="filter-pill" data-source="highly_cited">高被引</button>
-            </div>
-            <p id="search-status" class="search-status" aria-live="polite" hidden></p>
-          </div>
-          <div id="discovery-list" class="discovery-list"></div>
-          <div id="discovery-empty" class="discovery-empty" hidden>
-            <h3>当前没有匹配的推荐</h3>
-          </div>
-        </aside>
-        <section id="candidate-preview" class="candidate-preview" aria-live="polite">
-          <div id="candidate-preview-empty" class="candidate-preview-empty">
-            <span aria-hidden="true">◌</span>
-            <h3>选择一篇论文</h3>
-          </div>
+      <div class="graph-workspace resizable-workspace" id="graph-workspace">
+        <section class="graph-canvas-panel" aria-label="论文关系画布">
+          <div id="graph-search-results" class="graph-search-results" hidden><div><strong id="graph-search-count">0 个结果</strong><span id="graph-search-position"></span></div><div><button type="button" id="graph-search-prev" aria-label="上一个搜索结果">↑</button><button type="button" id="graph-search-next" aria-label="下一个搜索结果">↓</button></div></div>
+          <div id="relation-legend" class="relation-legend" hidden><strong id="relation-paper-title"></strong><span class="legend-outgoing"><i aria-hidden="true"></i>本文引用 <b id="legend-outgoing-count">0</b></span><span class="legend-incoming"><i aria-hidden="true"></i>引用本文 <b id="legend-incoming-count">0</b></span></div>
+          <div class="graph-stage"><svg id="graph-svg" viewBox="0 0 960 680" role="img" aria-labelledby="graph-title graph-description"><title id="graph-title">论文引用图谱</title><desc id="graph-description">每个节点代表一篇论文。横向位置表示年份，纵向泳道表示类别。单击节点查看引用关系，按 Enter 或空格快速预览论文。</desc><g id="timeline-grid" class="timeline-grid" aria-hidden="true"></g><g id="edge-layer"></g><g id="node-layer"></g></svg><div id="tooltip" class="tooltip" role="status" aria-live="polite"></div></div>
         </section>
+        <div class="pane-resizer" id="graph-resizer" role="separator" aria-orientation="vertical" aria-label="调整关系检查器宽度" tabindex="0"></div>
+        <aside id="graph-inspector" class="context-inspector" aria-label="论文关系检查器"><div id="graph-inspector-empty" class="inspector-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2"></circle><circle cx="18" cy="6" r="2"></circle><circle cx="18" cy="18" r="2"></circle><path d="m8 11 8-4M8 13l8 4"></path></svg><h3>选择一个节点</h3><p>单击查看引用关系，按 Enter 或空格快速预览。</p></div><div id="graph-inspector-content" class="inspector-content" hidden><div class="inspector-kicker"><span id="graph-inspector-year"></span><span id="graph-inspector-category"></span></div><h3 id="graph-inspector-title"></h3><p id="graph-inspector-authors" class="inspector-authors"></p><div class="inspector-actions"><button type="button" id="graph-inspector-preview" class="primary-button">快速预览</button><button type="button" id="graph-inspector-open-pdf" class="secondary-button">打开 PDF</button></div><div class="relation-tabs" role="tablist" aria-label="引用方向"><button type="button" class="relation-tab active" data-relation-tab="outgoing" aria-selected="true">本文引用 <b id="inspector-outgoing-count">0</b></button><button type="button" class="relation-tab" data-relation-tab="incoming" aria-selected="false">引用本文 <b id="inspector-incoming-count">0</b></button></div><ul id="inspector-outgoing-list" class="inspector-relation-list"></ul><ul id="inspector-incoming-list" class="inspector-relation-list" hidden></ul></div></aside>
       </div>
+    </section>
+
+    <section class="app-view" data-view-panel="discovery" aria-labelledby="discovery-heading" hidden>
+      <header class="page-toolbar"><div class="page-title-group"><h2 id="discovery-heading">待审核</h2><span><strong id="discovery-count">0</strong> 篇待处理 <span id="discovery-updated" hidden></span></span></div><div class="toolbar-spacer"></div><label class="toolbar-select" for="candidate-source-filter"><span class="sr-only">推荐来源</span><select id="candidate-source-filter" aria-label="按推荐来源筛选待审核论文"><option value="all">全部来源</option><option value="shared_reference">共同引用</option><option value="arxiv_topic">最新 arXiv</option><option value="highly_cited">领域高被引</option></select></label><label class="toolbar-select wide-select" for="candidate-category-filter"><span class="sr-only">论文类别</span><select id="candidate-category-filter" aria-label="按论文类别筛选待审核论文"><option value="all">全部类别</option></select></label><button type="button" id="open-discovery-sheet" class="toolbar-button review-toolbar-button review-discover-button">发现论文</button><button type="button" id="clear-candidates" class="toolbar-button review-toolbar-button danger-text">清空审核</button></header>
+      <div id="discovery-progress" class="inline-activity" role="status" aria-live="polite" hidden><span class="activity-spinner" aria-hidden="true"></span><div><strong id="discovery-progress-title">正在发现论文</strong><span id="discovery-progress-meta"></span></div></div>
+      <div id="discovery-result" class="inline-result" role="status" aria-live="polite" hidden><span aria-hidden="true">✓</span><div><strong id="discovery-result-title">发现完成</strong><span id="discovery-result-meta"></span></div></div>
+      <div id="service-notice" class="inline-warning" hidden><strong>应用管理功能暂未连接</strong><span>请退出并重新打开 Paper Atlas.app。</span></div>
+      <div class="batch-toolbar" id="batch-toolbar" hidden><strong id="batch-count">已选择 0 篇</strong><button type="button" id="batch-select-all">选择当前结果</button><button type="button" id="batch-dismiss">批量移除</button><button type="button" id="batch-clear">取消选择</button></div>
+      <div class="review-workspace" id="review-workspace"><aside class="candidate-master" aria-label="候选论文列表"><div id="discovery-list" class="discovery-list"></div><div id="discovery-empty" class="empty-state" hidden><h3>没有匹配的论文</h3><p>调整来源或类别后重试。</p></div></aside><div class="pane-resizer" id="review-resizer" role="separator" aria-orientation="vertical" aria-label="调整候选列表宽度" tabindex="0"></div><section id="candidate-preview" class="candidate-preview" aria-live="polite"><div id="candidate-preview-empty" class="empty-state"><h3>选择一篇论文</h3><p>在这里阅读摘要、检查元数据并决定是否加入论文库。</p></div></section></div>
+    </section>
+
+    <section class="app-view" data-view-panel="automation" aria-labelledby="automation-heading" hidden>
+      <header class="page-toolbar"><div class="page-title-group"><h2 id="automation-heading">自动化</h2><span>搜索主题与本机每日任务</span></div><div class="toolbar-spacer"></div><button type="button" id="manage-topics" class="toolbar-button">管理搜索主题</button><button type="button" id="save-tasks" class="primary-button">保存更改</button></header>
+      <div class="settings-scroll"><section class="settings-section"><header><div><h3>搜索主题</h3></div></header><div id="automation-topic-summary" class="topic-summary-grid"></div></section><section class="settings-section"><header><div><h3>每日任务</h3></div></header><div id="task-list" class="task-list"></div></section><section id="classification-review-panel" class="settings-section review-alert" hidden><header><div><h3>分类待审核</h3><p id="classification-review-summary"></p></div><strong id="classification-review-count">0</strong></header><div id="classification-review-list" class="classification-review-list"></div></section></div>
+    </section>
+
+    <section class="app-view" data-view-panel="system" aria-labelledby="system-heading" hidden>
+      <header class="page-toolbar"><div class="page-title-group"><h2 id="system-heading">系统状态</h2><span id="health-summary">正在检查论文库</span></div><div class="toolbar-spacer"></div><button type="button" id="run-diagnostics" class="primary-button">检查系统</button><button type="button" id="open-runtime-logs" class="toolbar-button">查看日志</button><button type="button" id="version-history" class="toolbar-button">关于 Paper Atlas</button></header>
+      <div class="system-scroll"><section id="health-panel" class="status-hero" data-status="checking"><span class="status-symbol" aria-hidden="true"></span><div id="health-issues" class="health-issues"></div></section><section id="diagnostics-panel" class="system-section" hidden><header><div><h3>诊断结果</h3><p id="diagnostics-summary">尚未运行</p></div><button type="button" id="copy-diagnostics" class="secondary-button">复制报告</button></header><div id="diagnostics-metrics" class="diagnostics-metrics"></div><div id="diagnostics-checks" class="diagnostics-checks"></div><div id="diagnostics-actions" class="diagnostics-actions"></div></section><section class="system-section"><header><div><h3>最近活动</h3></div></header><div id="activity-timeline" class="activity-timeline"></div></section><section class="system-section maintenance-section"><header><div><h3>维护与备份</h3></div><div class="maintenance-actions"><button type="button" id="rebuild-graph" class="secondary-button">重新构建图谱</button><button type="button" id="export-backup" class="secondary-button">导出备份</button><button type="button" id="import-backup" class="secondary-button">恢复备份</button><input id="backup-file" type="file" accept="application/json,.json" hidden></div></header></section><pre id="discovery-debug-output" hidden>尚无日志</pre></div>
     </section>
   </main>
 
-  <script>
-    document.write(`<script src="data/graph-data.js?v=${Date.now()}"><\/script>`);
-  </script>
-  <script src="data/discovery-data.js?v=202"></script>
-  <script src="data/releases-data.js?v=150"></script>
-  <script src="app.js?v=216"></script>
+  <div id="detail-backdrop" class="modal-backdrop" hidden></div>
+  <aside id="paper-detail" class="quick-look" role="dialog" aria-modal="true" aria-labelledby="detail-title" hidden><header class="quick-look-toolbar"><span id="detail-main-badge" class="main-badge" hidden>类别主节点</span><div class="toolbar-spacer"></div><a id="detail-pdf" class="secondary-button inline-button" target="_blank" rel="noopener">打开本地 PDF ↗</a><button type="button" id="remove-graph-node" class="toolbar-button danger-text" title="PDF 会保存在可恢复归档中"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"></path></svg><span>移出图谱</span></button><button type="button" id="detail-close" class="icon-button" aria-label="关闭论文预览">×</button></header><div id="detail-content" class="quick-look-content"><p id="detail-meta" class="detail-meta"></p><h2 id="detail-title"></h2><p id="detail-authors" class="detail-authors"></p><section class="detail-section"><h3>摘要</h3><p id="detail-abstract"></p></section></div></aside>
+
+  <div id="discovery-sheet-backdrop" class="modal-backdrop" hidden></div>
+  <section id="discovery-sheet" class="sheet-dialog" role="dialog" aria-modal="true" aria-labelledby="discovery-sheet-title" hidden><header class="dialog-header"><div><h2 id="discovery-sheet-title">发现论文</h2></div><button type="button" id="discovery-sheet-close" class="icon-button" aria-label="关闭发现论文">×</button></header><div class="discovery-methods"><section><header><div><h3>按搜索主题</h3></div><button type="button" id="discovery-manage-topics" class="text-button">编辑主题 →</button></header><div class="method-grid"><button type="button" id="run-discovery" class="method-card" data-discovery-mode="arxiv" aria-pressed="true"><strong>最新 arXiv</strong></button><button type="button" id="run-highly-cited" class="method-card" data-discovery-mode="highly_cited" aria-pressed="false"><strong>领域高被引</strong></button></div><label class="field-row" for="highly-cited-minimum"><span>高被引下限</span><input id="highly-cited-minimum" type="number" min="1" max="1000000" step="1" value="50" aria-label="高被引次数下限"></label></section><section><header><div><h3>按论文库关系</h3></div></header><button type="button" id="run-shared-discovery" class="method-card full-method" data-discovery-mode="shared" aria-pressed="false"><strong>共同引用</strong></button><label class="field-row" for="shared-reference-minimum"><span>共同引用次数</span><input id="shared-reference-minimum" type="number" min="2" max="20" step="1" value="2" aria-label="共同引用次数下限"></label></section></div><footer class="dialog-footer discovery-sheet-footer"><span id="discovery-selection-summary">已选择：最新 arXiv</span><div class="toolbar-spacer"></div><button type="button" id="run-selected-discovery" class="primary-button">开始发现</button></footer></section>
+
+  <div id="topics-backdrop" class="modal-backdrop" hidden></div>
+  <section id="topics-dialog" class="sheet-dialog large-sheet topics-dialog" role="dialog" aria-modal="true" aria-labelledby="topics-title" hidden><header class="dialog-header"><div><h2 id="topics-title">搜索主题</h2></div><button type="button" id="topics-close" class="icon-button" aria-label="关闭搜索主题">×</button></header><div class="topics-dialog-body"><section class="topic-templates" aria-labelledby="topic-templates-title"><h3 id="topic-templates-title">从现有类别添加</h3><div id="topic-templates-list" class="topic-templates-list"></div></section><section class="topics-editor" aria-labelledby="topics-editor-title"><h3 id="topics-editor-title">已配置主题</h3><div id="topics-list" class="topics-list"></div></section></div><footer class="dialog-footer"><button type="button" id="add-topic" class="secondary-button">添加主题</button><div class="toolbar-spacer"></div><button type="button" id="save-topics" class="secondary-button">保存主题</button><button type="button" id="save-and-discover" class="primary-button">保存并立即发现</button></footer></section>
+
+  <div id="release-notes-backdrop" class="modal-backdrop" hidden></div>
+  <section id="release-notes-dialog" class="sheet-dialog" role="dialog" aria-modal="true" aria-labelledby="release-notes-title" hidden><header class="dialog-header"><div><span class="release-current-badge">当前版本 · 1.5.0</span><h2 id="release-notes-title">关于 Paper Atlas</h2></div><button type="button" id="release-notes-close" class="icon-button" aria-label="关闭更新记录">×</button></header><div id="release-notes-list" class="release-notes-list"></div></section>
+
+  <div id="logs-backdrop" class="modal-backdrop" hidden></div>
+  <section id="logs-dialog" class="sheet-dialog large-sheet" role="dialog" aria-modal="true" aria-labelledby="logs-title" hidden><header class="dialog-header"><div><h2 id="logs-title">运行日志</h2><p>查看操作、论文发现、后端和每日任务记录。</p></div><button type="button" id="logs-close" class="icon-button" aria-label="关闭运行日志">×</button></header><div id="logs-tabs" class="logs-tabs" role="tablist" aria-label="日志来源"></div><pre id="logs-output" class="logs-output">正在读取…</pre><footer class="dialog-footer"><div class="toolbar-spacer"></div><button type="button" id="refresh-logs" class="secondary-button">刷新</button><button type="button" id="copy-log" class="primary-button">复制当前日志</button></footer></section>
+
+  <div id="command-backdrop" class="modal-backdrop command-backdrop" hidden></div>
+  <section id="command-palette" class="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-title" hidden><label for="command-search"><span id="command-title" class="sr-only">命令面板</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="command-search" placeholder="搜索命令或论文…" autocomplete="off"><kbd>esc</kbd></label><div id="command-results" class="command-results"></div></section>
+  <aside id="activity-center" class="activity-center" aria-live="polite" hidden><div><strong id="activity-center-title"></strong><span id="activity-center-detail"></span></div><button type="button" id="activity-center-close" aria-label="关闭活动提示">×</button></aside>
+  <div id="app-toast" class="app-toast" role="status" aria-live="polite" hidden></div>
+  <script>document.write(`<script src="data/graph-data.js?v=${Date.now()}"><\/script>`);</script>
+  <script src="data/releases-data.js?v=150"></script><script src="app.js?v=305"></script>
 </body>
 </html>

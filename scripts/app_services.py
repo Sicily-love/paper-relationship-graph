@@ -7,6 +7,7 @@ import json
 import re
 import subprocess
 import sys
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,6 +20,7 @@ import maintenance_actions
 import manage_candidate
 import system_diagnostics
 import task_center
+from runtime_store import RuntimeStore
 from discovery_utils import (
     DEFAULT_CONFIG,
     DEFAULT_DISCOVERY_JS,
@@ -192,11 +194,28 @@ class AppServices:
 
     def __init__(self, papers_dir: Path):
         self.papers_dir = papers_dir.expanduser().resolve()
+        self.code_root = REPO_ROOT
+        self.data_root = Path(os.environ.get("PAPER_ATLAS_DATA_ROOT", str(REPO_ROOT))).expanduser().resolve()
+        self.cache_root = self.data_root / ".cache"
+        self.logs_root = self.cache_root
+        self.runtime_store = RuntimeStore(self.cache_root / "paper-atlas.db")
+        self.runtime_store.migrate_json(config=DEFAULT_CONFIG, discovery=DEFAULT_DISCOVERY_JSON, tasks=task_center.DEFAULT_CONFIG)
 
     def state(self) -> dict:
         config = load_json(DEFAULT_CONFIG, {})
         graph_stat = DEFAULT_GRAPH.stat() if DEFAULT_GRAPH.exists() else None
         return {
+            "runtime_paths": {
+                "code_root": str(self.code_root),
+                "data_root": str(self.data_root),
+                "cache_root": str(self.cache_root),
+                "logs_root": str(self.logs_root),
+                "papers_root": str(self.papers_dir),
+            },
+            "runtime_store": {
+                "path": str(self.runtime_store.path),
+                "schema_version": self.runtime_store.schema_version(),
+            },
             "discovery": validated_discovery(),
             "topics": config.get("topics", []),
             "shared_reference_minimum": int(
@@ -326,6 +345,7 @@ class AppServices:
         queue["items"] = [candidate for candidate in queue.get("items", []) if candidate is not item]
         queue["updated_at"] = datetime.now(timezone.utc).isoformat()
         write_json_atomic(classify_library.DEFAULT_REVIEW_QUEUE, queue)
+        self.runtime_store.put("classification", "review_queue", queue)
         return {
             "message": "分类已确认并更新图谱",
             "graph_updated": True,
@@ -338,6 +358,7 @@ class AppServices:
         config = load_json(DEFAULT_CONFIG, {})
         config["topics"] = topics
         write_json_atomic(DEFAULT_CONFIG, config)
+        self.runtime_store.put("config", "current", config)
         return {"message": "搜索主题已保存", "topics": topics}
 
     def review_candidate(self, body: dict) -> dict:
@@ -369,6 +390,7 @@ class AppServices:
                 data, candidate_id, "complete" if graph_updated else "pending",
                 DEFAULT_DISCOVERY_JSON, DEFAULT_DISCOVERY_JS, graph_error,
             )
+        self.runtime_store.put("discovery", "current", load_json(DEFAULT_DISCOVERY_JSON, data))
         return {
             "message": (
                 "已加入论文库并更新图谱"
@@ -411,6 +433,7 @@ class AppServices:
         data.setdefault("feedback", {})[candidate_key(candidate)] = entry
         candidate["user_feedback"] = feedback
         write_discovery(data, DEFAULT_DISCOVERY_JSON, DEFAULT_DISCOVERY_JS)
+        self.runtime_store.put("discovery", "current", data)
 
         config = load_json(DEFAULT_CONFIG, {})
         category = str(candidate.get("suggested_category") or "")
@@ -428,6 +451,7 @@ class AppServices:
             field = "positive_terms" if feedback == "accurate" else "negative_terms"
             profile[field] = list(dict.fromkeys([*profile.get(field, []), *terms]))[-12:]
             write_json_atomic(DEFAULT_CONFIG, config)
+            self.runtime_store.put("config", "current", config)
         messages = {
             "accurate": "已记录：推荐准确，后续搜索会参考这篇论文",
             "irrelevant": "已记录：不相关，后续搜索会降低相似结果",
@@ -550,6 +574,7 @@ class AppServices:
             if candidate.get("id") in pending:
                 candidate["graph_status"] = "complete"
         write_discovery(data, DEFAULT_DISCOVERY_JSON, DEFAULT_DISCOVERY_JS)
+        self.runtime_store.put("discovery", "current", data)
 
     def manage_tasks(self, body: dict) -> dict:
         action = str(body.get("action") or "state")
@@ -559,7 +584,9 @@ class AppServices:
             result = task_center.run_task(str(body.get("task_id") or ""), self.papers_dir)
             return {**result, **task_center.task_state()}
         if action == "configure":
-            return task_center.configure_tasks({"tasks": body.get("tasks")}, self.papers_dir)
+            result = task_center.configure_tasks({"tasks": body.get("tasks")}, self.papers_dir)
+            self.runtime_store.put("tasks", "current", result)
+            return result
         raise ValueError("未知自动任务操作")
 
     def manage_backup(self, body: dict) -> dict:
@@ -573,12 +600,15 @@ class AppServices:
         config["topics"] = validate_topics(config.get("topics"))
         tasks = task_center.validate_config(backup["tasks"])
         result = backup_restore.restore_backup(backup, config, tasks)
+        self.runtime_store.put("config", "current", config)
+        self.runtime_store.put("tasks", "current", tasks)
         return {**result, "discovery": validated_discovery()}
 
     def clear_candidates(self, _body: dict | None = None) -> dict:
         data = load_json(DEFAULT_DISCOVERY_JSON, {"metadata": {}, "candidates": []})
         removed = clear_new_candidates(data)
         write_discovery(data, DEFAULT_DISCOVERY_JSON, DEFAULT_DISCOVERY_JS)
+        self.runtime_store.put("discovery", "current", data)
         return {
             "message": f"已清空 {removed} 篇待审核候选",
             "removed_count": removed,
@@ -623,8 +653,10 @@ class AppServices:
         )
         if result.returncode:
             raise ValueError(command_error(result, "论文发现失败"))
-        return {
+        result = {
             "message": DISCOVERY_MESSAGES[mode],
             "mode": mode,
             "discovery": validated_discovery(),
         }
+        self.runtime_store.put("discovery", "current", load_json(DEFAULT_DISCOVERY_JSON, {}))
+        return result
