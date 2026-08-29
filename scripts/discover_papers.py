@@ -109,7 +109,7 @@ CATEGORY_RULES = {
     ),
     "05_量化与低精度计算": (
         "quantization", "quantized", "low precision", "low-precision", "mixed precision",
-        "int8", "int4", "fp8", "fp4", "bitnet", "weight-only", "post-training quantization",
+        "int8", "int4", "fp8", "fp4", "4 bit", "8 bit", "bitnet", "weight-only", "post-training quantization",
     ),
     "06_分布式训练与数据基础设施": (
         "distributed training", "data parallel", "model parallel", "pipeline parallel",
@@ -139,12 +139,14 @@ CATEGORY_RULES = {
         "ai agent", "llm agent", "agentic", "multi-agent", "autonomous agent",
         "tool use", "tool-use", "planning agent", "research agent", "self-play",
         "autonomous search", "open-ended discovery", "evolutionary search",
-        "code optimization agent", "computer use", "web agent",
+        "evolutionary code search", "evolutionary program search", "variation operators",
+        "persistent memory architecture", "code optimization agent", "computer use", "web agent",
     ),
     "10_生成模型与视频系统": (
         "video generation", "text-to-video", "image-to-video", "video diffusion",
         "diffusion transformer", "frame interpolation", "video inference",
         "world model video", "streaming video generation", "video model", "diffusion model",
+        "diffusion models",
     ),
     "11_大模型技术报告与推理训练": (
         "technical report", "reasoning model", "reasoning training", "reasoning llm",
@@ -152,6 +154,24 @@ CATEGORY_RULES = {
         "foundation model", "inference-time scaling", "test-time scaling",
     ),
 }
+
+# Keep rule changes auditable in candidate metadata and regression fixtures.
+# The classifier still returns one primary category, but these boundaries make
+# broad words such as "attention" and "agent" defer to more specific signals.
+CATEGORY_RULE_VERSION = "2026-08-28.1"
+
+ATTENTION_SPECIFIC_MARKERS = (
+    "long context", "long-context", "context window", "kv cache",
+    "flashattention", "sageattention", "sparse attention", "block attention",
+    "linear attention", "ring attention", "memory attention", "pagedattention",
+    "multi-query", "online softmax", "softmax normalizer",
+)
+
+QUANTIZATION_MARKERS = (
+    "quantization", "quantized", "low precision", "low-precision",
+    "mixed precision", "int8", "int4", "fp8", "fp4", "4 bit", "8 bit", "weight-only",
+    "post-training quantization",
+)
 
 ML_DOMAIN_ANCHORS = (
     "machine learning", "deep learning", "neural network", "neural networks",
@@ -240,6 +260,12 @@ def category_profile_keywords(nodes: list[dict], limit: int = 6) -> list[str]:
 def enrich_topics_from_library(config: dict, graph: dict) -> tuple[dict, list[dict]]:
     """Build live search profiles from the papers currently assigned to each category."""
     nodes_by_id = {node.get("id"): node for node in graph.get("nodes", [])}
+    nodes_by_reference_id = {
+        str(reference_id): node
+        for node in graph.get("nodes", [])
+        for reference_id in (node.get("sha256"), node.get("id"))
+        if reference_id
+    }
     main_by_category = {
         category.get("id"): nodes_by_id.get(category.get("main_node"))
         for category in graph.get("categories", [])
@@ -262,12 +288,27 @@ def enrich_topics_from_library(config: dict, graph: dict) -> tuple[dict, list[di
         category_nodes = [node for node in graph.get("nodes", []) if node.get("category") == category]
         category_nodes.sort(key=lambda node: (-int(node.get("citation_count") or 0), str(node.get("title") or "")))
         main = main_by_category.get(category)
+        selected_reference_ids = [
+            str(value) for value in topic.get("reference_paper_ids", []) if value
+        ]
+        selected_nodes = [
+            nodes_by_reference_id[reference_id]
+            for reference_id in selected_reference_ids
+            if reference_id in nodes_by_reference_id
+        ]
+        reference_nodes = selected_nodes or (([main] if main else []) + category_nodes)
         references = []
-        for node in ([main] if main else []) + category_nodes:
+        reference_papers = []
+        for node in reference_nodes:
             title = compact_text(str((node or {}).get("title") or ""))
             if title and title not in references:
                 references.append(title)
-            if len(references) >= 5:
+                reference_papers.append({
+                    "id": node.get("sha256") or node.get("id"),
+                    "title": title,
+                    "category": node.get("category"),
+                })
+            if len(references) >= (8 if selected_nodes else 5):
                 break
         dynamic_keywords = category_profile_keywords(category_nodes)
         feedback = (config.get("feedback_profiles") or {}).get(category, {}) if category else {}
@@ -292,6 +333,8 @@ def enrich_topics_from_library(config: dict, graph: dict) -> tuple[dict, list[di
             ]))[:12],
             "dynamic_keywords": dynamic_keywords,
             "reference_titles": references,
+            "reference_papers": reference_papers,
+            "reference_mode": "selected" if selected_nodes else "automatic",
             "learned_keywords": learned_keywords,
             "learned_exclusions": learned_exclusions,
             "library_category": category,
@@ -303,6 +346,8 @@ def enrich_topics_from_library(config: dict, graph: dict) -> tuple[dict, list[di
             "paper_count": len(category_nodes),
             "dynamic_keywords": dynamic_keywords,
             "reference_titles": references,
+            "reference_papers": reference_papers,
+            "reference_mode": "selected" if selected_nodes else "automatic",
         }
         profiles.append(profile)
         enriched_topics.append(topic)
@@ -324,9 +369,10 @@ def classify_candidate(candidate: dict) -> dict:
     title = str(candidate.get("title") or "")
     abstract = str(candidate.get("abstract") or "")
     topics = " ".join(str(topic) for topic in candidate.get("topics") or [])
+    abstract_focus = abstract[:2200]
     scores = {
         category: phrase_score(title, phrases, 8)
-        + phrase_score(abstract, phrases, 2)
+        + phrase_score(abstract_focus, phrases, 2)
         + phrase_score(topics, phrases, 4)
         for category, phrases in CATEGORY_RULES.items()
     }
@@ -337,20 +383,72 @@ def classify_candidate(candidate: dict) -> dict:
             support_counts[category] += 1
             scores[category] += 3
 
-    combined = f" {normalize_title(' '.join((title, abstract, topics)))} "
+    combined = f" {normalize_title(' '.join((title, abstract_focus, topics)))} "
+    normalized_title = normalize_title(title)
     video_category = "10_生成模型与视频系统"
+    architecture_category = "01_模型架构与基础组件"
     kernel_category = "07_GPU内核_编译器与性能工程"
     kernel_agent_category = "08_GPU内核智能体与自动调优"
     attention_category = "03_注意力机制与长上下文"
-    if any(marker in combined for marker in (" video generation ", " text to video ", " image to video ")):
+    quantization_category = "05_量化与低精度计算"
+    has_quantization = any(marker in combined for marker in QUANTIZATION_MARKERS)
+
+    # A generic use of "attention" is common in foundational Transformer
+    # papers. Only promote the attention category when there is a long-context
+    # or implementation-specific signal.
+    title_has_attention = " attention " in f" {normalized_title} "
+    if (
+        " attention " in combined
+        and not any(marker in combined for marker in ATTENTION_SPECIFIC_MARKERS)
+        and not (title_has_attention and has_quantization)
+    ):
+        scores[attention_category] = max(0, scores[attention_category] - 8)
+    if "attention is all you need" in f" {normalized_title} ":
+        scores[architecture_category] += 32
+    if " attention " in f" {normalized_title} ":
+        scores[attention_category] += 10
+    attention_primary_signal = any(marker in normalized_title for marker in (
+        "flashattention", "pagedattention", "sageattention", "tiledattention", "sdpa",
+        "flex attention",
+    ))
+    if attention_primary_signal:
+        scores[attention_category] += 80
+        scores[kernel_category] = max(0, scores[kernel_category] - 25)
+    if title_has_attention and any(marker in f" {normalized_title} " for marker in (
+        " kernel ", " kernels ", " sdpa ",
+    )):
+        scores[attention_category] += 26
+
+    # Quantization is a distinct method family. Preserve attention as the
+    # primary category only when the paper explicitly focuses on an
+    # attention-specific quantization technique.
+    has_attention_specific_quantization = (
+        has_quantization
+        and (
+            any(marker in combined for marker in ATTENTION_SPECIFIC_MARKERS)
+            or (" attention " in f" {normalized_title} " and has_quantization)
+        )
+    )
+    if has_quantization and not has_attention_specific_quantization:
+        scores[quantization_category] += 12
+    video_title_signal = any(marker in f" {normalized_title} " for marker in (
+        " video ", " text to video ", " image to video ",
+    )) or (
+        " diffusion " in f" {normalized_title} " and not has_quantization
+    )
+    if video_title_signal:
         scores[video_category] += 24
+    moe_focus = f" {normalize_title(' '.join((title, abstract[:450])))} "
+    if any(marker in moe_focus for marker in (" mixture of experts ", " moe ")):
+        scores["04_MoE与稀疏模型"] += 22
     kernel_markers = (
         " gpu kernel ", " gpu kernels ", " cuda kernel ", " cuda kernels ",
-        " triton kernel ", " triton kernels ", " ptx ",
+        " triton kernel ", " triton kernels ", " accelerator kernel ",
+        " accelerator kernels ", " tensor accelerator ", " kernel benchmark ",
+        " kernel benchmarks ", " kernel ", " kernels ", " ptx ",
     )
     agent_markers = (
         " agent ", " agents ", " agentic ", " multi agent ", " autonomous ",
-        " llm ", " llms ", " llm based ", " language model ", " language models ",
     )
     if any(marker in combined for marker in kernel_markers):
         agent_context = re.sub(
@@ -360,8 +458,63 @@ def classify_candidate(candidate: dict) -> dict:
         if any(marker in agent_context for marker in agent_markers):
             scores[kernel_agent_category] += 32
         else:
-            scores[kernel_category] += 24
-    if " attention " in combined and any(marker in combined for marker in (" quantization ", " quantized ", " low precision ")):
+            scores[kernel_category] += 24 if any(marker in f" {normalized_title} " for marker in kernel_markers) else 8
+    title_kernel_signal = any(marker in f" {normalized_title} " for marker in kernel_markers)
+    title_agent_signal = any(marker in f" {normalized_title} " for marker in (
+        " agent ", " agents ", " agentic ", " multi agent ", " llm ", " llms ",
+        " language model ", " language models ",
+    ))
+    if title_kernel_signal and title_agent_signal:
+        scores[kernel_agent_category] += 60
+        scores[kernel_category] = max(0, scores[kernel_category] - 12)
+    if (
+        any(marker in combined for marker in (" autonomous coding agent ", " autonomous coding agents "))
+        and any(marker in combined for marker in (" kernel ", " kernels "))
+    ):
+        scores[kernel_agent_category] += 28
+    performance_title_signal = any(marker in f" {normalized_title} " for marker in (
+        " gpu ", " gpgpu ", " cuda ", " kernel ", " kernels ", " triton ",
+        " tile level ", " tile level ",
+    ))
+    if performance_title_signal:
+        scores[kernel_category] += 28
+    if any(marker in f" {normalized_title} " for marker in (" gpgpu ", " tile level ")):
+        scores[kernel_category] += 20
+    accelerator_context = any(marker in combined for marker in (
+        " accelerator ", " accelerators ", " tensor processor ", " tensor accelerator ",
+    ))
+    accelerator_agent_signal = any(marker in combined for marker in (
+        " llm driven ", " llm based ", " automated llm ", " code generation ",
+        " code optimizer ", " agentic ",
+    ))
+    if accelerator_context and accelerator_agent_signal:
+        scores[kernel_agent_category] += 36
+    if " benchmark " in combined and any(marker in combined for marker in (
+        " hardware limits ", " speed of light ", " execbench ",
+    )):
+        scores[kernel_category] += 26
+        scores[kernel_agent_category] = max(0, scores[kernel_agent_category] - 8)
+    report_title_signal = any(marker in f" {normalized_title} " for marker in (
+        " technical report ", " open large language models ", " model card ",
+    )) or normalized_title.startswith("deepseek ")
+    if report_title_signal:
+        scores["11_大模型技术报告与推理训练"] += 24
+    if " optimizer " in f" {normalized_title} ":
+        scores["02_训练方法与优化器"] += 18
+    if (
+        not title_kernel_signal
+        and any(marker in combined for marker in (" evolutionary ", " evolution "))
+        and any(marker in combined for marker in (" code search ", " program search ", " persistent memory "))
+    ):
+        scores["09_通用智能体与自主发现"] += 18
+    distributed_title_signal = any(marker in f" {normalized_title} " for marker in (
+        " pipeline parallelism ", " distributed training ",
+        " compute communication ", " communication overlapping ",
+    ))
+    if distributed_title_signal:
+        scores["06_分布式训练与数据基础设施"] += 18
+        scores[attention_category] = max(0, scores[attention_category] - 8)
+    if " attention " in combined and has_quantization:
         scores[attention_category] += 12
 
     ranked = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
@@ -380,12 +533,14 @@ def classify_candidate(candidate: dict) -> dict:
                 "category_label": category_label(category),
                 "category_confidence": "需确认",
                 "category_reason": "根据命中的搜索主题给出建议，请结合摘要确认",
+                "category_rule_version": CATEGORY_RULE_VERSION,
             }
         return {
             "suggested_category": "",
             "category_label": "待确认类别",
             "category_confidence": "需确认",
             "category_reason": "标题与摘要尚不足以判断主类别",
+            "category_rule_version": CATEGORY_RULE_VERSION,
         }
 
     gap = top_score - runner_up
@@ -404,6 +559,7 @@ def classify_candidate(candidate: dict) -> dict:
         "category_label": category_label(category),
         "category_confidence": confidence,
         "category_reason": "；".join(evidence),
+        "category_rule_version": CATEGORY_RULE_VERSION,
     }
 
 

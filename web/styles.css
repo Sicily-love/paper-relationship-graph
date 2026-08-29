@@ -153,6 +153,8 @@ button:disabled { cursor: wait; opacity: .55; }
 .sidebar-metrics dd { overflow: hidden; margin: 2px 0 0; color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-spacer, .toolbar-spacer { flex: 1 1 auto; }
 .app-shell.sidebar-collapsed .brand-copy, .app-shell.sidebar-collapsed .sidebar-nav-item span, .app-shell.sidebar-collapsed .sidebar-utility span, .app-shell.sidebar-collapsed .nav-count { display: none; }
+.app-shell.sidebar-collapsed .brand-lockup { justify-content: center; padding-inline: 0; }
+.app-shell.sidebar-collapsed .brand-mark { margin-inline: auto; }
 .app-shell.sidebar-collapsed .sidebar-nav-item, .app-shell.sidebar-collapsed .sidebar-utility { grid-template-columns: 1fr; justify-items: center; padding: 7px; }
 .app-shell.sidebar-collapsed .sidebar-library { display: none; }
 
@@ -476,6 +478,12 @@ button:disabled { cursor: wait; opacity: .55; }
 .method-card.is-selected { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent); }
 .method-card strong { font-size: 12px; }
 .full-method { width: 100%; margin-top: 14px; }
+.discovery-topic-options { display: flex; max-height: 116px; flex-wrap: wrap; gap: 7px; overflow-y: auto; margin-top: 12px; padding: 1px; }
+.discovery-topic-option { position: relative; display: inline-flex; min-height: 30px; align-items: center; border: 1px solid var(--separator); border-radius: 999px; background: var(--content-secondary); color: var(--text-secondary); padding: 5px 10px; cursor: pointer; }
+.discovery-topic-option.is-selected { border-color: var(--accent); background: var(--accent-surface); color: var(--accent-text); }
+.discovery-topic-option input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.discovery-topic-option span { font-size: 10.5px; white-space: nowrap; }
+.discovery-topic-options.is-required:empty::after { content: '请先在自动化页启用搜索主题'; color: var(--red); font-size: 11px; }
 .field-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; color: var(--text-secondary); font-size: 11px; }
 .field-row input { width: 100px; }
 .topics-dialog { width: min(980px, calc(100vw - 40px)); overflow: hidden; }
@@ -502,6 +510,23 @@ button:disabled { cursor: wait; opacity: .55; }
 .topic-maximum-field input { width: 62px; }
 .topic-row textarea { width: 100%; min-height: 62px; resize: vertical; border: 1px solid var(--separator); border-radius: 7px; background: var(--content-secondary); color: var(--text); padding: 7px 8px; line-height: 1.45; }
 .topic-row textarea:focus { border-color: var(--accent); outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent); }
+.topic-reference-field { display: grid; gap: 6px; }
+.topic-reference-heading { display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); font-size: 10px; }
+.topic-reference-count { color: var(--accent-text); }
+.topic-reference-picker { position: relative; }
+.topic-reference-picker > summary { min-height: 34px; display: flex; align-items: center; border: 1px solid var(--separator); border-radius: 7px; background: var(--content-secondary); color: var(--text-secondary); padding: 0 9px; cursor: pointer; list-style: none; }
+.topic-reference-picker > summary::-webkit-details-marker { display: none; }
+.topic-reference-picker > summary::after { margin-left: auto; content: '›'; font-size: 17px; transform: rotate(90deg); }
+.topic-reference-picker[open] > summary { border-color: var(--accent); border-radius: 7px 7px 0 0; }
+.topic-reference-picker[open] > summary::after { transform: rotate(-90deg); }
+.topic-reference-options { max-height: 210px; overflow-y: auto; border: 1px solid var(--accent); border-top: 0; border-radius: 0 0 7px 7px; background: var(--content); padding: 5px; }
+.topic-reference-option { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; border-radius: 6px; padding: 7px; cursor: pointer; }
+.topic-reference-option:hover { background: var(--accent-surface); }
+.topic-reference-option input { margin-top: 2px; }
+.topic-reference-option span { min-width: 0; display: grid; gap: 2px; }
+.topic-reference-option strong, .topic-reference-option small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topic-reference-option strong { color: var(--text); font-size: 10.5px; }
+.topic-reference-option small { color: var(--text-tertiary); font-size: 9px; }
 .release-current-badge { display: inline-block; margin-bottom: 5px; color: var(--accent); font-size: 10px; }
 .release-notes-list { padding: 4px 18px 18px; }
 .release-note { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 16px; border-bottom: 1px solid var(--separator); padding: 15px 0; }
@@ -557,6 +582,8 @@ button:disabled { cursor: wait; opacity: .55; }
 @media (max-width: 1179px) {
   :root { --sidebar-width: 72px; --inspector-width: 310px; --candidate-list-width: 330px; }
   .brand-copy, .sidebar-nav-item span, .sidebar-utility span { display: none; }
+  .brand-lockup { justify-content: center; padding-inline: 0; }
+  .brand-mark { margin-inline: auto; }
   .sidebar-library { display: none; }
   .sidebar-nav-item, .sidebar-utility { grid-template-columns: 1fr; justify-items: center; padding: 7px; }
   .nav-count { position: absolute; margin: -20px 0 0 20px; }

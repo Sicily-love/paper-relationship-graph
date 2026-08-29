@@ -88,6 +88,7 @@ def classify_files(papers_dir: Path, dry_run: bool = False) -> dict:
                     "suggested_category": matching_paper.parent.name,
                     "category_confidence": "高",
                     "category_reason": f"标题与已归档论文 {matching_paper.stem} 匹配",
+                    "category_rule_version": discover_papers.CATEGORY_RULE_VERSION,
                 }
                 if matching_paper is not None
                 else discover_papers.classify_candidate(paper_candidate(path))
@@ -108,6 +109,7 @@ def classify_files(papers_dir: Path, dry_run: bool = False) -> dict:
                 "suggested_category": category or "",
                 "confidence": confidence or "需确认",
                 "reason": classification.get("category_reason"),
+                "rule_version": classification.get("category_rule_version", discover_papers.CATEGORY_RULE_VERSION),
             })
             continue
         destination = papers_dir / str(category) / path.name
@@ -126,6 +128,7 @@ def classify_files(papers_dir: Path, dry_run: bool = False) -> dict:
             "path": str(path.relative_to(papers_dir)),
             "destination": str(destination.relative_to(papers_dir)),
             "reason": classification.get("category_reason"),
+            "rule_version": classification.get("category_rule_version", discover_papers.CATEGORY_RULE_VERSION),
         })
     return {"classified": moved, "pending": pending, "dry_run": dry_run}
 

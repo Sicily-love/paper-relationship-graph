@@ -264,6 +264,25 @@ class DiscoveryTests(unittest.TestCase):
         self.assertIn("gpu kernel", config["topics"][0]["dynamic_keywords"])
         self.assertEqual(profiles[0]["paper_count"], 2)
         self.assertEqual(profiles[0]["reference_titles"][0], "KernelBench GPU Kernel Agents")
+        self.assertEqual(profiles[0]["reference_mode"], "automatic")
+
+    def test_live_topic_profile_prefers_selected_reference_papers(self):
+        category = "08_GPU内核智能体与自动调优"
+        graph = {
+            "categories": [{"id": category, "main_node": "p1"}],
+            "nodes": [
+                {"id": "p1", "sha256": "sha-main", "category": category,
+                 "title": "KernelBench GPU Kernel Agents", "citation_count": 8},
+                {"id": "p2", "sha256": "sha-selected", "category": category,
+                 "title": "A User Selected Compiler Paper", "citation_count": 2},
+            ],
+        }
+        config, profiles = discover_papers.enrich_topics_from_library({"topics": [{
+            "id": "category-07-kernel-agents", "label": "GPU", "keywords": ["CUDA agent"],
+            "reference_paper_ids": ["sha-selected"],
+        }]}, graph)
+        self.assertEqual(config["topics"][0]["reference_titles"], ["A User Selected Compiler Paper"])
+        self.assertEqual(profiles[0]["reference_mode"], "selected")
 
     def test_openalex_resolver_sanitizes_kernelbench_question_mark(self):
         requested = []
@@ -606,6 +625,35 @@ class DiscoveryTests(unittest.TestCase):
             "abstract": "An attention-specific quantization method.",
         })
         self.assertEqual(result["suggested_category"], "03_注意力机制与长上下文")
+
+    def test_foundational_attention_paper_prefers_architecture_category(self):
+        result = discover_papers.classify_candidate({
+            "title": "Attention Is All You Need",
+            "abstract": "We introduce the Transformer architecture for sequence transduction.",
+        })
+        self.assertEqual(result["suggested_category"], "01_模型架构与基础组件")
+        self.assertEqual(result["category_rule_version"], discover_papers.CATEGORY_RULE_VERSION)
+
+    def test_attention_kernel_paper_stays_in_attention_category(self):
+        result = discover_papers.classify_candidate({
+            "title": "TiledAttention A CUDA Tile SDPA Kernel for PyTorch",
+            "abstract": "We implement scaled dot-product attention with a fused CUDA kernel.",
+        })
+        self.assertEqual(result["suggested_category"], "03_注意力机制与长上下文")
+
+    def test_moe_kernel_optimization_prefers_moe_category(self):
+        result = discover_papers.classify_candidate({
+            "title": "SonicMoE Accelerating MoE with IO and Tile-aware Optimizations",
+            "abstract": "Mixture of Experts models benefit from GPU kernels that reduce IO overhead.",
+        })
+        self.assertEqual(result["suggested_category"], "04_MoE与稀疏模型")
+
+    def test_llm_kernel_benchmark_prefers_kernel_agents(self):
+        result = discover_papers.classify_candidate({
+            "title": "KernelBench Can LLMs Write Efficient GPU Kernels?",
+            "abstract": "We evaluate language models that generate and optimize GPU kernels.",
+        })
+        self.assertEqual(result["suggested_category"], "08_GPU内核智能体与自动调优")
 
     def test_non_agentic_gpu_compiler_stays_in_performance_engineering(self):
         result = discover_papers.classify_candidate({

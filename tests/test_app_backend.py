@@ -124,6 +124,39 @@ class AppServicesTests(unittest.TestCase):
         self.assertEqual(config["shared_references"]["min_library_citations"], 4)
         self.assertEqual(write_config.call_count, 2)
 
+    def test_discovery_runs_only_selected_topics(self):
+        config = {
+            "topics": [
+                {"id": "topic-a", "label": "A", "keywords": ["alpha"], "enabled": True},
+                {"id": "topic-b", "label": "B", "keywords": ["beta"], "enabled": True},
+            ],
+            "highly_cited": {"min_citations": 50},
+        }
+        captured = {}
+
+        def run_selected(arguments, **_kwargs):
+            config_path = Path(arguments[arguments.index("--config") + 1])
+            captured["config"] = json.loads(config_path.read_text(encoding="utf-8"))
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        service = app_services.AppServices(Path("papers"))
+        with (
+            patch.object(app_services, "load_json", return_value=config),
+            patch.object(app_services, "validated_discovery", return_value={"candidates": []}),
+            patch.object(app_services.subprocess, "run", side_effect=run_selected),
+        ):
+            result = service.run_discovery({"mode": "topics", "topic_ids": ["topic-b"]})
+
+        self.assertEqual(result["topic_ids"], ["topic-b"])
+        self.assertEqual([topic["id"] for topic in captured["config"]["topics"]], ["topic-b"])
+
+    def test_discovery_rejects_missing_selected_topic(self):
+        config = {"topics": [{"id": "topic-a", "enabled": True}]}
+        service = app_services.AppServices(Path("papers"))
+        with patch.object(app_services, "load_json", return_value=config):
+            with self.assertRaisesRegex(ValueError, "已不存在或未启用"):
+                service.run_discovery({"mode": "arxiv", "topic_ids": ["topic-b"]})
+
     def test_clear_candidates_returns_updated_queue(self):
         data = {"candidates": [{"id": "new", "status": "new"}]}
         service = app_services.AppServices(Path("papers"))

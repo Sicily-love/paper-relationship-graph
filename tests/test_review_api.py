@@ -30,6 +30,28 @@ class ReviewApiTests(unittest.TestCase):
         self.assertEqual(topics[0]["label"], "长上下文")
         self.assertEqual(topics[0]["keywords"], ["long context", "KV cache"])
         self.assertEqual(topics[0]["max_results"], 8)
+        self.assertEqual(topics[0]["reference_paper_ids"], [])
+
+    def test_validate_topics_normalizes_reference_papers(self):
+        topics = serve_graph.validate_topics([{
+            "label": "GPU 内核", "keywords": ["GPU kernel"],
+            "reference_paper_ids": ["sha-a", "sha-a", "sha-b"],
+        }])
+        self.assertEqual(topics[0]["reference_paper_ids"], ["sha-a", "sha-b"])
+
+    def test_validate_topics_limits_reference_papers(self):
+        with self.assertRaisesRegex(ValueError, "最多选择 8 篇"):
+            serve_graph.validate_topics([{
+                "label": "GPU 内核", "keywords": ["GPU kernel"],
+                "reference_paper_ids": [f"sha-{index}" for index in range(9)],
+            }])
+
+    def test_validate_topics_rejects_invalid_reference_paper_shape(self):
+        with self.assertRaisesRegex(ValueError, "参考论文格式无效"):
+            serve_graph.validate_topics([{
+                "label": "GPU 内核", "keywords": ["GPU kernel"],
+                "reference_paper_ids": "sha-a",
+            }])
 
     def test_validate_topics_requires_keywords(self):
         with self.assertRaisesRegex(ValueError, "1–12"):

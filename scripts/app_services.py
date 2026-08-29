@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -66,6 +67,16 @@ def validate_topics(raw_topics: object) -> list[dict]:
             raise ValueError(f"“{label}”需要 1–12 个关键词，每个不超过 80 字")
         if len(excluded) > 12 or any(len(item) > 80 for item in excluded):
             raise ValueError(f"“{label}”的排除词最多 12 个，每个不超过 80 字")
+        raw_reference_paper_ids = raw.get("reference_paper_ids", [])
+        if not isinstance(raw_reference_paper_ids, list):
+            raise ValueError(f"“{label}”的参考论文格式无效")
+        reference_paper_ids = list(dict.fromkeys(
+            str(item).strip()
+            for item in raw_reference_paper_ids
+            if str(item).strip()
+        ))
+        if len(reference_paper_ids) > 8 or any(len(item) > 128 for item in reference_paper_ids):
+            raise ValueError(f"“{label}”最多选择 8 篇参考论文")
         identifier = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(raw.get("id") or "")).strip("-")[:64]
         identifier = identifier or topic_id(label, index)
         base = identifier
@@ -87,6 +98,7 @@ def validate_topics(raw_topics: object) -> list[dict]:
             "exclude_keywords": excluded,
             "enabled": bool(raw.get("enabled", True)),
             "max_results": maximum,
+            "reference_paper_ids": reference_paper_ids,
         })
     return topics
 
@@ -618,8 +630,25 @@ class AppServices:
     def run_discovery(self, body: dict) -> dict:
         mode = discovery_mode(body.get("mode"))
         arguments = [sys.executable, str(REPO_ROOT / "scripts" / "discover_papers.py")]
+        config = load_json(DEFAULT_CONFIG, {})
+        selected_topic_ids: list[str] | None = None
+        if mode in {"topics", "arxiv", "highly_cited"} and "topic_ids" in body:
+            raw_topic_ids = body.get("topic_ids")
+            if not isinstance(raw_topic_ids, list):
+                raise ValueError("搜索主题格式无效")
+            requested = list(dict.fromkeys(str(value).strip() for value in raw_topic_ids if str(value).strip()))
+            enabled_topics = {
+                str(topic.get("id")): topic
+                for topic in config.get("topics", [])
+                if topic.get("enabled", True) and topic.get("id")
+            }
+            unknown = [identifier for identifier in requested if identifier not in enabled_topics]
+            if unknown:
+                raise ValueError("选中的搜索主题已不存在或未启用")
+            if not requested:
+                raise ValueError("请至少选择一个搜索主题")
+            selected_topic_ids = requested
         if mode == "topics":
-            config = load_json(DEFAULT_CONFIG, {})
             minimum = validate_highly_cited_minimum(
                 body.get("min_citations", config.get("highly_cited", {}).get("min_citations", 50))
             )
@@ -630,7 +659,6 @@ class AppServices:
         elif mode == "arxiv":
             arguments.extend(("--skip-shared", "--skip-highly-cited"))
         elif mode == "highly_cited":
-            config = load_json(DEFAULT_CONFIG, {})
             minimum = validate_highly_cited_minimum(
                 body.get("min_citations", config.get("highly_cited", {}).get("min_citations", 50))
             )
@@ -638,24 +666,44 @@ class AppServices:
             write_json_atomic(DEFAULT_CONFIG, config)
             arguments.extend(("--skip-arxiv", "--skip-shared"))
         else:
-            config = load_json(DEFAULT_CONFIG, {})
             minimum = validate_shared_reference_minimum(body.get("min_library_citations", 2))
             config.setdefault("shared_references", {})["min_library_citations"] = minimum
             write_json_atomic(DEFAULT_CONFIG, config)
             arguments.extend(("--skip-arxiv", "--skip-highly-cited"))
-        result = subprocess.run(
-            arguments,
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-            timeout=360,
-            check=False,
-        )
+        temporary_config = None
+        if selected_topic_ids is not None:
+            selected = set(selected_topic_ids)
+            run_config = dict(config)
+            run_config["topics"] = [
+                topic for topic in config.get("topics", []) if str(topic.get("id")) in selected
+            ]
+            handle = tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", suffix=".json", prefix="paper-atlas-topics-", delete=False,
+            )
+            try:
+                json.dump(run_config, handle, ensure_ascii=False, indent=2)
+                temporary_config = Path(handle.name)
+            finally:
+                handle.close()
+            arguments.extend(("--config", str(temporary_config)))
+        try:
+            result = subprocess.run(
+                arguments,
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=360,
+                check=False,
+            )
+        finally:
+            if temporary_config is not None:
+                temporary_config.unlink(missing_ok=True)
         if result.returncode:
             raise ValueError(command_error(result, "论文发现失败"))
         result = {
             "message": DISCOVERY_MESSAGES[mode],
             "mode": mode,
+            "topic_ids": selected_topic_ids,
             "discovery": validated_discovery(),
         }
         self.runtime_store.put("discovery", "current", load_json(DEFAULT_DISCOVERY_JSON, {}))

@@ -41,6 +41,7 @@
   const runSharedDiscoveryButton = document.getElementById('run-shared-discovery');
   const runSelectedDiscoveryButton = document.getElementById('run-selected-discovery');
   const discoverySelectionSummary = document.getElementById('discovery-selection-summary');
+  const discoveryTopicOptions = document.getElementById('discovery-topic-options');
   const clearCandidatesButton = document.getElementById('clear-candidates');
   const highlyCitedMinimum = document.getElementById('highly-cited-minimum');
   const sharedReferenceMinimum = document.getElementById('shared-reference-minimum');
@@ -250,7 +251,13 @@
       label: '大模型技术报告与推理训练',
       keywords: ['reasoning model', 'technical report', 'reinforcement learning reasoning', 'test-time scaling', 'foundation model'],
     },
-  ].map(template => ({enabled: true, exclude_keywords: [], max_results: 5, ...template}));
+  ].map(template => {
+    const normalizedLabel = value => String(value || '').toLowerCase().replace(/[\s_、，,]+/g, '');
+    const category = graph.categories.find(item =>
+      normalizedLabel(item.label) === normalizedLabel(template.label),
+    )?.id;
+    return {enabled: true, exclude_keywords: [], max_results: 5, category, ...template};
+  });
 
   const displayCategoryLabel = label => String(label || '').replace(/_/g, ' · ');
 
@@ -259,6 +266,7 @@
   let discoverySource = 'all';
   let discoveryCategory = 'all';
   const selectedDiscoveryModes = new Set(['arxiv']);
+  const selectedDiscoveryTopicIds = new Set();
   let graphSearchIndex = 0;
   let selectedCandidateId = null;
   let activeView = 'graph';
@@ -464,39 +472,60 @@
     const laneHeight = (TIMELINE_BOTTOM - TIMELINE_TOP) / graph.categories.length;
     graph.categories.forEach((category, categoryIndex) => {
       const nodes = [...(grouped[category.id] || [])].sort((a, b) =>
-        timelineX(b.year) - timelineX(a.year)
+        (a.year ?? yearMin) - (b.year ?? yearMin)
         || b.citation_count - a.citation_count
         || a.title.localeCompare(b.title));
-      const placed = [];
+      if (!nodes.length) return;
       const centerY = TIMELINE_TOP + (categoryIndex + 0.5) * laneHeight;
-      nodes.forEach(node => {
-        const desiredX = timelineX(node.year);
-        const verticalRoom = Math.max(0, laneHeight / 2 - node.hitRadius - 2);
-        const yOffsets = verticalRoom > 0
-          ? [-verticalRoom, -verticalRoom / 3, verticalRoom / 3, verticalRoom]
-          : [0];
-        let position = null;
-        for (let ring = 0; ring < 32 && !position; ring += 1) {
-          const xOffsets = ring === 0 ? [0] : [-ring * 10, ring * 10];
-          for (const yOffset of yOffsets) {
-            for (const xOffset of xOffsets) {
-              const candidate = {
-                x: Math.max(TIMELINE_LEFT - 25, Math.min(TIMELINE_RIGHT + 10, desiredX + xOffset)),
-                y: centerY + yOffset,
-              };
-              const clear = placed.every(other =>
-                Math.hypot(candidate.x - other.x, candidate.y - other.y)
-                  >= node.hitRadius + other.node.hitRadius + 2);
-              if (clear) {
-                position = candidate;
-                break;
-              }
-            }
-            if (position) break;
-          }
+      const cumulativeSpacing = [0];
+      for (let index = 1; index < nodes.length; index += 1) {
+        cumulativeSpacing[index] = cumulativeSpacing[index - 1]
+          + nodes[index - 1].hitRadius + nodes[index].hitRadius + 3;
+      }
+
+      // Transform x positions by the required node spacing, then use pooled
+      // adjacent violators to find the closest monotonic timeline. This keeps
+      // chronological order while moving dense same-year groups only as much
+      // as needed to prevent overlap.
+      const blocks = [];
+      nodes.forEach((node, index) => {
+        blocks.push({start: index, end: index, weight: 1, mean: timelineX(node.year) - cumulativeSpacing[index]});
+        while (
+          blocks.length > 1
+          && blocks[blocks.length - 2].mean > blocks[blocks.length - 1].mean
+        ) {
+          const right = blocks.pop();
+          const left = blocks.pop();
+          const weight = left.weight + right.weight;
+          blocks.push({
+            start: left.start,
+            end: right.end,
+            weight,
+            mean: (left.mean * left.weight + right.mean * right.weight) / weight,
+          });
         }
-        node.timeline = position || {x: desiredX, y: centerY};
-        placed.push({...node.timeline, node});
+      });
+      const offsets = new Array(nodes.length);
+      blocks.forEach(block => {
+        for (let index = block.start; index <= block.end; index += 1) offsets[index] = block.mean;
+      });
+      const leftBound = TIMELINE_LEFT - 25;
+      const rightBound = TIMELINE_RIGHT + 10;
+      const minimumOffset = leftBound;
+      const maximumOffset = rightBound - cumulativeSpacing[cumulativeSpacing.length - 1];
+      const boundedOffset = value => Math.max(minimumOffset, Math.min(maximumOffset, value));
+
+      const yearCounts = new Map();
+      nodes.forEach((node, index) => {
+        const year = node.year ?? yearMin;
+        const yearIndex = yearCounts.get(year) || 0;
+        yearCounts.set(year, yearIndex + 1);
+        const verticalRoom = Math.max(0, laneHeight / 2 - node.hitRadius - 3);
+        const stagger = [0, -1, 1, -.5, .5][yearIndex % 5];
+        node.timeline = {
+          x: boundedOffset(offsets[index]) + cumulativeSpacing[index],
+          y: centerY + stagger * verticalRoom,
+        };
       });
     });
   }
@@ -514,6 +543,8 @@
       const groupElement = document.createElementNS(ns, 'g');
       groupElement.setAttribute('class', 'node');
       groupElement.dataset.node = node.id;
+      groupElement.dataset.category = node.category;
+      groupElement.dataset.year = String(node.year ?? yearMin);
       groupElement.setAttribute('role', 'button');
       groupElement.setAttribute('tabindex', '0');
       groupElement.setAttribute('aria-label', `${node.title}，${node.year ?? '年份未知'}，被库内引用 ${node.citation_count} 次。单击查看引用关系，按 Enter 或空格快速预览`);
@@ -1832,10 +1863,60 @@
         <label><span>搜索关键词</span><textarea class="topic-keywords" rows="2" placeholder="long context, KV cache"></textarea></label>
         <label><span>排除词</span><textarea class="topic-excludes" rows="2" placeholder="可选，用逗号分隔"></textarea></label>
       </div>
+      <div class="topic-reference-field">
+        <div class="topic-reference-heading"><span>参考论文</span><span class="topic-reference-count">自动选择</span></div>
+        <details class="topic-reference-picker">
+          <summary>从论文库选择</summary>
+          <div class="topic-reference-options"></div>
+        </details>
+      </div>
     `;
     row.querySelector('.topic-label').value = topic.label || '';
     row.querySelector('.topic-keywords').value = (topic.keywords || []).join('，');
     row.querySelector('.topic-excludes').value = (topic.exclude_keywords || []).join('，');
+    const selectedReferences = new Set(topic.reference_paper_ids || []);
+    const referenceOptions = row.querySelector('.topic-reference-options');
+    const referenceCount = row.querySelector('.topic-reference-count');
+    const category = TOPIC_TEMPLATES.find(template =>
+      [template.id, ...(template.aliases || [])].includes(topic.id),
+    )?.category;
+    const availablePapers = [...graph.nodes].sort((left, right) => {
+      const categoryOrder = Number(right.category === category) - Number(left.category === category);
+      return categoryOrder
+        || Number(right.citation_count || 0) - Number(left.citation_count || 0)
+        || String(left.title || '').localeCompare(String(right.title || ''));
+    });
+    const updateReferenceCount = () => {
+      const count = referenceOptions.querySelectorAll('input:checked').length;
+      referenceCount.textContent = count ? `已选 ${count} 篇` : '自动选择';
+    };
+    availablePapers.forEach(node => {
+      const referenceId = node.sha256 || node.id;
+      if (!referenceId) return;
+      const option = document.createElement('label');
+      option.className = 'topic-reference-option';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = referenceId;
+      checkbox.checked = selectedReferences.has(referenceId) || selectedReferences.has(node.id);
+      const copy = document.createElement('span');
+      const title = document.createElement('strong');
+      title.textContent = node.title || '未命名论文';
+      const meta = document.createElement('small');
+      meta.textContent = `${displayCategoryLabel(node.category)} · ${node.year || '年份未知'}`;
+      copy.append(title, meta);
+      option.append(checkbox, copy);
+      checkbox.addEventListener('change', () => {
+        const checked = referenceOptions.querySelectorAll('input:checked');
+        if (checked.length > 8) {
+          checkbox.checked = false;
+          showToast('每个主题最多选择 8 篇参考论文', 'warning');
+        }
+        updateReferenceCount();
+      });
+      referenceOptions.appendChild(option);
+    });
+    updateReferenceCount();
     row.querySelector('.topic-remove').addEventListener('click', () => {
       row.remove();
       refreshTopicTemplateStates();
@@ -1900,6 +1981,8 @@
       exclude_keywords: splitKeywords(row.querySelector('.topic-excludes').value),
       enabled: row.querySelector('.topic-enabled input').checked,
       max_results: Number(row.querySelector('.topic-maximum').value),
+      reference_paper_ids: [...row.querySelectorAll('.topic-reference-options input:checked')]
+        .map(input => input.value),
     }));
   }
 
@@ -1925,11 +2008,42 @@
     discoverySheetReturnFocus = document.activeElement;
     discoverySheet.hidden = false;
     discoverySheetBackdrop.hidden = false;
+    renderDiscoveryTopicOptions();
     syncDiscoverySelection();
     requestAnimationFrame(() => discoverySheetClose.focus({preventScroll: true}));
   }
 
   const discoveryModeLabels = {arxiv: '最新 arXiv', highly_cited: '领域高被引', shared: '共同引用'};
+  function renderDiscoveryTopicOptions() {
+    const enabledTopics = apiTopics.filter(topic => topic.enabled !== false && topic.id);
+    const enabledIds = new Set(enabledTopics.map(topic => topic.id));
+    [...selectedDiscoveryTopicIds].forEach(identifier => {
+      if (!enabledIds.has(identifier)) selectedDiscoveryTopicIds.delete(identifier);
+    });
+    if (!selectedDiscoveryTopicIds.size && enabledTopics.length) {
+      selectedDiscoveryTopicIds.add(enabledTopics[0].id);
+    }
+    discoveryTopicOptions.replaceChildren(...enabledTopics.map(topic => {
+      const label = document.createElement('label');
+      label.className = 'discovery-topic-option';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.value = topic.id;
+      input.checked = selectedDiscoveryTopicIds.has(topic.id);
+      label.classList.toggle('is-selected', input.checked);
+      const text = document.createElement('span');
+      text.textContent = topic.label || '未命名主题';
+      input.addEventListener('change', () => {
+        if (input.checked) selectedDiscoveryTopicIds.add(topic.id);
+        else selectedDiscoveryTopicIds.delete(topic.id);
+        label.classList.toggle('is-selected', input.checked);
+        syncDiscoverySelection();
+      });
+      label.append(input, text);
+      return label;
+    }));
+  }
+
   function syncDiscoverySelection() {
     const buttons = [runDiscoveryButton, runHighlyCitedButton, runSharedDiscoveryButton];
     buttons.forEach(button => {
@@ -1939,10 +2053,13 @@
       button.setAttribute('aria-pressed', String(selected));
     });
     const selectedLabels = [...selectedDiscoveryModes].map(mode => discoveryModeLabels[mode]).filter(Boolean);
+    const needsTopics = selectedDiscoveryModes.has('arxiv') || selectedDiscoveryModes.has('highly_cited');
+    const topicCount = selectedDiscoveryTopicIds.size;
+    discoveryTopicOptions.classList.toggle('is-required', needsTopics);
     discoverySelectionSummary.textContent = selectedLabels.length
-      ? `已选择：${selectedLabels.join('、')}`
+      ? `已选择：${selectedLabels.join('、')}${needsTopics ? ` · ${topicCount} 个主题` : ''}`
       : '请选择至少一种发现方式';
-    runSelectedDiscoveryButton.disabled = selectedLabels.length === 0;
+    runSelectedDiscoveryButton.disabled = selectedLabels.length === 0 || (needsTopics && topicCount === 0);
   }
 
   function toggleDiscoveryMode(mode) {
@@ -2071,11 +2188,12 @@
       });
       apiTopics = saved.topics;
       renderAutomationTopicSummary();
+      renderDiscoveryTopicOptions();
       if (runAfterSave) {
         closeTopicsDialog();
         const result = await apiRequest('/api/discover', {
           method: 'POST',
-          body: JSON.stringify({mode: 'topics'}),
+          body: JSON.stringify({mode: 'topics', topic_ids: [...selectedDiscoveryTopicIds]}),
         });
         discovery = result.discovery;
         showDiscoveryOutcome(discovery, 'topics');
@@ -2095,6 +2213,11 @@
       .filter(item => ['arxiv', 'highly_cited', 'shared'].includes(item));
     if (!requestedModes.length) {
       showToast('请选择至少一种发现方式', 'error');
+      return;
+    }
+    const usesTopics = requestedModes.includes('arxiv') || requestedModes.includes('highly_cited');
+    if (usesTopics && !selectedDiscoveryTopicIds.size) {
+      showToast('请至少选择一个搜索主题', 'error');
       return;
     }
     const modes = [];
@@ -2143,6 +2266,9 @@
             mode: selectedMode,
             ...(selectedMode === 'shared' ? {min_library_citations: sharedMinimum} : {}),
             ...(['highly_cited', 'topics'].includes(selectedMode) ? {min_citations: citationMinimum} : {}),
+            ...(['arxiv', 'highly_cited', 'topics'].includes(selectedMode)
+              ? {topic_ids: [...selectedDiscoveryTopicIds]}
+              : {}),
           }),
         });
         discovery = lastResult.discovery;

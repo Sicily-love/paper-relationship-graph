@@ -38,6 +38,15 @@ class ContractTests(unittest.TestCase):
         self.assertNotIn("candidate-score-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient", styles)
         self.assertIn(".candidate-detail-footer { position: absolute", styles)
 
+    def test_topic_editor_supports_library_reference_papers(self):
+        styles = (ROOT / "web" / "styles.css").read_text(encoding="utf-8")
+        script = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("reference_paper_ids", script)
+        self.assertIn("topic-reference-picker", script)
+        self.assertIn(".topic-reference-options { max-height:", styles)
+        self.assertIn("selectedDiscoveryTopicIds", script)
+        self.assertIn("topic_ids: [...selectedDiscoveryTopicIds]", script)
+
     def test_runtime_uses_versioned_api_and_native_bridge_has_no_route_table(self):
         html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
         native = (ROOT / "platform" / "macos" / "PaperAtlasLauncher.m").read_text(encoding="utf-8")
