@@ -120,6 +120,7 @@
   const graphInspectorAuthors = document.getElementById('graph-inspector-authors');
   const graphInspectorPreview = document.getElementById('graph-inspector-preview');
   const graphInspectorOpenPdf = document.getElementById('graph-inspector-open-pdf');
+  const graphInspectorReadStatus = document.getElementById('graph-inspector-read-status');
   const inspectorOutgoingCount = document.getElementById('inspector-outgoing-count');
   const inspectorIncomingCount = document.getElementById('inspector-incoming-count');
   const inspectorOutgoingList = document.getElementById('inspector-outgoing-list');
@@ -206,27 +207,32 @@
       keywords: ['optimizer', 'weight decay', 'training method', 'distillation', 'stochastic optimization'],
     },
     {
-      id: 'category-02-attention-context',
-      label: '注意力机制与长上下文',
-      keywords: ['attention', 'long context', 'KV cache', 'FlashAttention', 'sparse attention'],
+      id: 'category-03-training-dynamics',
+      label: '训练动力学与模型分析',
+      keywords: ['training dynamics', 'loss landscape', 'gradient noise', 'edge of stability', 'model diagnostics'],
     },
     {
-      id: 'category-03-moe-sparse',
+      id: 'category-04-long-context',
+      label: '长上下文与高效注意力',
+      keywords: ['long context', 'sparse attention', 'FlashAttention', 'attention kernel', 'online softmax'],
+    },
+    {
+      id: 'category-07-moe-sparse',
       label: 'MoE 与稀疏模型',
       keywords: ['mixture of experts', 'MoE', 'expert routing', 'expert parallel'],
     },
     {
-      id: 'category-04-quantization',
+      id: 'category-08-quantization',
       label: '量化与低精度计算',
-      keywords: ['quantization', 'low precision', 'FP4', 'INT4', 'mixed precision'],
+      keywords: ['quantization', 'low precision', 'SageAttention', 'FP4', 'INT4'],
     },
     {
-      id: 'category-05-distributed-data',
+      id: 'category-09-distributed-data',
       label: '分布式训练与数据基础设施',
       keywords: ['distributed training', 'model parallel', 'pipeline parallel', 'FSDP', 'data pipeline'],
     },
     {
-      id: 'category-06-gpu-performance',
+      id: 'category-10-gpu-performance',
       aliases: ['gpu-kernel-optimization'],
       label: 'GPU 内核、编译器与性能工程',
       keywords: ['GPU kernel', 'tensor compiler', 'Triton kernel', 'CUDA optimization', 'kernel fusion'],
@@ -237,19 +243,24 @@
       keywords: ['GPU kernel agent', 'CUDA agent', 'LLM kernel optimization', 'automatic kernel generation'],
     },
     {
-      id: 'category-08-general-agents',
+      id: 'category-12-general-agents',
       label: '通用智能体与自主发现',
       keywords: ['AI agent', 'research agent', 'tool use', 'self-play', 'open-ended discovery'],
     },
     {
-      id: 'category-09-generative-video',
+      id: 'category-13-generative-video',
       label: '生成模型与视频系统',
       keywords: ['video generation', 'diffusion transformer', 'video inference', 'frame interpolation', 'text-to-video'],
     },
     {
-      id: 'category-10-model-reports',
+      id: 'category-14-model-reports',
       label: '大模型技术报告与推理训练',
       keywords: ['reasoning model', 'technical report', 'reinforcement learning reasoning', 'test-time scaling', 'foundation model'],
+    },
+    {
+      id: 'category-15-personal-cross-domain',
+      label: '个人兴趣与跨领域',
+      keywords: ['living systems', 'self-reference', 'theoretical biology', 'complex systems', 'open-ended creativity'],
     },
   ].map(template => {
     const normalizedLabel = value => String(value || '').toLowerCase().replace(/[\s_、，,]+/g, '');
@@ -280,7 +291,13 @@
   let apiHealth = null;
   let apiTasks = {supported: false, tasks: []};
   let apiGraphRevision = null;
+  let paperReadStatus = {};
   let apiStatePollBusy = false;
+  const classificationReviewSelections = new Map();
+  const classificationReviewPendingIds = new Set();
+  let classificationDecisionQueue = Promise.resolve();
+  let classificationGraphChanged = false;
+  let classificationReloadTimer = null;
   let runtimeLogs = [];
   let activeLogId = '';
   let visibleCandidateIds = [];
@@ -477,55 +494,56 @@
         || a.title.localeCompare(b.title));
       if (!nodes.length) return;
       const centerY = TIMELINE_TOP + (categoryIndex + 0.5) * laneHeight;
-      const cumulativeSpacing = [0];
-      for (let index = 1; index < nodes.length; index += 1) {
-        cumulativeSpacing[index] = cumulativeSpacing[index - 1]
-          + nodes[index - 1].hitRadius + nodes[index].hitRadius + 3;
-      }
+      const laneTop = TIMELINE_TOP + categoryIndex * laneHeight;
+      const laneBottom = laneTop + laneHeight;
+      const placed = [];
+      const yearPlacements = new Map();
+      const yearStep = (TIMELINE_RIGHT - TIMELINE_LEFT) / yearSpan;
 
-      // Transform x positions by the required node spacing, then use pooled
-      // adjacent violators to find the closest monotonic timeline. This keeps
-      // chronological order while moving dense same-year groups only as much
-      // as needed to prevent overlap.
-      const blocks = [];
-      nodes.forEach((node, index) => {
-        blocks.push({start: index, end: index, weight: 1, mean: timelineX(node.year) - cumulativeSpacing[index]});
-        while (
-          blocks.length > 1
-          && blocks[blocks.length - 2].mean > blocks[blocks.length - 1].mean
-        ) {
-          const right = blocks.pop();
-          const left = blocks.pop();
-          const weight = left.weight + right.weight;
-          blocks.push({
-            start: left.start,
-            end: right.end,
-            weight,
-            mean: (left.mean * left.weight + right.mean * right.weight) / weight,
-          });
-        }
-      });
-      const offsets = new Array(nodes.length);
-      blocks.forEach(block => {
-        for (let index = block.start; index <= block.end; index += 1) offsets[index] = block.mean;
-      });
-      const leftBound = TIMELINE_LEFT - 25;
-      const rightBound = TIMELINE_RIGHT + 10;
-      const minimumOffset = leftBound;
-      const maximumOffset = rightBound - cumulativeSpacing[cumulativeSpacing.length - 1];
-      const boundedOffset = value => Math.max(minimumOffset, Math.min(maximumOffset, value));
-
-      const yearCounts = new Map();
-      nodes.forEach((node, index) => {
+      // Start every paper on its exact year marker. Only papers that collide
+      // are moved, choosing the nearest free position in two dimensions. The
+      // year band is preferred rather than enforced so unusually dense years
+      // can borrow a little horizontal room without returning to a flat row.
+      nodes.forEach(node => {
         const year = node.year ?? yearMin;
-        const yearIndex = yearCounts.get(year) || 0;
-        yearCounts.set(year, yearIndex + 1);
-        const verticalRoom = Math.max(0, laneHeight / 2 - node.hitRadius - 3);
-        const stagger = [0, -1, 1, -.5, .5][yearIndex % 5];
-        node.timeline = {
-          x: boundedOffset(offsets[index]) + cumulativeSpacing[index],
-          y: centerY + stagger * verticalRoom,
+        const desiredX = timelineX(year);
+        const bandLeft = desiredX - yearStep / 2;
+        const bandRight = desiredX + yearStep / 2;
+        const minX = 185 + node.radius;
+        const maxX = 952 - node.radius;
+        const minY = laneTop + node.radius + 2;
+        const maxY = laneBottom - node.radius - 2;
+        const step = 3;
+        const candidates = [];
+        const seen = new Set();
+        const addCandidate = (x, y) => {
+          const candidate = {
+            x: Math.max(minX, Math.min(maxX, x)),
+            y: Math.max(minY, Math.min(maxY, y)),
+          };
+          const key = `${candidate.x.toFixed(2)}:${candidate.y.toFixed(2)}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          const outsideBand = Math.max(0, bandLeft - candidate.x, candidate.x - bandRight);
+          candidate.cost = Math.hypot(candidate.x - desiredX, candidate.y - centerY) + outsideBand * 8;
+          candidates.push(candidate);
         };
+        addCandidate(desiredX, centerY);
+        for (let y = minY; y <= maxY + .1; y += step) {
+          addCandidate(desiredX, y);
+          for (let x = minX; x <= maxX + .1; x += step) addCandidate(x, y);
+        }
+        const yearIndex = yearPlacements.get(year) || 0;
+        const preferredSide = yearIndex % 2 ? -1 : 1;
+        candidates.sort((a, b) => a.cost - b.cost
+          || Math.abs(a.y - centerY) - Math.abs(b.y - centerY)
+          || preferredSide * (b.x - a.x));
+        const position = candidates.find(candidate => placed.every(other =>
+          Math.hypot(candidate.x - other.x, candidate.y - other.y)
+            >= node.radius + other.radius + 2.5));
+        node.timeline = position || {x: desiredX, y: centerY};
+        placed.push({...node.timeline, radius: node.radius});
+        yearPlacements.set(year, yearIndex + 1);
       });
     });
   }
@@ -559,6 +577,13 @@
       mark.setAttribute('r', node.radius.toFixed(2));
       mark.style.fill = `var(--cat-${categoryIndex})`;
       groupElement.appendChild(mark);
+
+      const readBadge = document.createElementNS(ns, 'circle');
+      readBadge.setAttribute('class', 'node-read-badge');
+      readBadge.setAttribute('cx', String(node.radius * 0.72));
+      readBadge.setAttribute('cy', String(-node.radius * 0.72));
+      readBadge.setAttribute('r', '3.1');
+      groupElement.appendChild(readBadge);
 
       const outgoingStem = document.createElementNS(ns, 'line');
       outgoingStem.setAttribute('class', 'node-port-stem outgoing-port-stem');
@@ -637,6 +662,10 @@
       if (edge.target === nodeId) connected.add(edge.source);
     });
     return connected;
+  }
+
+  function isNodeRead(node) {
+    return Boolean(node?.sha256 && paperReadStatus[node.sha256]?.read);
   }
 
   function shouldFocusEdge(edge) {
@@ -736,6 +765,8 @@
         `translate(${node.position.x.toFixed(1)} ${node.position.y.toFixed(1)}) scale(${node.position.scale.toFixed(3)})`,
       );
       node.element.classList.toggle('selected', node.id === selectedNode);
+      node.element.classList.toggle('read', isNodeRead(node));
+      node.element.setAttribute('aria-label', `${node.title}，${node.year ?? '年份未知'}，${isNodeRead(node) ? '已读' : '未读'}，被库内引用 ${node.citation_count} 次。单击查看引用关系，按 Enter 或空格快速预览`);
       node.element.classList.toggle('referenced-by-selected', referencedBySelected);
       node.element.classList.toggle('cites-selected', citesSelected);
       const dimForNode = neighborhood && !neighborhood.has(node.id);
@@ -821,6 +852,10 @@
     inspectorIncomingList.replaceChildren(...incoming.map(edge => inspectorRelationItem(nodesById[edge.source], edge)).filter(Boolean));
     graphInspectorPreview.dataset.nodeId = node.id;
     graphInspectorOpenPdf.dataset.nodeId = node.id;
+    graphInspectorReadStatus.dataset.nodeId = node.id;
+    graphInspectorReadStatus.textContent = isNodeRead(node) ? '已读 ✓' : '标记已读';
+    graphInspectorReadStatus.classList.toggle('active', isNodeRead(node));
+    graphInspectorReadStatus.setAttribute('aria-pressed', String(isNodeRead(node)));
   }
 
   function candidateSourceLabel(source) {
@@ -1049,6 +1084,7 @@
     if (path === '/api/maintenance/rebuild') return {path: '/api/v1/maintenance-runs', options: prepared, awaitJob: true};
     if (path === '/api/diagnostics') return {path: '/api/v1/diagnostic-runs', options: prepared, awaitJob: true};
     if (path === '/api/graph/node/remove') return {path: `/api/v1/graph/nodes/${encode(body.id)}`, options: {...prepared, method: 'DELETE'}, awaitJob: true};
+    if (path === '/api/papers/read-status') return {path: `/api/v1/papers/${encode(body.id)}/read-status`, options: {...prepared, method: 'PUT'}};
     if (path === '/api/tasks') {
       if (body.action === 'state') return {path: '/api/v1/tasks', options: {...prepared, method: 'GET', body: undefined}};
       if (body.action === 'run') return {path: `/api/v1/tasks/${encode(body.task_id)}/runs`, options: prepared, awaitJob: true};
@@ -1195,7 +1231,8 @@
     progress.className = 'candidate-action-status';
     progress.setAttribute('role', 'status');
     progress.setAttribute('aria-live', 'polite');
-    article.appendChild(progress);
+    const progressHost = article.querySelector('.candidate-detail-footer') || article;
+    progressHost.appendChild(progress);
     const acceptButton = article.querySelector('.candidate-action.primary-action');
     let commitDetected = false;
     let statusTimer = null;
@@ -1254,32 +1291,34 @@
         method: 'POST',
         body: JSON.stringify({id: candidate.id, action, category, ...extras}),
       });
-      discovery = payload.discovery;
+      discovery = payload.discovery || discovery;
+      // Remove the processed card immediately. Reloading is only needed to
+      // refresh graph data; it must not be responsible for clearing the busy
+      // card or its fixed footer separator.
+      renderDiscovery();
       if (!commitDetected || payload.graph_updated === false) {
         showToast(payload.message, payload.graph_updated === false ? 'warning' : 'success');
       }
       if (action === 'accept' || action === 'replace') {
-        if (payload.graph_updated === false) {
-          renderDiscovery();
-        } else {
+        if (payload.graph_updated !== false) {
           setTimeout(() => window.location.reload(), 650);
         }
-      } else {
-        renderDiscovery();
       }
     } catch (error) {
       await detectCommittedDecision();
       if (commitDetected) {
         showToast('论文已经归档；本次状态回传中断，图谱将在后台完成更新', 'warning');
       } else {
-        controls.forEach(control => { control.disabled = false; });
-        article.classList.remove('is-busy');
-        progress.remove();
-        if (acceptButton) acceptButton.textContent = '加入论文库';
         showToast(error.message, 'error');
       }
     } finally {
       stopProgress();
+      progress.remove();
+      article.classList.remove('is-busy');
+      if (article.isConnected) {
+        controls.forEach(control => { control.disabled = false; });
+        if (acceptButton) acceptButton.textContent = '加入论文库';
+      }
     }
   }
 
@@ -1446,8 +1485,15 @@
       });
       body.appendChild(button);
     });
-    backdrop.addEventListener('click', close);
-    document.body.append(backdrop, dialog);
+    dialog.append(header, body);
+    backdrop.addEventListener('click', event => {
+      if (event.target === backdrop) close();
+    });
+    // Keep the panel inside its backdrop so WKWebView computes its dimensions
+    // in the same visible stacking context instead of collapsing a separate
+    // top-level fixed layer to a horizontal border.
+    backdrop.appendChild(dialog);
+    document.body.appendChild(backdrop);
     requestAnimationFrame(() => body.querySelector('button')?.focus());
   }
 
@@ -2326,8 +2372,47 @@
     });
   }
 
+  function classificationRunOutcome(payload = {}) {
+    const result = payload.classification_result || payload.result || {};
+    if (!result || typeof result !== 'object') return null;
+    const classified = Array.isArray(result.classified) ? result.classified : [];
+    const pending = Array.isArray(result.pending) ? result.pending : [];
+    const scanned = Number.isFinite(Number(result.scanned))
+      ? Number(result.scanned)
+      : classified.length + pending.length;
+    return {
+      scanned,
+      classified,
+      pending,
+      message: scanned
+        ? `已扫描 ${scanned} 篇：自动归档 ${classified.length} 篇，${pending.length} 篇需要确认类别`
+        : '未发现需要整理的未分类论文',
+    };
+  }
+
+  function revealClassificationReview() {
+    if (classificationReviewPanel.hidden) return false;
+    activateView('automation');
+    requestAnimationFrame(() => classificationReviewPanel.scrollIntoView({behavior: 'smooth', block: 'start'}));
+    return true;
+  }
+
+  function rememberClassificationReviewAfterReload() {
+    activateView('automation');
+    try { sessionStorage.setItem('paper-atlas-focus-classification-review', 'true'); } catch (_error) { /* optional */ }
+  }
+
   async function runMaintenanceAction(action, button) {
     if (!action?.id) return;
+    if (action.id === 'review-classification') {
+      if (!revealClassificationReview()) {
+        const state = await apiRequest('/api/state');
+        if (state.classification_review) renderClassificationReview(state.classification_review);
+        revealClassificationReview();
+      }
+      showToast('已打开分类待审核');
+      return;
+    }
     const originalLabel = button.textContent;
     button.disabled = true;
     button.textContent = '处理中…';
@@ -2342,7 +2427,14 @@
         renderDiscovery();
       }
       if (result.tasks) renderTasks(result.tasks);
-      showToast(result.message || `${action.label || '处理'}已完成`);
+      const classificationOutcome = action.id === 'classify' ? classificationRunOutcome(result) : null;
+      const outcomeMessage = classificationOutcome?.message || result.message || `${action.label || '处理'}已完成`;
+      showToast(outcomeMessage, classificationOutcome?.pending.length ? 'warning' : 'success');
+      recordActivity(action.label || '维护操作完成', outcomeMessage);
+      if (classificationOutcome?.pending.length) {
+        if (result.graph_updated) rememberClassificationReviewAfterReload();
+        else revealClassificationReview();
+      }
       if (result.graph_updated) {
         setTimeout(() => window.location.reload(), 600);
       } else {
@@ -2423,6 +2515,12 @@
 
   function renderClassificationReview(review = {}) {
     const items = review.items || [];
+    const liveIds = new Set(items.map(item => item.id));
+    [...classificationReviewSelections.keys()].forEach(id => {
+      if (!liveIds.has(id) && !classificationReviewPendingIds.has(id)) {
+        classificationReviewSelections.delete(id);
+      }
+    });
     classificationReviewPanel.hidden = !items.length;
     classificationReviewCount.textContent = String(items.length);
     classificationReviewSummary.textContent = items.length
@@ -2440,33 +2538,67 @@
       copy.append(title, reason);
       const select = document.createElement('select');
       select.setAttribute('aria-label', `${title.textContent}的论文类别`);
+      const savedCategory = classificationReviewSelections.get(item.id);
+      const selectedCategory = reviewCategories.some(category => category.id === savedCategory)
+        ? savedCategory
+        : item.suggested_category;
       reviewCategories.forEach(category => {
         const option = document.createElement('option');
         option.value = category.id;
         option.textContent = category.label;
-        option.selected = category.id === item.suggested_category;
+        option.selected = category.id === selectedCategory;
         select.appendChild(option);
+      });
+      if (select.value) classificationReviewSelections.set(item.id, select.value);
+      select.addEventListener('change', () => {
+        classificationReviewSelections.set(item.id, select.value);
       });
       const confirm = document.createElement('button');
       confirm.type = 'button';
       confirm.className = 'primary-button';
-      confirm.textContent = '确认归档';
-      confirm.addEventListener('click', async () => {
+      const alreadyPending = classificationReviewPendingIds.has(item.id);
+      select.disabled = alreadyPending;
+      confirm.disabled = alreadyPending;
+      confirm.textContent = alreadyPending ? '等待归档…' : '确认归档';
+      confirm.addEventListener('click', () => {
+        if (classificationReviewPendingIds.has(item.id)) return;
+        const category = select.value;
+        classificationReviewSelections.set(item.id, category);
+        const queuedBehindAnother = classificationReviewPendingIds.size > 0;
+        classificationReviewPendingIds.add(item.id);
+        select.disabled = true;
         confirm.disabled = true;
-        confirm.textContent = '归档中…';
-        try {
-          const result = await apiRequest('/api/classification/action', {
-            method: 'POST', body: JSON.stringify({id: item.id, category: select.value}),
-          });
-          renderClassificationReview(result.classification_review);
-          if (result.health) renderHealth(result.health);
-          showToast(result.message);
-          if (result.graph_updated) setTimeout(() => window.location.reload(), 500);
-        } catch (error) {
-          showToast(error.message, 'error');
-          confirm.disabled = false;
-          confirm.textContent = '确认归档';
-        }
+        confirm.textContent = queuedBehindAnother ? '等待归档…' : '归档中…';
+        const submit = async () => {
+          if (confirm.isConnected) confirm.textContent = '归档中…';
+          let succeeded = false;
+          try {
+            const result = await apiRequest('/api/classification/action', {
+              method: 'POST', body: JSON.stringify({id: item.id, category}),
+            });
+            succeeded = true;
+            classificationReviewSelections.delete(item.id);
+            classificationGraphChanged = classificationGraphChanged || Boolean(result.graph_updated);
+            renderClassificationReview(result.classification_review);
+            if (result.health) renderHealth(result.health);
+            showToast(result.message);
+          } catch (error) {
+            showToast(error.message, 'error');
+          } finally {
+            classificationReviewPendingIds.delete(item.id);
+            if (!succeeded && confirm.isConnected) {
+              select.disabled = false;
+              confirm.disabled = false;
+              confirm.textContent = '确认归档';
+            }
+            if (!classificationReviewPendingIds.size && classificationGraphChanged) {
+              classificationGraphChanged = false;
+              if (classificationReloadTimer) clearTimeout(classificationReloadTimer);
+              classificationReloadTimer = setTimeout(() => window.location.reload(), 500);
+            }
+          }
+        };
+        classificationDecisionQueue = classificationDecisionQueue.then(submit, submit);
       });
       row.append(copy, select, confirm);
       classificationReviewList.appendChild(row);
@@ -2535,8 +2667,10 @@
         method: 'POST', body: JSON.stringify({action: 'run', task_id: taskId}),
       });
       renderTasks(result);
-      showToast(result.message);
-      recordActivity('每日任务已运行', result.message || taskId);
+      const classificationOutcome = taskId === 'classification' ? classificationRunOutcome(result) : null;
+      const outcomeMessage = classificationOutcome?.message || result.message || taskId;
+      showToast(outcomeMessage, classificationOutcome?.pending.length ? 'warning' : 'success');
+      recordActivity('每日任务已运行', outcomeMessage);
       const state = await apiRequest('/api/state');
       if (state.health) renderHealth(state.health);
       if (state.discovery) {
@@ -2545,6 +2679,10 @@
       }
       renderClassificationReview(state.classification_review);
       renderDiscoveryLog(state.discovery_log);
+      if (classificationOutcome?.pending.length) {
+        if (result.result?.graph_updated) rememberClassificationReviewAfterReload();
+        else revealClassificationReview();
+      }
       if (taskId === 'classification' && result.result?.graph_updated) {
         setTimeout(() => window.location.reload(), 500);
       }
@@ -2732,12 +2870,20 @@
         ...category, label: displayCategoryLabel(category.label),
       }));
       apiGraphRevision = state.graph_revision || apiGraphRevision;
+      paperReadStatus = state.paper_read_status || {};
       renderHealth(state.health);
       renderTasks(state.tasks);
       renderClassificationReview(state.classification_review);
       renderDiscoveryLog(state.discovery_log);
+      let shouldRevealClassification = false;
+      try {
+        shouldRevealClassification = sessionStorage.getItem('paper-atlas-focus-classification-review') === 'true';
+        if (shouldRevealClassification) sessionStorage.removeItem('paper-atlas-focus-classification-review');
+      } catch (_error) { /* optional */ }
+      if (shouldRevealClassification) revealClassificationReview();
       serviceNotice.hidden = true;
       renderDiscovery();
+      render();
     } catch (_error) {
       serviceNotice.hidden = false;
     }
@@ -2749,10 +2895,19 @@
     try {
       const state = await apiRequest('/api/state');
       if (apiGraphRevision && state.graph_revision && state.graph_revision !== apiGraphRevision) {
-        window.location.reload();
-        return;
+        if (classificationReviewPendingIds.size) {
+          apiGraphRevision = state.graph_revision;
+          classificationGraphChanged = true;
+        } else {
+          window.location.reload();
+          return;
+        }
       }
       apiGraphRevision = state.graph_revision || apiGraphRevision;
+      if (state.paper_read_status) {
+        paperReadStatus = state.paper_read_status;
+        render();
+      }
       renderTasks(state.tasks);
       renderClassificationReview(state.classification_review);
       renderDiscoveryLog(state.discovery_log);
@@ -2942,7 +3097,7 @@
     point.x = node.position.x;
     point.y = node.position.y;
     const screen = point.matrixTransform(svg.getScreenCTM());
-    tooltip.textContent = `${node.title} · ${node.year} · 被库内引用 ${node.citation_count} 次${node.is_main ? ' · 类别主节点' : ''}`;
+    tooltip.textContent = `${node.title} · ${node.year} · ${isNodeRead(node) ? '已读' : '未读'} · 被库内引用 ${node.citation_count} 次${node.is_main ? ' · 类别主节点' : ''}`;
     tooltip.style.display = 'block';
     const width = tooltip.offsetWidth;
     const height = tooltip.offsetHeight;
@@ -3016,6 +3171,24 @@
   graphInspectorOpenPdf.addEventListener('click', () => {
     const node = nodesById[graphInspectorOpenPdf.dataset.nodeId];
     if (node) window.open(paperUrl(node), '_blank', 'noopener');
+  });
+  graphInspectorReadStatus.addEventListener('click', async () => {
+    const node = nodesById[graphInspectorReadStatus.dataset.nodeId];
+    if (!node) return;
+    const read = !isNodeRead(node);
+    graphInspectorReadStatus.disabled = true;
+    try {
+      const result = await apiRequest('/api/papers/read-status', {
+        method: 'PUT', body: JSON.stringify({id: node.id, read}),
+      });
+      paperReadStatus = result.paper_read_status || {};
+      render();
+      showToast(result.message);
+    } catch (error) {
+      showToast(error.message, 'error');
+    } finally {
+      graphInspectorReadStatus.disabled = false;
+    }
   });
   document.querySelectorAll('.relation-tab').forEach(tab => tab.addEventListener('click', () => {
     const relation = tab.dataset.relationTab;

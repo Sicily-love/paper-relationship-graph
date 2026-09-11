@@ -88,7 +88,7 @@ class ReviewApiTests(unittest.TestCase):
             result = app_services.validated_discovery()
         self.assertEqual(
             result["candidates"][0]["suggested_category"],
-            "07_GPU内核_编译器与性能工程",
+            "08_GPU内核_编译器与性能工程",
         )
 
     def test_clear_candidates_keeps_archived_records_and_decisions(self):
@@ -127,7 +127,7 @@ class ReviewApiTests(unittest.TestCase):
             with source.open("wb") as output:
                 writer.write(output)
             papers = root / "papers"
-            category = "07_GPU内核_编译器与性能工程"
+            category = "08_GPU内核_编译器与性能工程"
             data = {"candidates": [{
                 "id": "arxiv:1",
                 "title": "A Safe GPU Paper",
@@ -151,7 +151,7 @@ class ReviewApiTests(unittest.TestCase):
             papers.mkdir()
             unclassified = papers / "Existing Download.pdf"
             shutil.copyfile(source, unclassified)
-            category = "07_GPU内核_编译器与性能工程"
+            category = "08_GPU内核_编译器与性能工程"
             data = {"candidates": [{
                 "id": "arxiv:1",
                 "title": "A Safe GPU Paper",

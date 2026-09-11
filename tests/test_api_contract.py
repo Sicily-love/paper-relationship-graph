@@ -20,6 +20,7 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(find_operation("POST", "/api/v1/discovery-runs")[0], "discovery.create")
         self.assertEqual(find_operation("DELETE", "/api/v1/candidates")[0], "candidates.clear")
         self.assertEqual(find_operation("DELETE", "/api/v1/graph/nodes/paper-1")[0], "graph.remove")
+        self.assertEqual(find_operation("PUT", "/api/v1/papers/paper-1/read-status")[0], "papers.read_status")
         self.assertIsNone(find_operation("GET", "/api/state"))
 
     def test_controller_returns_versioned_bootstrap(self):
@@ -31,12 +32,28 @@ class ContractTests(unittest.TestCase):
             self.assertIn("capabilities", payload["data"])
             controller.jobs.close()
 
-    def test_score_palette_is_per_candidate_and_review_footer_can_scroll(self):
+    def test_controller_updates_paper_read_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            controller = ApiController(Path(directory), jobs=JobManager(Path(directory) / ".cache"))
+            controller.services.set_paper_read_status = lambda body: {
+                "paper": {"id": body["id"], "read": body["read"]},
+            }
+            status, payload = controller.handle(ApiRequest(
+                "PUT", "/api/v1/papers/p00/read-status", {"read": True},
+            ))
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["data"]["paper"], {"id": "p00", "read": True})
+            controller.jobs.close()
+
+    def test_score_palette_is_per_candidate_and_review_footer_stays_fixed_without_compositor_ghosts(self):
         styles = (ROOT / "web" / "styles.css").read_text(encoding="utf-8")
         script = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
         self.assertIn("function scoreColor", script)
         self.assertNotIn("candidate-score-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient", styles)
-        self.assertIn(".candidate-detail-footer { position: absolute", styles)
+        self.assertIn(".candidate-detail-footer { position: relative", styles)
+        self.assertIn("flex: 0 0 auto", styles)
+        self.assertNotIn("backdrop-filter: blur(12px)", styles)
+        self.assertIn("progressHost.appendChild(progress)", script)
 
     def test_topic_editor_supports_library_reference_papers(self):
         styles = (ROOT / "web" / "styles.css").read_text(encoding="utf-8")

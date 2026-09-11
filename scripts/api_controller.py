@@ -114,6 +114,8 @@ class ApiController:
             return success(self.services.save_topics(body), request.request_id)
         if name == "graph.read":
             return success(discovery_utils.load_json(discovery_utils.DEFAULT_GRAPH, {"nodes": [], "edges": {}}), request.request_id, revision=self._revision())
+        if name == "papers.read_status":
+            return success(self.services.set_paper_read_status(body), request.request_id)
         if name == "candidates.list":
             data = validated_discovery()
             candidates = [item for item in data.get("candidates", []) if item.get("status") == request.query.get("status", "new")]

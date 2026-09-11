@@ -16,6 +16,19 @@ import app_services  # noqa: E402
 
 
 class AppServicesTests(unittest.TestCase):
+    def test_paper_read_status_is_persisted_by_content_hash(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"PAPER_ATLAS_DATA_ROOT": directory}, clear=False,
+        ):
+            service = app_services.AppServices(Path(directory) / "papers")
+            graph = {"nodes": [{"id": "p00", "title": "Example", "sha256": "abc123"}]}
+            with patch.object(app_services, "load_json", return_value=graph):
+                marked = service.set_paper_read_status({"id": "p00", "read": True})
+                self.assertTrue(marked["paper_read_status"]["abc123"]["read"])
+                self.assertEqual(service.paper_read_status()["abc123"]["title"], "Example")
+                cleared = service.set_paper_read_status({"id": "p00", "read": False})
+            self.assertEqual(cleared["paper_read_status"], {})
+
     def test_state_exposes_topics_categories_health_and_tasks(self):
         config = {
             "topics": [{"label": "GPU"}],
@@ -42,6 +55,7 @@ class AppServicesTests(unittest.TestCase):
         )
         self.assertEqual(result["health"]["status"], "healthy")
         self.assertEqual(result["classification_review"], {"items": []})
+        self.assertEqual(result["paper_read_status"], {})
 
     def test_classification_review_moves_file_and_rebuilds_graph(self):
         with tempfile.TemporaryDirectory() as directory:

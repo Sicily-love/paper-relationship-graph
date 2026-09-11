@@ -242,11 +242,45 @@ class AppServices:
             ],
             "health": library_health.validate_library(self.papers_dir),
             "tasks": task_center.task_state(),
-            "classification_review": classify_library.load_review_queue(),
+            "classification_review": classify_library.load_review_queue(papers_dir=self.papers_dir),
+            "paper_read_status": self.paper_read_status(),
             "graph_revision": (
                 f"{graph_stat.st_mtime_ns}:{graph_stat.st_size}" if graph_stat else None
             ),
             "discovery_log": discovery_debug_log(),
+        }
+
+    def paper_read_status(self) -> dict:
+        status = self.runtime_store.get("papers", "read_status", {})
+        return status if isinstance(status, dict) else {}
+
+    def set_paper_read_status(self, body: dict) -> dict:
+        node_id = str(body.get("id") or "").strip()
+        read = body.get("read")
+        if not isinstance(read, bool):
+            raise ValueError("已读状态必须为布尔值")
+        graph = load_json(DEFAULT_GRAPH, {"nodes": []})
+        node = next((item for item in graph.get("nodes", []) if item.get("id") == node_id), None)
+        if node is None:
+            raise ValueError("论文节点不存在")
+        digest = str(node.get("sha256") or "").strip()
+        if not digest:
+            raise ValueError("论文缺少稳定内容标识，请先重新构建图谱")
+
+        status = self.paper_read_status()
+        if read:
+            status[digest] = {
+                "read": True,
+                "read_at": datetime.now(timezone.utc).isoformat(),
+                "title": node.get("title"),
+            }
+        else:
+            status.pop(digest, None)
+        self.runtime_store.put("papers", "read_status", status)
+        return {
+            "message": "已标记为已读" if read else "已标记为未读",
+            "paper": {"id": node_id, "sha256": digest, "read": read},
+            "paper_read_status": status,
         }
 
     def runtime_logs(self, _body: dict | None = None) -> dict:
@@ -328,7 +362,7 @@ class AppServices:
         category = str(body.get("category") or "").strip()
         if category not in build_graph.STANDARD_CATEGORIES:
             raise ValueError("请选择有效的论文类别")
-        queue = classify_library.load_review_queue()
+        queue = classify_library.load_review_queue(papers_dir=self.papers_dir)
         item = next(
             (candidate for candidate in queue.get("items", []) if candidate.get("id") == item_id),
             None,
@@ -524,14 +558,36 @@ class AppServices:
             )
             result["created_categories"] = created
             return result
-        if action == "classify":
-            result = task_center.run_task("classification", self.papers_dir)
+        if action == "review-classification":
+            queue = classify_library.load_review_queue(papers_dir=self.papers_dir)
             return {
-                **result,
-                "message": "论文分类整理已完成",
-                "classification_review": classify_library.load_review_queue(),
+                "message": f"有 {len(queue.get('items') or [])} 篇论文等待确认类别",
+                "classification_review": queue,
                 "health": library_health.validate_library(self.papers_dir),
-                "graph_updated": bool(result.get("result", {}).get("graph_updated")),
+                "graph_updated": False,
+            }
+        if action == "classify":
+            task_result = task_center.run_task("classification", self.papers_dir)
+            classification_result = task_result.get("result") or {}
+            classified = classification_result.get("classified") or []
+            pending = classification_result.get("pending") or []
+            scanned = int(classification_result.get("scanned") or (len(classified) + len(pending)))
+            if task_result.get("status") == "skipped":
+                message = task_result.get("message") or "已有论文分类任务正在运行"
+            elif scanned:
+                message = (
+                    f"已扫描 {scanned} 篇：自动归档 {len(classified)} 篇，"
+                    f"{len(pending)} 篇需要确认类别"
+                )
+            else:
+                message = "未发现需要整理的未分类论文"
+            return {
+                **task_result,
+                "message": message,
+                "classification_result": classification_result,
+                "classification_review": classify_library.load_review_queue(papers_dir=self.papers_dir),
+                "health": library_health.validate_library(self.papers_dir),
+                "graph_updated": bool(classification_result.get("graph_updated")),
             }
         if action == "repair-data":
             repaired = maintenance_actions.repair_discovery_pair()
@@ -604,16 +660,22 @@ class AppServices:
     def manage_backup(self, body: dict) -> dict:
         action = str(body.get("action") or "export")
         if action == "export":
-            return {"message": "备份已生成", "backup": backup_restore.create_backup()}
+            backup = backup_restore.create_backup()
+            backup["paper_read_status"] = self.paper_read_status()
+            return {"message": "备份已生成", "backup": backup}
         if action != "restore":
             raise ValueError("未知备份操作")
         backup = backup_restore.validate_backup(body.get("backup"))
         config = dict(backup["config"])
         config["topics"] = validate_topics(config.get("topics"))
         tasks = task_center.validate_config(backup["tasks"])
+        read_status = backup.get("paper_read_status", {})
+        if not isinstance(read_status, dict):
+            raise ValueError("备份中的已读状态无效")
         result = backup_restore.restore_backup(backup, config, tasks)
         self.runtime_store.put("config", "current", config)
         self.runtime_store.put("tasks", "current", tasks)
+        self.runtime_store.put("papers", "read_status", read_status)
         return {**result, "discovery": validated_discovery()}
 
     def clear_candidates(self, _body: dict | None = None) -> dict:

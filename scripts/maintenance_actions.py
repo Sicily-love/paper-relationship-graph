@@ -22,7 +22,11 @@ ACTION_SPECS = {
     },
     "classify": {
         "label": "整理未分类论文",
-        "description": "自动归档高置信度论文，其余论文进入分类待审核。",
+        "description": "自动归档类别明确的论文，其余论文进入分类待审核。",
+    },
+    "review-classification": {
+        "label": "查看分类待审核",
+        "description": "打开分类审核区，为依据不足的论文确认类别。",
     },
     "repair-data": {
         "label": "修复候选数据",

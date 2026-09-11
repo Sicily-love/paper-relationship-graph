@@ -47,7 +47,7 @@ class TransactionTests(unittest.TestCase):
                 with self.assertRaisesRegex(OSError, "disk full"):
                     manage_candidate.commit_decision(
                         data, "arxiv:1", "accept", papers,
-                        "07_GPU内核_编译器与性能工程", root / "d.json", root / "d.js",
+                        "08_GPU内核_编译器与性能工程", root / "d.json", root / "d.js",
                     )
             self.assertEqual(data, before)
             self.assertFalse(any(papers.rglob("*.pdf")))
@@ -65,7 +65,7 @@ class TransactionTests(unittest.TestCase):
             }]}
             candidate = manage_candidate.commit_decision(
                 data, "arxiv:1", "accept", papers,
-                "07_GPU内核_编译器与性能工程", json_path, js_path,
+                "08_GPU内核_编译器与性能工程", json_path, js_path,
             )
             self.assertEqual(candidate["graph_status"], "pending")
             manage_candidate.mark_graph_status(data, "arxiv:1", "complete", json_path, js_path)
@@ -74,7 +74,7 @@ class TransactionTests(unittest.TestCase):
 
 class RelevanceTests(unittest.TestCase):
     topic = {
-        "id": "category-04-quantization",
+        "id": "category-08-quantization",
         "label": "量化与低精度计算",
         "keywords": ["quantization", "low precision"],
     }
@@ -121,6 +121,41 @@ class HealthAndBackupTests(unittest.TestCase):
             health = library_health.validate_library(
                 papers, graph_json, graph_js, discovery_json, discovery_js,
             )
+            self.assertEqual(health["status"], "healthy")
+
+    def test_health_accepts_exact_duplicate_recorded_by_graph(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            papers = root / "papers"
+            for category in build_graph.STANDARD_CATEGORIES:
+                (papers / category).mkdir(parents=True)
+            category = build_graph.STANDARD_CATEGORIES[0]
+            original = papers / category / "Example.pdf"
+            duplicate = papers / category / "Example (重复副本).pdf"
+            original.write_bytes(b"same")
+            duplicate.write_bytes(b"same")
+            graph = {
+                "metadata": {"unique_papers": 1, "citation_edges": 0},
+                "categories": [{"id": category, "main_node": "p00", "paper_count": 1}],
+                "nodes": [{"id": "p00", "path": f"{category}/Example.pdf", "category": category}],
+                "edges": {"citation": []},
+                "duplicates": [{
+                    "path": f"{category}/Example (重复副本).pdf",
+                    "duplicate_of": f"{category}/Example.pdf",
+                    "sha256": "same",
+                }],
+            }
+            graph_json, graph_js = root / "g.json", root / "g.js"
+            graph_json.write_text(json.dumps(graph), encoding="utf-8")
+            graph_js.write_text("window.PAPER_GRAPH=" + json.dumps(graph) + ";\n", encoding="utf-8")
+            discovery = {"metadata": {}, "candidates": [], "decisions": {}}
+            discovery_json, discovery_js = root / "d.json", root / "d.js"
+            write_discovery(discovery, discovery_json, discovery_js)
+
+            health = library_health.validate_library(
+                papers, graph_json, graph_js, discovery_json, discovery_js,
+            )
+
             self.assertEqual(health["status"], "healthy")
 
     def test_backup_roundtrip_preserves_topics_decisions_and_tasks(self):
@@ -177,7 +212,27 @@ class ClassificationTests(unittest.TestCase):
             presentation.write_bytes(b"pptx")
             result = classify_library.classify_files(papers)
             self.assertEqual(len(result["classified"]), 1)
+            self.assertEqual(result["scanned"], 1)
             self.assertTrue((papers / category / "ultraattn.pptx").exists())
+
+    def test_medium_confidence_paper_is_archived_in_suggested_category(self):
+        with tempfile.TemporaryDirectory() as directory:
+            papers = Path(directory)
+            category = build_graph.STANDARD_CATEGORIES[1]
+            source = papers / "Training Dynamics.pptx"
+            source.write_bytes(b"pptx")
+            classification = {
+                "suggested_category": category,
+                "category_confidence": "中",
+                "category_reason": "标题与类别特征匹配",
+            }
+            with patch.object(
+                classify_library.discover_papers, "classify_candidate", return_value=classification,
+            ):
+                result = classify_library.classify_files(papers)
+            self.assertEqual(len(result["classified"]), 1)
+            self.assertEqual(result["pending"], [])
+            self.assertTrue((papers / category / source.name).exists())
 
     def test_pending_classification_is_persisted_for_review(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -189,6 +244,24 @@ class ClassificationTests(unittest.TestCase):
             self.assertEqual(len(queue["items"]), 1)
             self.assertTrue(queue["items"][0]["id"])
             self.assertEqual(classify_library.load_review_queue(path)["items"][0]["path"], "Unknown.pdf")
+
+    def test_review_queue_prunes_items_moved_out_of_unclassified_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            papers = Path(directory) / "papers"
+            papers.mkdir()
+            existing = papers / "Existing.pdf"
+            existing.write_bytes(b"pdf")
+            path = Path(directory) / "review.json"
+            classify_library.write_review_queue([
+                {"path": "Existing.pdf", "suggested_category": "", "confidence": "需确认", "reason": "保留"},
+                {"path": "Moved.pdf", "suggested_category": "", "confidence": "需确认", "reason": "已移动"},
+            ], path)
+
+            queue = classify_library.load_review_queue(path, papers_dir=papers)
+
+            self.assertEqual([item["path"] for item in queue["items"]], ["Existing.pdf"])
+            persisted = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual([item["path"] for item in persisted["items"]], ["Existing.pdf"])
 
     def test_unreadable_pdf_becomes_review_item_instead_of_failing_task(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -210,6 +283,8 @@ class WebContractTests(unittest.TestCase):
         self.assertIn("window.PAPER_RELEASES", script)
         self.assertIn('id="task-list"', html)
         self.assertIn('id="classification-review-panel"', html)
+        self.assertIn("paper-atlas-focus-classification-review", script)
+        self.assertIn("自动归档 ${classified.length} 篇", script)
         self.assertIn('id="discovery-debug-output"', html)
         self.assertIn('data/graph-data.js?v=${Date.now()}', html)
         self.assertIn('id="export-backup"', html)
@@ -235,17 +310,31 @@ class WebContractTests(unittest.TestCase):
         self.assertNotIn('id="search-status"', html)
         self.assertIn("function activateView", script)
         self.assertIn("function renderCandidateRow", script)
+        self.assertIn("discovery = payload.discovery || discovery;", script)
+        self.assertIn("progress.remove();\n      article.classList.remove('is-busy');", script)
+        self.assertIn("document.body.appendChild(backdrop);", script)
+        self.assertIn("backdrop.appendChild(dialog);", script)
+        self.assertIn("dialog.append(header, body);", script)
+        self.assertIn("if (event.target === backdrop) close();", script)
+        self.assertNotIn("document.body.append(backdrop, dialog);", script)
         self.assertIn("candidate-row-score", script)
         self.assertIn("function renderCandidateCategoryFilter", script)
         self.assertIn("function renderCandidateGroupHeader", script)
         self.assertIn("function highlyCitedPipeline", script)
         self.assertIn("function renderClassificationReview", script)
+        self.assertIn("const classificationReviewSelections = new Map()", script)
+        self.assertIn("const classificationReviewPendingIds = new Set()", script)
+        self.assertIn("classificationDecisionQueue = classificationDecisionQueue.then(submit, submit)", script)
+        self.assertIn("classificationReviewSelections.set(item.id, select.value)", script)
         self.assertIn("function pollApiState", script)
         self.assertIn("function runDiagnostics", script)
         self.assertIn("function runMaintenanceAction", script)
         self.assertIn("function removeGraphNode", script)
         self.assertIn("function openRuntimeLogs", script)
-        self.assertIn("nodes[index - 1].hitRadius + nodes[index].hitRadius + 3", script)
+        self.assertIn("function assignTimelinePositions", script)
+        self.assertIn("Math.hypot(candidate.x - other.x", script)
+        self.assertIn("node.radius + other.radius + 2.5", script)
+        self.assertIn("const bandLeft = desiredX - yearStep / 2", script)
         self.assertIn("node-port incoming-port", script)
         self.assertIn("node-port outgoing-port", script)
         self.assertIn("node-port-stem outgoing-port-stem", script)
@@ -258,8 +347,8 @@ class WebContractTests(unittest.TestCase):
         self.assertIn("OpenAlex 语义召回", script)
         self.assertIn("mode: 'topics', topic_ids: [...selectedDiscoveryTopicIds]", script)
         self.assertNotIn("citationsExpanded", script)
-        self.assertIn("adjacent violators", script)
-        self.assertIn("cumulativeSpacing", script)
+        self.assertIn("const bandLeft", script)
+        self.assertIn("const bandRight", script)
         self.assertIn("const visible = focused;", script)
         self.assertNotIn("log.className = 'task-log'", script)
         self.assertNotIn('id="citation-arrow"', html)
@@ -267,12 +356,19 @@ class WebContractTests(unittest.TestCase):
         self.assertIn(".edge.focused.outgoing { stroke: #ed7b2c; }", styles)
         self.assertIn(".edge.focused.incoming { stroke: var(--citation); }", styles)
         self.assertIn("--cat-10:", styles)
+        self.assertIn('id="graph-inspector-read-status"', html)
+        self.assertNotIn("node-read-ring", script)
+        self.assertIn("node-read-badge", script)
+        self.assertIn("paper_read_status", script)
 
-    def test_v14_taxonomy_has_distinct_architecture_and_training_categories(self):
-        self.assertEqual(len(build_graph.STANDARD_CATEGORIES), 11)
+    def test_taxonomy_has_distinct_training_and_attention_categories(self):
         self.assertEqual(build_graph.STANDARD_CATEGORIES[0], "01_模型架构与基础组件")
         self.assertEqual(build_graph.STANDARD_CATEGORIES[1], "02_训练方法与优化器")
-        self.assertIn("09_通用智能体与自主发现", build_graph.STANDARD_CATEGORIES)
+        self.assertEqual(build_graph.STANDARD_CATEGORIES[2], "03_训练动力学与模型分析")
+        self.assertIn("04_长上下文与高效注意力", build_graph.STANDARD_CATEGORIES)
+        self.assertIn("10_通用智能体与自主发现", build_graph.STANDARD_CATEGORIES)
+        self.assertEqual(build_graph.STANDARD_CATEGORIES[-1], "13_个人兴趣与跨领域")
+        self.assertEqual(len(build_graph.STANDARD_CATEGORIES), 13)
 
     def test_native_titlebar_is_draggable_without_covering_web_actions(self):
         launcher = (ROOT / "platform" / "macos" / "PaperAtlasLauncher.m").read_text(encoding="utf-8")

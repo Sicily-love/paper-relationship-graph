@@ -27,15 +27,17 @@ DEFAULT_EXTRACTION_CACHE = REPO_ROOT / ".cache" / "graph-extraction.json"
 STANDARD_CATEGORIES = (
     "01_模型架构与基础组件",
     "02_训练方法与优化器",
-    "03_注意力机制与长上下文",
-    "04_MoE与稀疏模型",
-    "05_量化与低精度计算",
-    "06_分布式训练与数据基础设施",
-    "07_GPU内核_编译器与性能工程",
-    "08_GPU内核智能体与自动调优",
-    "09_通用智能体与自主发现",
-    "10_生成模型与视频系统",
-    "11_大模型技术报告与推理训练",
+    "03_训练动力学与模型分析",
+    "04_长上下文与高效注意力",
+    "05_MoE与稀疏模型",
+    "06_量化与低精度计算",
+    "07_分布式训练与数据基础设施",
+    "08_GPU内核_编译器与性能工程",
+    "09_GPU内核智能体与自动调优",
+    "10_通用智能体与自主发现",
+    "11_生成模型与视频系统",
+    "12_大模型技术报告与推理训练",
+    "13_个人兴趣与跨领域",
 )
 
 
@@ -206,9 +208,16 @@ def sha256(path: Path) -> str:
 
 def discover_pdfs(papers_dir: Path) -> list[Path]:
     return sorted(
-        path
-        for category in STANDARD_CATEGORIES
-        for path in (papers_dir / category).glob("*.pdf")
+        (
+            path
+            for category in STANDARD_CATEGORIES
+            for path in (papers_dir / category).glob("*.pdf")
+        ),
+        key=lambda path: (
+            path.parent.name,
+            bool(re.search(r"\s\((?:重复副本|重复版本|精简版本)\)$", path.stem)),
+            path.name,
+        ),
     )
 
 
@@ -220,6 +229,7 @@ def extract_nodes(
     full_text: dict[str, str] = {}
     duplicates: list[dict] = []
     hashes: dict[str, str] = {}
+    titles: dict[str, str] = {}
     cache = {"version": 1, "papers": {}}
     if cache_path and cache_path.exists():
         try:
@@ -239,7 +249,16 @@ def extract_nodes(
             duplicates.append({"path": relative_path, "duplicate_of": hashes[digest], "sha256": digest})
             continue
 
-        title = path.stem.replace(" (重复副本)", "")
+        title = re.sub(r" \((?:重复副本|重复版本|精简版本)\)$", "", path.stem)
+        title_key = normalize(title)
+        if title_key in titles:
+            duplicates.append({
+                "path": relative_path,
+                "duplicate_of": titles[title_key],
+                "sha256": digest,
+                "match": "normalized_title",
+            })
+            continue
         cached = cached_papers.get(relative_path, {})
         if isinstance(cached, dict) and cached.get("sha256") == digest and cached.get("text"):
             text = str(cached["text"])
@@ -271,6 +290,7 @@ def extract_nodes(
         nodes.append(node)
         full_text[node_id] = text
         hashes[digest] = relative_path
+        titles[title_key] = relative_path
         next_cache[relative_path] = {
             "sha256": digest,
             "node": {key: node.get(key) for key in ("year", "authors", "abstract")},

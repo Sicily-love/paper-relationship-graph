@@ -1,9 +1,14 @@
 import importlib.util
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
+from pypdf import PdfWriter
+
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "build_graph.py"
+sys.path.insert(0, str(MODULE_PATH.parent))
 SPEC = importlib.util.spec_from_file_location("build_graph", MODULE_PATH)
 build_graph = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -60,6 +65,29 @@ Oct 27, 2025
 """
         authors = build_graph.extract_authors(text, "On-Policy Distillation", {"/Author": ""})
         self.assertEqual(authors, "Kevin Lu")
+
+    def test_same_title_versions_share_one_graph_node(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            category = build_graph.STANDARD_CATEGORIES[0]
+            folder = root / category
+            folder.mkdir()
+            for name, author in (
+                ("Example Paper.pdf", "Ada"),
+                ("Example Paper (重复版本).pdf", "Alan"),
+            ):
+                writer = PdfWriter()
+                writer.add_blank_page(width=72, height=72)
+                writer.add_metadata({"/Author": author})
+                with (folder / name).open("wb") as handle:
+                    writer.write(handle)
+
+            nodes, _text, duplicates, _stats = build_graph.extract_nodes(root)
+
+            self.assertEqual(len(nodes), 1)
+            self.assertEqual(nodes[0]["title"], "Example Paper")
+            self.assertEqual(len(duplicates), 1)
+            self.assertEqual(duplicates[0]["match"], "normalized_title")
 
 
 if __name__ == "__main__":

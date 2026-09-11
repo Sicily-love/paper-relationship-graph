@@ -250,7 +250,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertIn("KernelBench", query)
 
     def test_live_topic_profile_uses_current_category_papers(self):
-        category = "08_GPU内核智能体与自动调优"
+        category = "09_GPU内核智能体与自动调优"
         graph = {
             "categories": [{"id": category, "main_node": "p1"}],
             "nodes": [
@@ -267,7 +267,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(profiles[0]["reference_mode"], "automatic")
 
     def test_live_topic_profile_prefers_selected_reference_papers(self):
-        category = "08_GPU内核智能体与自动调优"
+        category = "09_GPU内核智能体与自动调优"
         graph = {
             "categories": [{"id": category, "main_node": "p1"}],
             "nodes": [
@@ -616,7 +616,7 @@ class DiscoveryTests(unittest.TestCase):
             "abstract": "We generate and tune Triton kernels with several cooperating agents.",
             "supporting_papers": [],
         })
-        self.assertEqual(result["suggested_category"], "08_GPU内核智能体与自动调优")
+        self.assertEqual(result["suggested_category"], "09_GPU内核智能体与自动调优")
         self.assertEqual(result["category_confidence"], "高")
 
     def test_attention_quantization_uses_attention_boundary_rule(self):
@@ -624,7 +624,14 @@ class DiscoveryTests(unittest.TestCase):
             "title": "Low-Precision Quantized Attention for Long Context",
             "abstract": "An attention-specific quantization method.",
         })
-        self.assertEqual(result["suggested_category"], "03_注意力机制与长上下文")
+        self.assertEqual(result["suggested_category"], "06_量化与低精度计算")
+
+    def test_generic_quantization_paper_is_not_pulled_into_attention_by_abstract(self):
+        result = discover_papers.classify_candidate({
+            "title": "QuaRot Outlier-Free 4-Bit Inference in Rotated LLMs",
+            "abstract": "We rotate weights and activations for quantization while preserving attention quality.",
+        })
+        self.assertEqual(result["suggested_category"], "06_量化与低精度计算")
 
     def test_foundational_attention_paper_prefers_architecture_category(self):
         result = discover_papers.classify_candidate({
@@ -632,6 +639,15 @@ class DiscoveryTests(unittest.TestCase):
             "abstract": "We introduce the Transformer architecture for sequence transduction.",
         })
         self.assertEqual(result["suggested_category"], "01_模型架构与基础组件")
+
+    def test_explicit_living_systems_interest_uses_cross_domain_category(self):
+        result = discover_papers.classify_candidate({
+            "title": "Open Questions about Time and Self-reference in Living Systems",
+            "abstract": "We study natural time, self-referential living systems, and theoretical biology.",
+            "topics": [],
+            "supporting_papers": [],
+        })
+        self.assertEqual(result["suggested_category"], "13_个人兴趣与跨领域")
         self.assertEqual(result["category_rule_version"], discover_papers.CATEGORY_RULE_VERSION)
 
     def test_attention_kernel_paper_stays_in_attention_category(self):
@@ -639,28 +655,28 @@ class DiscoveryTests(unittest.TestCase):
             "title": "TiledAttention A CUDA Tile SDPA Kernel for PyTorch",
             "abstract": "We implement scaled dot-product attention with a fused CUDA kernel.",
         })
-        self.assertEqual(result["suggested_category"], "03_注意力机制与长上下文")
+        self.assertEqual(result["suggested_category"], "04_长上下文与高效注意力")
 
     def test_moe_kernel_optimization_prefers_moe_category(self):
         result = discover_papers.classify_candidate({
             "title": "SonicMoE Accelerating MoE with IO and Tile-aware Optimizations",
             "abstract": "Mixture of Experts models benefit from GPU kernels that reduce IO overhead.",
         })
-        self.assertEqual(result["suggested_category"], "04_MoE与稀疏模型")
+        self.assertEqual(result["suggested_category"], "05_MoE与稀疏模型")
 
     def test_llm_kernel_benchmark_prefers_kernel_agents(self):
         result = discover_papers.classify_candidate({
             "title": "KernelBench Can LLMs Write Efficient GPU Kernels?",
             "abstract": "We evaluate language models that generate and optimize GPU kernels.",
         })
-        self.assertEqual(result["suggested_category"], "08_GPU内核智能体与自动调优")
+        self.assertEqual(result["suggested_category"], "09_GPU内核智能体与自动调优")
 
     def test_non_agentic_gpu_compiler_stays_in_performance_engineering(self):
         result = discover_papers.classify_candidate({
             "title": "A Tensor Compiler for Fast GPU Kernels",
             "abstract": "We compile tiled tensor programs into optimized GPU code without agents.",
         })
-        self.assertEqual(result["suggested_category"], "07_GPU内核_编译器与性能工程")
+        self.assertEqual(result["suggested_category"], "08_GPU内核_编译器与性能工程")
 
     def test_automatic_kernel_generation_is_classified_as_performance_engineering(self):
         result = discover_papers.classify_candidate({
@@ -668,7 +684,7 @@ class DiscoveryTests(unittest.TestCase):
             "abstract": "We use polyhedral transformations to generate efficient kernels.",
             "topic_ids": ["category-07-kernel-agents"],
         })
-        self.assertEqual(result["suggested_category"], "07_GPU内核_编译器与性能工程")
+        self.assertEqual(result["suggested_category"], "08_GPU内核_编译器与性能工程")
 
     def test_search_topic_is_used_as_low_confidence_classification_fallback(self):
         result = discover_papers.classify_candidate({
@@ -676,7 +692,7 @@ class DiscoveryTests(unittest.TestCase):
             "abstract": "No known category phrase is available.",
             "topic_ids": ["category-07-kernel-agents"],
         })
-        self.assertEqual(result["suggested_category"], "08_GPU内核智能体与自动调优")
+        self.assertEqual(result["suggested_category"], "09_GPU内核智能体与自动调优")
         self.assertEqual(result["category_confidence"], "需确认")
 
     def test_openalex_abstract_is_restored_in_word_order(self):

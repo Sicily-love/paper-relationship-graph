@@ -70,15 +70,17 @@ ARXIV_QUERY_GROUPS = {
 CATEGORY_LABELS = {
     "01_模型架构与基础组件": "模型架构与基础组件",
     "02_训练方法与优化器": "训练方法与优化器",
-    "03_注意力机制与长上下文": "注意力机制与长上下文",
-    "04_MoE与稀疏模型": "MoE 与稀疏模型",
-    "05_量化与低精度计算": "量化与低精度计算",
-    "06_分布式训练与数据基础设施": "分布式训练与数据基础设施",
-    "07_GPU内核_编译器与性能工程": "GPU 内核、编译器与性能工程",
-    "08_GPU内核智能体与自动调优": "GPU 内核智能体与自动调优",
-    "09_通用智能体与自主发现": "通用智能体与自主发现",
-    "10_生成模型与视频系统": "生成模型与视频系统",
-    "11_大模型技术报告与推理训练": "大模型技术报告与推理训练",
+    "03_训练动力学与模型分析": "训练动力学与模型分析",
+    "04_长上下文与高效注意力": "长上下文与高效注意力",
+    "05_MoE与稀疏模型": "MoE 与稀疏模型",
+    "06_量化与低精度计算": "量化与低精度计算",
+    "07_分布式训练与数据基础设施": "分布式训练与数据基础设施",
+    "08_GPU内核_编译器与性能工程": "GPU 内核、编译器与性能工程",
+    "09_GPU内核智能体与自动调优": "GPU 内核智能体与自动调优",
+    "10_通用智能体与自主发现": "通用智能体与自主发现",
+    "11_生成模型与视频系统": "生成模型与视频系统",
+    "12_大模型技术报告与推理训练": "大模型技术报告与推理训练",
+    "13_个人兴趣与跨领域": "个人兴趣与跨领域",
 }
 
 # These phrases encode the same primary-topic boundaries as the paper-organizer
@@ -93,25 +95,37 @@ CATEGORY_RULES = {
     "02_训练方法与优化器": (
         "optimizer", "optimization algorithm", "weight decay", "regularization",
         "knowledge distillation", "on-policy distillation", "training method",
-        "stochastic optimization", "automatic differentiation", "scaling laws",
-        "learning rate", "gradient descent", "training objective",
+        "stochastic optimization", "automatic differentiation", "learning rate",
+        "training objective", "gradient alignment", "hyperparameter transfer",
     ),
-    "03_注意力机制与长上下文": (
-        "attention", "long context", "long-context", "context window", "kv cache",
-        "flashattention", "sageattention", "sparse attention", "block attention",
-        "linear attention", "ring attention", "memory attention",
-        "sparse transformer", "sparse transformers", "pagedattention", "multi-query",
-        "online softmax", "softmax normalizer", "non-local neural",
+    "03_训练动力学与模型分析": (
+        "training dynamics", "loss landscape", "gradient noise", "gradient spectra",
+        "spectral analysis", "edge of stability", "implicit bias", "self regularization",
+        "self-regularization", "heavy tailed", "tail index", "curvature measure",
+        "activation dynamics", "model diagnostics", "layer wise gradients",
     ),
-    "04_MoE与稀疏模型": (
+    "04_长上下文与高效注意力": (
+        "long context", "long-context", "context window", "kv cache", "attention sinks",
+        "sparse attention", "block attention", "linear attention", "ring attention",
+        "memory attention", "sparse transformer", "sparse transformers", "multi-query",
+        "mixture of block attention",
+        "flashattention", "pagedattention", "tiledattention", "online softmax",
+        "softmax normalizer", "attention kernel", "attention kernels", "sdpa kernel",
+        "flex attention", "attention implementation", "attention system",
+    ),
+    "05_MoE与稀疏模型": (
         "mixture of experts", "mixture-of-experts", "moe", "expert routing",
         "expert parallel", "sparse model", "sparse experts", "load balancing expert",
     ),
-    "05_量化与低精度计算": (
+    "06_量化与低精度计算": (
+        "sageattention", "quantized attention", "attention quantization",
+        "low precision attention", "low-precision attention", "attn qat",
+        "attention aware quantization", "attention-aware quantization",
         "quantization", "quantized", "low precision", "low-precision", "mixed precision",
-        "int8", "int4", "fp8", "fp4", "4 bit", "8 bit", "bitnet", "weight-only", "post-training quantization",
+        "int8", "int4", "fp8", "fp4", "4 bit", "8 bit", "bitnet", "weight-only",
+        "post-training quantization", "outlier channel", "outlier activation",
     ),
-    "06_分布式训练与数据基础设施": (
+    "07_分布式训练与数据基础设施": (
         "distributed training", "data parallel", "model parallel", "pipeline parallel",
         "tensor parallel", "fsdp", "megatron", "collective communication",
         "all-reduce", "training infrastructure", "cluster scheduling",
@@ -119,7 +133,7 @@ CATEGORY_RULES = {
         "pretraining data", "pre-training data", "data curation", "checkpoint loading",
         "storage system", "data preprocessing", "data mixture",
     ),
-    "07_GPU内核_编译器与性能工程": (
+    "08_GPU内核_编译器与性能工程": (
         "gpu kernel", "cuda kernel", "triton kernel", "kernel optimization",
         "kernel fusion", "tensor compiler", "gpu compiler",
         "cuda optimization", "ptx", "gpu benchmark", "code generation for gpu",
@@ -127,7 +141,7 @@ CATEGORY_RULES = {
         "triton", "gpu programming", "gpu compilation", "gpu offload",
         "automatic kernel generation", "polyhedral transformation", "polyhedral transformations",
     ),
-    "08_GPU内核智能体与自动调优": (
+    "09_GPU内核智能体与自动调优": (
         "gpu kernel agent", "cuda agent", "kernel agent", "kernel agents",
         "agentic kernel", "kernel generation agent", "kernel optimization agent",
         "autonomous gpu kernel", "multi-agent kernel", "kernel design agents",
@@ -135,30 +149,34 @@ CATEGORY_RULES = {
         "llms write efficient gpu kernels", "language models write efficient gpu kernels",
         "language models to generate gpu kernels", "language models optimize gpu kernels",
     ),
-    "09_通用智能体与自主发现": (
+    "10_通用智能体与自主发现": (
         "ai agent", "llm agent", "agentic", "multi-agent", "autonomous agent",
         "tool use", "tool-use", "planning agent", "research agent", "self-play",
         "autonomous search", "open-ended discovery", "evolutionary search",
         "evolutionary code search", "evolutionary program search", "variation operators",
         "persistent memory architecture", "code optimization agent", "computer use", "web agent",
     ),
-    "10_生成模型与视频系统": (
+    "11_生成模型与视频系统": (
         "video generation", "text-to-video", "image-to-video", "video diffusion",
         "diffusion transformer", "frame interpolation", "video inference",
         "world model video", "streaming video generation", "video model", "diffusion model",
         "diffusion models",
     ),
-    "11_大模型技术报告与推理训练": (
+    "12_大模型技术报告与推理训练": (
         "technical report", "reasoning model", "reasoning training", "reasoning llm",
         "reinforcement learning for reasoning", "rlhf", "grpo", "large language model report",
         "foundation model", "inference-time scaling", "test-time scaling",
+    ),
+    "13_个人兴趣与跨领域": (
+        "living systems", "self-reference", "self referential", "natural time",
+        "representational time", "theoretical biology", "open ended creativity",
     ),
 }
 
 # Keep rule changes auditable in candidate metadata and regression fixtures.
 # The classifier still returns one primary category, but these boundaries make
 # broad words such as "attention" and "agent" defer to more specific signals.
-CATEGORY_RULE_VERSION = "2026-08-28.1"
+CATEGORY_RULE_VERSION = "2026-09-03.2"
 
 ATTENTION_SPECIFIC_MARKERS = (
     "long context", "long-context", "context window", "kv cache",
@@ -182,12 +200,25 @@ ML_DOMAIN_ANCHORS = (
 TOPIC_DOMAIN_ANCHORS = {
     "category-01-model-architecture": ML_DOMAIN_ANCHORS,
     "category-02-training-optimization": ML_DOMAIN_ANCHORS,
+    "category-03-training-dynamics": ML_DOMAIN_ANCHORS,
+    "category-04-long-context": ("attention", "transformer", "language model", "llm", "kv cache"),
+    "category-05-attention-kernels": ("attention", "gpu", "kernel", "softmax", "transformer"),
+    "category-06-attention-quantization": ("attention", "quantization", "low precision", "llm"),
+    "category-07-moe-sparse": ("mixture of experts", "moe", "expert", "language model", "transformer"),
+    "category-08-quantization": ML_DOMAIN_ANCHORS,
+    "category-09-distributed-data": ("distributed", "training", "gpu", "model", "checkpoint", "data pipeline"),
+    "category-10-gpu-performance": ("gpu", "cuda", "kernel", "compiler", "triton", "tensor"),
+    "category-07-kernel-agents": ("gpu", "cuda", "kernel", "compiler", "agent", "llm"),
+    "category-12-general-agents": ("agent", "llm", "language model", "tool use", "autonomous"),
+    "category-13-generative-video": ("video", "diffusion", "generative", "frame", "transformer"),
+    "category-14-model-reports": ("language model", "llm", "reasoning", "foundation model", "training"),
+    "category-15-personal-cross-domain": ("living systems", "self-reference", "biology", "cognition", "complex systems"),
+    # Compatibility for topics saved before the taxonomy redesign.
     "category-02-attention-context": ("attention", "transformer", "language model", "llm", "kv cache"),
     "category-03-moe-sparse": ("mixture of experts", "moe", "expert", "language model", "transformer"),
     "category-04-quantization": ML_DOMAIN_ANCHORS,
     "category-05-distributed-data": ("distributed", "training", "gpu", "model", "checkpoint", "data pipeline"),
     "category-06-gpu-performance": ("gpu", "cuda", "kernel", "compiler", "triton", "tensor"),
-    "category-07-kernel-agents": ("gpu", "cuda", "kernel", "compiler", "agent", "llm"),
     "category-08-general-agents": ("agent", "llm", "language model", "tool use", "autonomous"),
     "category-09-generative-video": ("video", "diffusion", "generative", "frame", "transformer"),
     "category-10-model-reports": ("language model", "llm", "reasoning", "foundation model", "training"),
@@ -196,15 +227,28 @@ TOPIC_DOMAIN_ANCHORS = {
 TOPIC_CATEGORY_MAP = {
     "category-01-model-architecture": "01_模型架构与基础组件",
     "category-02-training-optimization": "02_训练方法与优化器",
-    "category-02-attention-context": "03_注意力机制与长上下文",
-    "category-03-moe-sparse": "04_MoE与稀疏模型",
-    "category-04-quantization": "05_量化与低精度计算",
-    "category-05-distributed-data": "06_分布式训练与数据基础设施",
-    "category-06-gpu-performance": "07_GPU内核_编译器与性能工程",
-    "category-07-kernel-agents": "08_GPU内核智能体与自动调优",
-    "category-08-general-agents": "09_通用智能体与自主发现",
-    "category-09-generative-video": "10_生成模型与视频系统",
-    "category-10-model-reports": "11_大模型技术报告与推理训练",
+    "category-03-training-dynamics": "03_训练动力学与模型分析",
+    "category-04-long-context": "04_长上下文与高效注意力",
+    "category-05-attention-kernels": "04_长上下文与高效注意力",
+    "category-06-attention-quantization": "06_量化与低精度计算",
+    "category-07-moe-sparse": "05_MoE与稀疏模型",
+    "category-08-quantization": "06_量化与低精度计算",
+    "category-09-distributed-data": "07_分布式训练与数据基础设施",
+    "category-10-gpu-performance": "08_GPU内核_编译器与性能工程",
+    "category-07-kernel-agents": "09_GPU内核智能体与自动调优",
+    "category-12-general-agents": "10_通用智能体与自主发现",
+    "category-13-generative-video": "11_生成模型与视频系统",
+    "category-14-model-reports": "12_大模型技术报告与推理训练",
+    "category-15-personal-cross-domain": "13_个人兴趣与跨领域",
+    # Compatibility for search topics saved under the previous taxonomy.
+    "category-02-attention-context": "04_长上下文与高效注意力",
+    "category-03-moe-sparse": "05_MoE与稀疏模型",
+    "category-04-quantization": "06_量化与低精度计算",
+    "category-05-distributed-data": "07_分布式训练与数据基础设施",
+    "category-06-gpu-performance": "08_GPU内核_编译器与性能工程",
+    "category-08-general-agents": "10_通用智能体与自主发现",
+    "category-09-generative-video": "11_生成模型与视频系统",
+    "category-10-model-reports": "12_大模型技术报告与推理训练",
 }
 
 PROFILE_STOPWORDS = {
@@ -385,51 +429,44 @@ def classify_candidate(candidate: dict) -> dict:
 
     combined = f" {normalize_title(' '.join((title, abstract_focus, topics)))} "
     normalized_title = normalize_title(title)
-    video_category = "10_生成模型与视频系统"
+    video_category = "11_生成模型与视频系统"
     architecture_category = "01_模型架构与基础组件"
-    kernel_category = "07_GPU内核_编译器与性能工程"
-    kernel_agent_category = "08_GPU内核智能体与自动调优"
-    attention_category = "03_注意力机制与长上下文"
-    quantization_category = "05_量化与低精度计算"
+    kernel_category = "08_GPU内核_编译器与性能工程"
+    kernel_agent_category = "09_GPU内核智能体与自动调优"
+    long_context_category = "04_长上下文与高效注意力"
+    attention_kernel_category = "04_长上下文与高效注意力"
+    attention_quantization_category = "06_量化与低精度计算"
+    quantization_category = "06_量化与低精度计算"
     has_quantization = any(marker in combined for marker in QUANTIZATION_MARKERS)
 
-    # A generic use of "attention" is common in foundational Transformer
-    # papers. Only promote the attention category when there is a long-context
-    # or implementation-specific signal.
     title_has_attention = " attention " in f" {normalized_title} "
-    if (
-        " attention " in combined
-        and not any(marker in combined for marker in ATTENTION_SPECIFIC_MARKERS)
-        and not (title_has_attention and has_quantization)
-    ):
-        scores[attention_category] = max(0, scores[attention_category] - 8)
     if "attention is all you need" in f" {normalized_title} ":
-        scores[architecture_category] += 32
-    if " attention " in f" {normalized_title} ":
-        scores[attention_category] += 10
-    attention_primary_signal = any(marker in normalized_title for marker in (
-        "flashattention", "pagedattention", "sageattention", "tiledattention", "sdpa",
-        "flex attention",
+        scores[architecture_category] += 64
+    attention_kernel_signal = any(marker in normalized_title for marker in (
+        "flashattention", "pagedattention", "tiledattention", "sdpa", "flex attention",
+        "online normalizer", "online softmax", "attention kernel", "attention kernels",
     ))
-    if attention_primary_signal:
-        scores[attention_category] += 80
+    attention_quantization_signal = has_quantization and (
+        title_has_attention
+        or any(marker in normalized_title for marker in ("sageattention", "attn qat"))
+    )
+    long_context_signal = any(marker in normalized_title for marker in (
+        "long context", "long-context", "attention sinks", "sparse attention",
+        "block attention", "mixture of block attention", "ring attention",
+    ))
+    if attention_quantization_signal:
+        scores[attention_quantization_category] += 80
+        scores[quantization_category] = max(0, scores[quantization_category] - 8)
+    elif attention_kernel_signal:
+        scores[attention_kernel_category] += 80
         scores[kernel_category] = max(0, scores[kernel_category] - 25)
-    if title_has_attention and any(marker in f" {normalized_title} " for marker in (
-        " kernel ", " kernels ", " sdpa ",
-    )):
-        scores[attention_category] += 26
+    elif long_context_signal:
+        scores[long_context_category] += 48
 
     # Quantization is a distinct method family. Preserve attention as the
     # primary category only when the paper explicitly focuses on an
     # attention-specific quantization technique.
-    has_attention_specific_quantization = (
-        has_quantization
-        and (
-            any(marker in combined for marker in ATTENTION_SPECIFIC_MARKERS)
-            or (" attention " in f" {normalized_title} " and has_quantization)
-        )
-    )
-    if has_quantization and not has_attention_specific_quantization:
+    if has_quantization and not attention_quantization_signal:
         scores[quantization_category] += 12
     video_title_signal = any(marker in f" {normalized_title} " for marker in (
         " video ", " text to video ", " image to video ",
@@ -440,7 +477,7 @@ def classify_candidate(candidate: dict) -> dict:
         scores[video_category] += 24
     moe_focus = f" {normalize_title(' '.join((title, abstract[:450])))} "
     if any(marker in moe_focus for marker in (" mixture of experts ", " moe ")):
-        scores["04_MoE与稀疏模型"] += 22
+        scores["05_MoE与稀疏模型"] += 22
     kernel_markers = (
         " gpu kernel ", " gpu kernels ", " cuda kernel ", " cuda kernels ",
         " triton kernel ", " triton kernels ", " accelerator kernel ",
@@ -498,7 +535,7 @@ def classify_candidate(candidate: dict) -> dict:
         " technical report ", " open large language models ", " model card ",
     )) or normalized_title.startswith("deepseek ")
     if report_title_signal:
-        scores["11_大模型技术报告与推理训练"] += 24
+        scores["12_大模型技术报告与推理训练"] += 24
     if " optimizer " in f" {normalized_title} ":
         scores["02_训练方法与优化器"] += 18
     if (
@@ -506,16 +543,14 @@ def classify_candidate(candidate: dict) -> dict:
         and any(marker in combined for marker in (" evolutionary ", " evolution "))
         and any(marker in combined for marker in (" code search ", " program search ", " persistent memory "))
     ):
-        scores["09_通用智能体与自主发现"] += 18
+        scores["10_通用智能体与自主发现"] += 18
     distributed_title_signal = any(marker in f" {normalized_title} " for marker in (
         " pipeline parallelism ", " distributed training ",
         " compute communication ", " communication overlapping ",
     ))
     if distributed_title_signal:
-        scores["06_分布式训练与数据基础设施"] += 18
-        scores[attention_category] = max(0, scores[attention_category] - 8)
-    if " attention " in combined and has_quantization:
-        scores[attention_category] += 12
+        scores["07_分布式训练与数据基础设施"] += 18
+        scores[long_context_category] = max(0, scores[long_context_category] - 8)
 
     ranked = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
     category, top_score = ranked[0]

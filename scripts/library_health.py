@@ -15,6 +15,7 @@ from discovery_utils import DEFAULT_DISCOVERY_JS, DEFAULT_DISCOVERY_JSON, DEFAUL
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GRAPH_JS = REPO_ROOT / "web" / "data" / "graph-data.js"
+DEFAULT_CLASSIFICATION_REVIEW = REPO_ROOT / ".cache" / "classification-review.json"
 REMOVED_LIBRARY_DIR = ".paper-atlas-removed"
 
 
@@ -95,23 +96,47 @@ def validate_library(
         for path in library_files
         if path.parent.parent != papers_dir or path.parent.name not in categories
     )
-    if unclassified:
+    review_queue = load_json(DEFAULT_CLASSIFICATION_REVIEW, {"items": []})
+    review_paths = {
+        str(item.get("path") or "")
+        for item in (review_queue.get("items") or [])
+        if isinstance(item, dict)
+    } if isinstance(review_queue, dict) else set()
+    pending_review = [path for path in unclassified if path in review_paths]
+    needs_classification = [path for path in unclassified if path not in review_paths]
+    if needs_classification:
         issues.append(issue(
             "unclassified-files", "error", "存在未分类论文",
-            "、".join(unclassified[:8]) + (f" 等 {len(unclassified)} 个文件" if len(unclassified) > 8 else ""),
+            "、".join(needs_classification[:8])
+            + (f" 等 {len(needs_classification)} 个文件" if len(needs_classification) > 8 else ""),
             "classify",
+        ))
+    if pending_review:
+        issues.append(issue(
+            "classification-review-pending", "warning", "有论文等待确认类别",
+            f"{len(pending_review)} 篇已生成分类建议，请在分类待审核中确认归档。",
+            "review-classification",
         ))
 
     nodes = graph.get("nodes", []) if isinstance(graph, dict) else []
     edges = (graph.get("edges") or {}).get("citation", []) if isinstance(graph, dict) else []
     node_ids = {node.get("id") for node in nodes}
     graph_paths = {str(node.get("path")) for node in nodes}
+    duplicate_paths = {
+        str(path)
+        for duplicate in (graph.get("duplicates") or [])
+        if isinstance(duplicate, dict)
+        for path in (duplicate.get("path"), duplicate.get("duplicate_of"))
+        if path
+    }
     pdf_paths = {
         str(path.relative_to(papers_dir))
         for path in library_files
         if path.suffix.lower() == ".pdf" and path.parent.name in categories
     }
-    missing_nodes = sorted(pdf_paths - graph_paths)
+    # Exact duplicate files intentionally share one graph node. Both recorded paths
+    # are represented by that node even though only one appears in nodes[].path.
+    missing_nodes = sorted(pdf_paths - graph_paths - duplicate_paths)
     stale_nodes = sorted(graph_paths - pdf_paths)
     if missing_nodes or stale_nodes:
         detail_parts = []

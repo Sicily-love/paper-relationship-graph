@@ -109,6 +109,7 @@ OPERATIONS: dict[str, dict[str, Any]] = {
     "classification.reviews": {"method": "GET", "path": "/api/v1/classification-reviews", "kind": "query"},
     "classification.decision": {"method": "POST", "path": "/api/v1/classification-reviews/{id}/decision", "kind": "job"},
     "graph.read": {"method": "GET", "path": "/api/v1/graph", "kind": "query"},
+    "papers.read_status": {"method": "PUT", "path": "/api/v1/papers/{id}/read-status", "kind": "mutation"},
     "graph.build": {"method": "POST", "path": "/api/v1/graph-builds", "kind": "job"},
     "graph.remove": {"method": "DELETE", "path": "/api/v1/graph/nodes/{id}", "kind": "job"},
     "jobs.get": {"method": "GET", "path": "/api/v1/jobs/{id}", "kind": "query"},

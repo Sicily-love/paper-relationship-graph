@@ -87,7 +87,12 @@ class MaintenanceServiceTests(unittest.TestCase):
         service = app_services.AppServices(Path("papers"))
         task_result = {
             "message": "task done", "status": "success",
-            "result": {"graph_updated": True},
+            "result": {
+                "scanned": 3,
+                "classified": [{"path": "one.pdf"}, {"path": "two.pdf"}],
+                "pending": [{"path": "three.pdf"}],
+                "graph_updated": True,
+            },
         }
         with (
             patch.object(app_services.task_center, "run_task", return_value=task_result),
@@ -103,6 +108,8 @@ class MaintenanceServiceTests(unittest.TestCase):
             result = service.run_maintenance({"action": "classify"})
 
         self.assertTrue(result["graph_updated"])
+        self.assertEqual(result["message"], "已扫描 3 篇：自动归档 2 篇，1 篇需要确认类别")
+        self.assertEqual(result["classification_result"]["scanned"], 3)
         self.assertEqual(result["classification_review"]["items"][0]["id"], "review-1")
         self.assertEqual(result["health"]["status"], "warning")
 

@@ -19,6 +19,7 @@ from discovery_utils import normalize_title, load_json, write_text_atomic
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REVIEW_QUEUE = REPO_ROOT / ".cache" / "classification-review.json"
+AUTO_ARCHIVE_CONFIDENCES = {"高", "中"}
 
 
 def review_item_id(relative_path: str) -> str:
@@ -42,9 +43,28 @@ def write_review_queue(items: list[dict], path: Path = DEFAULT_REVIEW_QUEUE) -> 
     return data
 
 
-def load_review_queue(path: Path = DEFAULT_REVIEW_QUEUE) -> dict:
+def load_review_queue(path: Path = DEFAULT_REVIEW_QUEUE, papers_dir: Path | None = None) -> dict:
     data = load_json(path, {"version": 1, "updated_at": None, "items": []})
-    return data if isinstance(data, dict) else {"version": 1, "updated_at": None, "items": []}
+    if not isinstance(data, dict):
+        return {"version": 1, "updated_at": None, "items": []}
+    if papers_dir is None:
+        return data
+    root = papers_dir.expanduser().resolve()
+    valid = []
+    for item in data.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        source = (root / str(item.get("path") or "")).resolve()
+        try:
+            source.relative_to(root)
+        except ValueError:
+            continue
+        if source.is_file() and source.suffix.lower() in {".pdf", ".pptx"}:
+            valid.append(item)
+    if len(valid) != len(data.get("items") or []):
+        data = {**data, "updated_at": datetime.now(timezone.utc).isoformat(), "items": valid}
+        write_text_atomic(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    return data
 
 
 def paper_candidate(path: Path) -> dict:
@@ -103,7 +123,7 @@ def classify_files(papers_dir: Path, dry_run: bool = False) -> dict:
             continue
         category = classification.get("suggested_category")
         confidence = classification.get("category_confidence")
-        if not category or confidence != "高":
+        if not category or confidence not in AUTO_ARCHIVE_CONFIDENCES:
             pending.append({
                 "path": str(path.relative_to(papers_dir)),
                 "suggested_category": category or "",
@@ -130,7 +150,12 @@ def classify_files(papers_dir: Path, dry_run: bool = False) -> dict:
             "reason": classification.get("category_reason"),
             "rule_version": classification.get("category_rule_version", discover_papers.CATEGORY_RULE_VERSION),
         })
-    return {"classified": moved, "pending": pending, "dry_run": dry_run}
+    return {
+        "scanned": len(unclassified),
+        "classified": moved,
+        "pending": pending,
+        "dry_run": dry_run,
+    }
 
 
 def parse_args() -> argparse.Namespace:
@@ -143,16 +168,23 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     result = classify_files(args.papers_dir, args.dry_run)
-    result["review"] = write_review_queue(result["pending"])
+    result["review"] = (
+        {"version": 1, "updated_at": None, "items": normalize_pending(result["pending"])}
+        if args.dry_run
+        else write_review_queue(result["pending"])
+    )
     result["graph_updated"] = False
-    if not args.dry_run:
+    if not args.dry_run and result["classified"]:
         graph = build_graph.build_graph(
             args.papers_dir.expanduser().resolve(), build_graph.DEFAULT_EXTRACTION_CACHE
         )
         build_graph.write_graph(graph, build_graph.DEFAULT_JSON, build_graph.DEFAULT_JS)
         result["graph_updated"] = True
     print(json.dumps(result, ensure_ascii=False))
-    print(f"分类完成：自动归档 {len(result['classified'])}，等待确认 {len(result['pending'])}。")
+    print(
+        f"分类完成：扫描 {result['scanned']} 篇，自动归档 {len(result['classified'])} 篇，"
+        f"等待确认 {len(result['pending'])} 篇。"
+    )
 
 
 if __name__ == "__main__":
