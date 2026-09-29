@@ -534,7 +534,7 @@
     }
 
     BOOL isApp = [url.scheme.lowercaseString isEqualToString:@"paperatlas"];
-    if (isApp && [url.path hasPrefix:@"/papers/"] && navigationAction.targetFrame == nil) {
+    if (isApp && [url.path hasPrefix:@"/papers/"]) {
         NSString *relative = [[url.path substringFromIndex:@"/papers/".length] stringByRemovingPercentEncoding];
         NSURL *paperURL = [self.papersDirectory URLByAppendingPathComponent:relative];
         NSString *root = self.papersDirectory.URLByStandardizingPath.path;

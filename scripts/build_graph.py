@@ -14,6 +14,7 @@ from pathlib import Path
 
 from pypdf import PdfReader
 from discovery_utils import write_text_atomic
+from library_layout import STANDARD_CATEGORIES
 
 
 logging.getLogger("pypdf").setLevel(logging.ERROR)
@@ -23,23 +24,6 @@ DEFAULT_PAPERS_DIR = REPO_ROOT.parent
 DEFAULT_JSON = REPO_ROOT / "web" / "data" / "graph.json"
 DEFAULT_JS = REPO_ROOT / "web" / "data" / "graph-data.js"
 DEFAULT_EXTRACTION_CACHE = REPO_ROOT / ".cache" / "graph-extraction.json"
-
-STANDARD_CATEGORIES = (
-    "01_模型架构与基础组件",
-    "02_训练方法与优化器",
-    "03_训练动力学与模型分析",
-    "04_长上下文与高效注意力",
-    "05_MoE与稀疏模型",
-    "06_量化与低精度计算",
-    "07_分布式训练与数据基础设施",
-    "08_GPU内核_编译器与性能工程",
-    "09_GPU内核智能体与自动调优",
-    "10_通用智能体与自主发现",
-    "11_生成模型与视频系统",
-    "12_大模型技术报告与推理训练",
-    "13_个人兴趣与跨领域",
-)
-
 
 def normalize(text: str) -> str:
     text = unicodedata.normalize("NFKD", text).lower()

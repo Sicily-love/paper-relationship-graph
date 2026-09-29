@@ -12,6 +12,8 @@ import threading
 import webbrowser
 from pathlib import Path
 
+import library_layout
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PAPERS_DIR = REPO_ROOT.parent
@@ -50,14 +52,7 @@ def ensure_runtime() -> Path:
 
 
 def library_files(papers_dir: Path) -> list[Path]:
-    files = []
-    for path in papers_dir.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in {".pdf", ".pptx"}:
-            continue
-        if REPO_ROOT == path or REPO_ROOT in path.parents:
-            continue
-        files.append(path)
-    return files
+    return library_layout.paper_files(papers_dir, excluded_roots=(REPO_ROOT,))
 
 
 def refresh_graph_if_needed(python: Path, papers_dir: Path) -> None:

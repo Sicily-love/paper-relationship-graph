@@ -82,11 +82,8 @@ def paper_candidate(path: Path) -> dict:
 
 def classify_files(papers_dir: Path, dry_run: bool = False) -> dict:
     papers_dir = papers_dir.expanduser().resolve()
-    _recognized, unclassified = update_library.validate_taxonomy(papers_dir)
-    known_papers = [
-        path for path in papers_dir.rglob("*.pdf")
-        if path.parent.parent == papers_dir and path.parent.name in build_graph.STANDARD_CATEGORIES
-    ]
+    recognized, unclassified = update_library.validate_taxonomy(papers_dir)
+    known_papers = [path for path in recognized if path.suffix.lower() == ".pdf"]
     moved: list[dict] = []
     pending: list[dict] = []
     for path in unclassified:

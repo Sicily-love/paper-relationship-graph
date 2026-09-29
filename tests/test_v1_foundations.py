@@ -379,6 +379,13 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('@selector(paste:)', launcher)
         self.assertIn('@"config/discovery-evaluation.json"', launcher)
 
+    def test_native_pdf_open_uses_intercepted_navigation(self):
+        app = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+        launcher = (ROOT / "platform" / "macos" / "PaperAtlasLauncher.m").read_text(encoding="utf-8")
+        self.assertIn("function openPaperPdf(node)", app)
+        self.assertIn("window.location.assign(url)", app)
+        self.assertIn('if (isApp && [url.path hasPrefix:@"/papers/"])', launcher)
+
     def test_release_checksum_does_not_include_the_build_machine_path(self):
         release_script = (ROOT / "platform" / "macos" / "build_release.sh").read_text(encoding="utf-8")
         self.assertIn('(cd "$DIST"', release_script)

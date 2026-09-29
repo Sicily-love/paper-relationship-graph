@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import build_graph
+import library_layout
 import maintenance_actions
 from discovery_utils import DEFAULT_DISCOVERY_JS, DEFAULT_DISCOVERY_JSON, DEFAULT_GRAPH, load_json
 
@@ -16,9 +17,6 @@ from discovery_utils import DEFAULT_DISCOVERY_JS, DEFAULT_DISCOVERY_JSON, DEFAUL
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GRAPH_JS = REPO_ROOT / "web" / "data" / "graph-data.js"
 DEFAULT_CLASSIFICATION_REVIEW = REPO_ROOT / ".cache" / "classification-review.json"
-REMOVED_LIBRARY_DIR = ".paper-atlas-removed"
-
-
 def javascript_payload(path: Path, prefix: str) -> dict:
     text = path.read_text(encoding="utf-8").strip()
     if not text.startswith(prefix) or not text.endswith(";"):
@@ -84,13 +82,7 @@ def validate_library(
             "、".join(missing_categories), "ensure-categories",
         ))
 
-    library_files = [
-        path for path in papers_dir.rglob("*")
-        if path.is_file()
-        and path.suffix.lower() in {".pdf", ".pptx"}
-        and REPO_ROOT not in path.parents
-        and REMOVED_LIBRARY_DIR not in path.relative_to(papers_dir).parts
-    ]
+    library_files = library_layout.paper_files(papers_dir, excluded_roots=(REPO_ROOT,))
     unclassified = sorted(
         str(path.relative_to(papers_dir))
         for path in library_files

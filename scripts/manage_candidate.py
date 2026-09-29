@@ -22,6 +22,7 @@ from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
 import build_graph
+import library_layout
 from discovery_utils import (
     DEFAULT_DISCOVERY_JS,
     DEFAULT_DISCOVERY_JSON,
@@ -34,9 +35,6 @@ from discovery_utils import (
 
 
 USER_AGENT = "PaperAtlas/1.0 (local research library discovery)"
-REMOVED_LIBRARY_DIR = ".paper-atlas-removed"
-
-
 @dataclass
 class ArchiveReceipt:
     destination: Path
@@ -84,18 +82,11 @@ def file_hash(path: Path) -> str:
 
 def library_paper_files(papers_dir: Path) -> list[Path]:
     """Return every library paper, including files waiting at the root."""
-    return sorted(
-        path
-        for path in papers_dir.rglob("*")
-        if path.is_file()
-        and path.suffix.lower() in {".pdf", ".pptx"}
-        and build_graph.REPO_ROOT not in path.parents
-        and REMOVED_LIBRARY_DIR not in path.relative_to(papers_dir).parts
-    )
+    return library_layout.paper_files(papers_dir, excluded_roots=(build_graph.REPO_ROOT,))
 
 
 def is_standard_location(path: Path, papers_dir: Path) -> bool:
-    return path.parent.parent == papers_dir and path.parent.name in build_graph.STANDARD_CATEGORIES
+    return library_layout.is_standard_location(path, papers_dir)
 
 
 def arxiv_id_from_value(value: object) -> str | None:

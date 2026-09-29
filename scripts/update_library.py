@@ -8,32 +8,15 @@ import json
 from pathlib import Path
 
 import build_graph
-
-
-REMOVED_LIBRARY_DIR = ".paper-atlas-removed"
+import library_layout
 
 
 def paper_files(papers_dir: Path) -> list[Path]:
-    return sorted(
-        path
-        for path in papers_dir.rglob("*")
-        if path.is_file()
-        and path.suffix.lower() in {".pdf", ".pptx"}
-        and build_graph.REPO_ROOT not in path.parents
-        and REMOVED_LIBRARY_DIR not in path.relative_to(papers_dir).parts
-    )
+    return library_layout.paper_files(papers_dir, excluded_roots=(build_graph.REPO_ROOT,))
 
 
 def validate_taxonomy(papers_dir: Path) -> tuple[list[Path], list[Path]]:
-    recognized: list[Path] = []
-    unclassified: list[Path] = []
-    allowed = set(build_graph.STANDARD_CATEGORIES)
-    for path in paper_files(papers_dir):
-        if path.parent.parent == papers_dir and path.parent.name in allowed:
-            recognized.append(path)
-        else:
-            unclassified.append(path)
-    return recognized, unclassified
+    return library_layout.partition_by_taxonomy(papers_dir, excluded_roots=(build_graph.REPO_ROOT,))
 
 
 def previous_hashes(json_path: Path) -> set[str]:

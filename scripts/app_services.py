@@ -16,6 +16,7 @@ import backup_restore
 import build_graph
 import classify_library
 import discover_papers
+import library_layout
 import library_health
 import maintenance_actions
 import manage_candidate
@@ -35,7 +36,6 @@ from discovery_utils import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-REMOVED_LIBRARY_DIR = ".paper-atlas-removed"
 REMOVED_MANIFEST = "manifest.json"
 DISCOVERY_MESSAGES = {
     "topics": "主题论文发现已完成",
@@ -325,7 +325,7 @@ class AppServices:
         if not source.is_file() or source.suffix.lower() not in {".pdf", ".pptx"}:
             raise ValueError("节点对应的论文文件已不存在")
 
-        archive_root = self.papers_dir / REMOVED_LIBRARY_DIR
+        archive_root = self.papers_dir / library_layout.REMOVED_LIBRARY_DIR
         destination = unique_destination(archive_root / source.parent.name / source.name)
         destination.parent.mkdir(parents=True, exist_ok=True)
         source.replace(destination)

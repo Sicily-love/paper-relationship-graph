@@ -18,6 +18,10 @@ class StartAppTests(unittest.TestCase):
             (root / "paper.pdf").touch()
             (root / "slides.pptx").touch()
             (root / "notes.txt").touch()
+            (root / "_归档").mkdir()
+            (root / "_归档" / "old.pdf").touch()
+            (root / ".cache").mkdir()
+            (root / ".cache" / "runtime.pdf").touch()
             self.assertEqual(
                 [path.name for path in start_app.library_files(root)],
                 ["paper.pdf", "slides.pptx"],

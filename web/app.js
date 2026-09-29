@@ -3015,6 +3015,18 @@
     return window.location.protocol === 'file:' ? `../../${encodedPath}` : `/papers/${encodedPath}`;
   }
 
+  function openPaperPdf(node) {
+    const url = paperUrl(node);
+    if (window.webkit?.messageHandlers?.paperAtlas) {
+      // The native app intercepts this navigation and opens the local file.
+      // WKWebView otherwise drops window.open calls without a window delegate.
+      showToast('正在使用默认 PDF 阅读器打开…');
+      window.location.assign(url);
+      return;
+    }
+    window.open(url, '_blank', 'noopener');
+  }
+
   function showPaperDetail(node) {
     detailReturnFocus = document.activeElement;
     paperDetail.hidden = false;
@@ -3118,6 +3130,12 @@
   detailClose.addEventListener('click', closePaperDetail);
   detailBackdrop.addEventListener('click', closePaperDetail);
   removeGraphNodeButton.addEventListener('click', removeGraphNode);
+  detailPdf.addEventListener('click', event => {
+    const node = nodesById[removeGraphNodeButton.dataset.nodeId];
+    if (!node) return;
+    event.preventDefault();
+    openPaperPdf(node);
+  });
   manageTopics.addEventListener('click', openTopicsDialog);
   discoveryManageTopics.addEventListener('click', () => {
     closeDiscoverySheet();
@@ -3170,7 +3188,7 @@
   });
   graphInspectorOpenPdf.addEventListener('click', () => {
     const node = nodesById[graphInspectorOpenPdf.dataset.nodeId];
-    if (node) window.open(paperUrl(node), '_blank', 'noopener');
+    if (node) openPaperPdf(node);
   });
   graphInspectorReadStatus.addEventListener('click', async () => {
     const node = nodesById[graphInspectorReadStatus.dataset.nodeId];
