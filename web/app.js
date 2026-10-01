@@ -1,4 +1,9 @@
 (() => {
+  const {displayCategoryLabel, formatTaskTime, normalizeSearch, scoreColor, shortYear} = window.PaperAtlasFormat;
+  const {createStore, loadLocalJson, saveLocalJson} = window.PaperAtlasState;
+  const apiClient = window.PaperAtlasRuntime.createApiClient({
+    token: document.querySelector('meta[name="paper-atlas-token"]')?.content || '',
+  });
   const graph = window.PAPER_GRAPH;
   let discovery = window.PAPER_DISCOVERY || {metadata: {}, topics: [], candidates: []};
   const releases = window.PAPER_RELEASES || {current_version: '', releases: []};
@@ -270,17 +275,16 @@
     return {enabled: true, exclude_keywords: [], max_results: 5, category, ...template};
   });
 
-  const displayCategoryLabel = label => String(label || '').replace(/_/g, ' · ');
-
+  const savedUiState = loadLocalJson('paper-atlas-ui-state', {});
   let selectedNode = null;
-  let searchTerm = '';
-  let discoverySource = 'all';
-  let discoveryCategory = 'all';
+  let searchTerm = String(savedUiState.searchTerm || '');
+  let discoverySource = String(savedUiState.discoverySource || 'all');
+  let discoveryCategory = String(savedUiState.discoveryCategory || 'all');
   const selectedDiscoveryModes = new Set(['arxiv']);
   const selectedDiscoveryTopicIds = new Set();
   let graphSearchIndex = 0;
   let selectedCandidateId = null;
-  let activeView = 'graph';
+  let activeView = String(savedUiState.activeView || 'graph');
   let apiTopics = (discovery.topics || []).map(topic => ({enabled: true, max_results: 10, ...topic}));
   let reviewCategories = graph.categories.map(category => ({id: category.id, label: displayCategoryLabel(category.label)}));
   let toastTimer = null;
@@ -312,84 +316,8 @@
   let releaseNotesReturnFocus = null;
   const candidateCategoryOverrides = new Map(Object.entries(loadLocalJson('paper-atlas-category-overrides', {})));
   const topicTemplateButtons = new Map();
-  const nativeRequests = new Map();
-  const apiToken = document.querySelector('meta[name="paper-atlas-token"]')?.content || '';
-
-  window.__paperAtlasNativeResolve = (id, encodedPayload) => {
-    const pending = nativeRequests.get(id);
-    if (!pending) return;
-    nativeRequests.delete(id);
-    clearTimeout(pending.timeout);
-    try {
-      const bytes = Uint8Array.from(atob(encodedPayload), character => character.charCodeAt(0));
-      const payload = JSON.parse(new TextDecoder().decode(bytes));
-      if (payload.error) {
-        const detail = typeof payload.error === 'string' ? payload.error : payload.error.message;
-        pending.reject(new Error(detail || '本地任务运行失败'));
-      } else {
-        pending.resolve(payload.data !== undefined ? payload.data : payload);
-      }
-    } catch (_error) {
-      pending.reject(new Error('应用返回的数据无法读取'));
-    }
-  };
-
-  function nativeApiRequest(path, options) {
-    return new Promise((resolve, reject) => {
-      const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
-      const timeout = setTimeout(() => {
-        nativeRequests.delete(id);
-        reject(new Error('应用操作超时，请稍后重试'));
-      }, 370000);
-      nativeRequests.set(id, {resolve, reject, timeout});
-      try {
-        window.webkit.messageHandlers.paperAtlas.postMessage({
-          id,
-          path,
-          method: options.method || 'GET',
-          headers: options.headers || {},
-          body: options.body || '',
-        });
-      } catch (_error) {
-        clearTimeout(timeout);
-        nativeRequests.delete(id);
-        reject(new Error('应用管理功能未连接，请重新打开 Paper Atlas'));
-      }
-    });
-  }
-
-  function normalizeSearch(value) {
-    return String(value || '').toLocaleLowerCase().replace(/\s+/g, ' ').trim();
-  }
-
-  // Map the score itself onto a continuous traffic-light palette.  Each
-  // candidate receives one solid colour; the track no longer contains a
-  // misleading left-to-right rainbow.
-  function scoreColor(value) {
-    const score = Math.max(0, Math.min(100, Number(value) || 0));
-    const stops = [[0, [223, 91, 103]], [50, [239, 177, 61]], [100, [56, 184, 106]]];
-    let lower = stops[0];
-    let upper = stops[stops.length - 1];
-    for (let index = 1; index < stops.length; index += 1) {
-      if (score <= stops[index][0]) { upper = stops[index]; lower = stops[index - 1]; break; }
-    }
-    const ratio = (score - lower[0]) / Math.max(1, upper[0] - lower[0]);
-    const rgb = lower[1].map((channel, index) => Math.round(channel + (upper[1][index] - channel) * ratio));
-    return `rgb(${rgb.join(', ')})`;
-  }
-
-  function loadLocalJson(key, fallback) {
-    try {
-      const value = JSON.parse(localStorage.getItem(key) || 'null');
-      return value && typeof value === 'object' ? value : fallback;
-    } catch (_error) {
-      return fallback;
-    }
-  }
-
-  function saveLocalJson(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch (_error) { /* optional */ }
-  }
+  const uiState = createStore({activeView, searchTerm, discoverySource, discoveryCategory});
+  uiState.subscribe(snapshot => saveLocalJson('paper-atlas-ui-state', snapshot));
 
   function nodeMatchesSearch(node) {
     if (!searchTerm) return true;
@@ -400,13 +328,13 @@
   metricCitations.textContent = String(graph.metadata.citation_edges);
   metricCategories.textContent = String(graph.categories.length);
   const fullYearSpan = `${yearMin}–${yearMax}`;
-  const shortYear = year => String(year).slice(-2).padStart(2, '0');
   metricYears.textContent = `${shortYear(yearMin)}–${shortYear(yearMax)}`;
   metricYears.title = fullYearSpan;
   metricYears.setAttribute('aria-label', fullYearSpan);
   function activateView(view, remember = true) {
     if (!viewPanels.some(panel => panel.dataset.viewPanel === view)) view = 'graph';
     activeView = view;
+    uiState.set({activeView});
     viewButtons.forEach(button => {
       const active = button.dataset.view === view;
       button.classList.toggle('active', active);
@@ -1060,80 +988,7 @@
     showToast('当前日志已复制');
   }
 
-  async function apiRequest(path, options = {}) {
-    const prepared = prepareApiRequest(path, options);
-    const payload = await sendApiRequest(prepared.path, prepared.options);
-    if (!prepared.awaitJob || !payload?.job) return payload;
-    return waitForApiJob(payload.job.id);
-  }
-
-  function prepareApiRequest(path, options = {}) {
-    const method = String(options.method || 'GET').toUpperCase();
-    let body = {};
-    try { body = options.body ? JSON.parse(options.body) : {}; } catch (_error) { body = {}; }
-    const prepared = {...options, method};
-    const encode = value => encodeURIComponent(String(value || ''));
-    if (path === '/api/state') return {path: '/api/v1/state', options: prepared};
-    if (path === '/api/topics') return {path: '/api/v1/topics', options: prepared};
-    if (path === '/api/logs') return {path: '/api/v1/logs', options: {...prepared, method: 'GET', body: undefined}};
-    if (path === '/api/discover') return {path: '/api/v1/discovery-runs', options: prepared, awaitJob: true};
-    if (path === '/api/candidates/action') return {path: `/api/v1/candidates/${encode(body.id)}/decision`, options: prepared, awaitJob: true};
-    if (path === '/api/candidates/feedback') return {path: `/api/v1/candidates/${encode(body.id)}/feedback`, options: prepared};
-    if (path === '/api/candidates/clear') return {path: '/api/v1/candidates', options: {...prepared, method: 'DELETE'}};
-    if (path === '/api/classification/action') return {path: `/api/v1/classification-reviews/${encode(body.id)}/decision`, options: prepared, awaitJob: true};
-    if (path === '/api/maintenance/rebuild') return {path: '/api/v1/maintenance-runs', options: prepared, awaitJob: true};
-    if (path === '/api/diagnostics') return {path: '/api/v1/diagnostic-runs', options: prepared, awaitJob: true};
-    if (path === '/api/graph/node/remove') return {path: `/api/v1/graph/nodes/${encode(body.id)}`, options: {...prepared, method: 'DELETE'}, awaitJob: true};
-    if (path === '/api/papers/read-status') return {path: `/api/v1/papers/${encode(body.id)}/read-status`, options: {...prepared, method: 'PUT'}};
-    if (path === '/api/tasks') {
-      if (body.action === 'state') return {path: '/api/v1/tasks', options: {...prepared, method: 'GET', body: undefined}};
-      if (body.action === 'run') return {path: `/api/v1/tasks/${encode(body.task_id)}/runs`, options: prepared, awaitJob: true};
-      if (body.action === 'configure') return {path: '/api/v1/tasks', options: {...prepared, method: 'PUT'}};
-    }
-    if (path === '/api/backup') {
-      if (body.action === 'restore') return {path: '/api/v1/backup-restores', options: prepared, awaitJob: true};
-      return {path: '/api/v1/backups', options: prepared, awaitJob: true};
-    }
-    return {path, options};
-  }
-
-  async function sendApiRequest(path, options = {}) {
-    if (window.webkit?.messageHandlers?.paperAtlas) {
-      return nativeApiRequest(path, options);
-    }
-    if (window.location.protocol === 'file:') {
-      throw new Error('请使用 Paper Atlas.app 打开完整版本');
-    }
-    let response;
-    try {
-      response = await fetch(path, {
-        ...options,
-        headers: {'Content-Type': 'application/json', ...(apiToken ? {'X-Paper-Atlas-Token': apiToken} : {}), ...(options.headers || {})},
-      });
-    } catch (_error) {
-      throw new Error('应用管理功能未连接，请重新打开 Paper Atlas');
-    }
-    let payload = {};
-    try { payload = await response.json(); } catch (_error) { /* handled below */ }
-    if (!response.ok || payload.error) {
-      const error = payload.error;
-      throw new Error(typeof error === 'string' ? error : error?.message || '本地任务运行失败');
-    }
-    return payload.data !== undefined ? payload.data : payload;
-  }
-
-  async function waitForApiJob(jobId) {
-    if (!jobId) return {};
-    for (let attempt = 0; attempt < 1200; attempt += 1) {
-      const record = await sendApiRequest(`/api/v1/jobs/${encodeURIComponent(jobId)}`, {method: 'GET'});
-      if (record.status === 'succeeded') return record.result || {};
-      if (['failed', 'cancelled', 'interrupted'].includes(record.status)) {
-        throw new Error(record.error?.message || '任务未完成');
-      }
-      await new Promise(resolve => setTimeout(resolve, Math.min(2000, 250 + attempt * 25)));
-    }
-    throw new Error('任务等待超时，请到运行日志查看详情');
-  }
+  const apiRequest = (path, options = {}) => apiClient.request(path, options);
 
   function suggestedCategory(candidate) {
     if (candidateCategoryOverrides.has(candidate.id)) return candidateCategoryOverrides.get(candidate.id);
@@ -1182,7 +1037,10 @@
       option.textContent = `待确认类别 · ${unclassifiedCount}`;
       options.push(option);
     }
-    if (!options.some(option => option.value === discoveryCategory)) discoveryCategory = 'all';
+    if (!options.some(option => option.value === discoveryCategory)) {
+      discoveryCategory = 'all';
+      uiState.set({discoveryCategory});
+    }
     candidateCategoryFilter.replaceChildren(...options);
     candidateCategoryFilter.value = discoveryCategory;
   }
@@ -1802,6 +1660,7 @@
 
   function selectDiscoverySource(source) {
     discoverySource = source;
+    uiState.set({discoverySource});
     candidateSourceFilter.value = source;
   }
 
@@ -2364,14 +2223,6 @@
     }
   }
 
-  function formatTaskTime(value) {
-    if (!value) return '尚未运行';
-    const date = new Date(value);
-    return Number.isNaN(date.valueOf()) ? '尚未运行' : date.toLocaleString('zh-CN', {
-      month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
-  }
-
   function classificationRunOutcome(payload = {}) {
     const result = payload.classification_result || payload.result || {};
     if (!result || typeof result !== 'object') return null;
@@ -2920,6 +2771,7 @@
 
   function updateSearch(value) {
     searchTerm = normalizeSearch(value);
+    uiState.set({searchTerm});
     graphSearchIndex = 0;
     clearSearch.hidden = !searchTerm;
     render();
@@ -3291,6 +3143,7 @@
   });
   candidateCategoryFilter.addEventListener('change', event => {
     discoveryCategory = event.target.value || 'all';
+    uiState.set({discoveryCategory});
     renderDiscovery();
   });
 
@@ -3323,8 +3176,8 @@
     }
   });
 
-  let initialView = 'graph';
-  try { initialView = sessionStorage.getItem('paper-atlas-view') || 'graph'; } catch (_error) { /* optional */ }
+  let initialView = activeView;
+  try { initialView = sessionStorage.getItem('paper-atlas-view') || activeView; } catch (_error) { /* optional */ }
   try {
     document.querySelector('.app-shell').classList.toggle('sidebar-collapsed', localStorage.getItem('paper-atlas-sidebar-collapsed') === 'true');
     const inspectorHidden = localStorage.getItem('paper-atlas-inspector-hidden') === 'true';
@@ -3332,6 +3185,8 @@
     toggleGraphInspector.classList.toggle('active', !inspectorHidden);
     toggleGraphInspector.setAttribute('aria-pressed', String(!inspectorHidden));
   } catch (_error) { /* optional */ }
+  paperSearch.value = searchTerm;
+  candidateSourceFilter.value = discoverySource;
   activateView(initialView, false);
   renderDiscovery();
   loadApiState();

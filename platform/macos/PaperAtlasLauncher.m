@@ -234,7 +234,7 @@
     NSArray<NSString *> *programFiles = @[
         @"scripts", @"requirements.txt", @"VERSION",
         @"config/discovery-evaluation.json",
-        @"web/index.html", @"web/app.js", @"web/styles.css",
+        @"web/index.html", @"web/app.js", @"web/styles.css", @"web/core",
         @"web/data/releases.json", @"web/data/releases-data.js",
     ];
     for (NSString *relative in programFiles) {

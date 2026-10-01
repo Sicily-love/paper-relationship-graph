@@ -48,7 +48,9 @@ class ContractTests(unittest.TestCase):
     def test_score_palette_is_per_candidate_and_review_footer_stays_fixed_without_compositor_ghosts(self):
         styles = (ROOT / "web" / "styles.css").read_text(encoding="utf-8")
         script = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
-        self.assertIn("function scoreColor", script)
+        formatting = (ROOT / "web" / "core" / "format.js").read_text(encoding="utf-8")
+        self.assertIn("function scoreColor", formatting)
+        self.assertIn("scoreColor", script)
         self.assertNotIn("candidate-score-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient", styles)
         self.assertIn(".candidate-detail-footer { position: relative", styles)
         self.assertIn("flex: 0 0 auto", styles)
@@ -68,8 +70,10 @@ class ContractTests(unittest.TestCase):
         html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
         native = (ROOT / "platform" / "macos" / "PaperAtlasLauncher.m").read_text(encoding="utf-8")
         self.assertNotIn('src="data/discovery-data.js', html)
+        self.assertIn('src="core/runtime.js', html)
         self.assertNotIn('@"/api/state"', native)
         self.assertIn("runBackendRequestPath", native)
+        self.assertIn('@"web/core"', native)
 
 
 class JobTests(unittest.TestCase):
