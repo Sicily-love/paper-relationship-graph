@@ -113,7 +113,12 @@ class ApiController:
         if name == "topics.update":
             return success(self.services.save_topics(body), request.request_id)
         if name == "graph.read":
-            return success(discovery_utils.load_json(discovery_utils.DEFAULT_GRAPH, {"nodes": [], "edges": {}}), request.request_id, revision=self._revision())
+            graph = discovery_utils.load_json(discovery_utils.DEFAULT_GRAPH, {"nodes": [], "edges": {}})
+            # The UI only needs internal nodes and edges. External references
+            # remain in graph.json for shared-reference discovery, but sending
+            # thousands of them through the native bridge makes a refresh slow.
+            browser_graph = {key: value for key, value in graph.items() if key != "external_references"}
+            return success(browser_graph, request.request_id, revision=self._revision())
         if name == "papers.read_status":
             return success(self.services.set_paper_read_status(body), request.request_id)
         if name == "candidates.list":

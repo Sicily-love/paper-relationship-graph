@@ -11,6 +11,7 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 OLD_TO_NEW = {
     "01_模型架构与训练优化": "01_模型架构与基础组件",
@@ -128,7 +129,7 @@ def verify(papers_dir: Path) -> Counter[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--papers-dir", type=Path, default=Path(__file__).resolve().parents[2])
+    parser.add_argument("--papers-dir", type=Path, default=REPO_ROOT.parent)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     papers_dir = args.papers_dir.expanduser().resolve()

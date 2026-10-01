@@ -2,6 +2,7 @@ import json
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 import sys
 
@@ -43,6 +44,19 @@ class ContractTests(unittest.TestCase):
             ))
             self.assertEqual(status, 200)
             self.assertEqual(payload["data"]["paper"], {"id": "p00", "read": True})
+            controller.jobs.close()
+
+    def test_graph_response_excludes_discovery_only_external_references(self):
+        with tempfile.TemporaryDirectory() as directory:
+            controller = ApiController(Path(directory), jobs=JobManager(Path(directory) / ".cache"))
+            with mock.patch.object(
+                sys.modules["api_controller"].discovery_utils,
+                "load_json",
+                return_value={"nodes": [], "edges": {}, "external_references": [{"title": "large"}]},
+            ):
+                status, payload = controller.handle(ApiRequest("GET", "/api/v1/graph"))
+            self.assertEqual(status, 200)
+            self.assertNotIn("external_references", payload["data"])
             controller.jobs.close()
 
     def test_score_palette_is_per_candidate_and_review_footer_stays_fixed_without_compositor_ghosts(self):

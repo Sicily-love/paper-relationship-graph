@@ -314,6 +314,7 @@
   let topicsReturnFocus = null;
   let logsReturnFocus = null;
   let releaseNotesReturnFocus = null;
+  let graphInspectorPreference = null;
   const candidateCategoryOverrides = new Map(Object.entries(loadLocalJson('paper-atlas-category-overrides', {})));
   const topicTemplateButtons = new Map();
   const uiState = createStore({activeView, searchTerm, discoverySource, discoveryCategory});
@@ -809,6 +810,13 @@
     graphInspectorReadStatus.textContent = isNodeRead(node) ? '已读 ✓' : '标记已读';
     graphInspectorReadStatus.classList.toggle('active', isNodeRead(node));
     graphInspectorReadStatus.setAttribute('aria-pressed', String(isNodeRead(node)));
+  }
+
+  function syncGraphInspectorVisibility() {
+    const hidden = graphInspectorPreference === null ? !selectedNode : graphInspectorPreference;
+    graphWorkspace.classList.toggle('inspector-hidden', hidden);
+    toggleGraphInspector.classList.toggle('active', !hidden);
+    toggleGraphInspector.setAttribute('aria-pressed', String(!hidden));
   }
 
   function candidateSourceLabel(source) {
@@ -2942,6 +2950,7 @@
       showToast(result.message);
       clearPaperDetail();
       selectedNode = null;
+      syncGraphInspectorVisibility();
       await refreshGraphData();
     } catch (error) {
       showToast(error.message, 'error');
@@ -2962,6 +2971,7 @@
     if (!node) return;
     hideTooltip();
     selectedNode = nodeId;
+    syncGraphInspectorVisibility();
     render();
   }
 
@@ -3052,9 +3062,9 @@
   graphSearchPrev.addEventListener('click', () => stepGraphSearch(-1));
   graphSearchNext.addEventListener('click', () => stepGraphSearch(1));
   toggleGraphInspector.addEventListener('click', () => {
-    const hidden = graphWorkspace.classList.toggle('inspector-hidden');
-    toggleGraphInspector.classList.toggle('active', !hidden);
-    toggleGraphInspector.setAttribute('aria-pressed', String(!hidden));
+    const hidden = !graphWorkspace.classList.contains('inspector-hidden');
+    graphInspectorPreference = hidden;
+    syncGraphInspectorVisibility();
     try { localStorage.setItem('paper-atlas-inspector-hidden', String(hidden)); } catch (_error) { /* optional */ }
   });
   graphInspectorPreview.addEventListener('click', () => {
@@ -3177,6 +3187,7 @@
   resetViewButton.addEventListener('click', () => {
     selectedNode = null;
     clearPaperDetail();
+    syncGraphInspectorVisibility();
     render();
     resetViewButton.classList.remove('is-confirmed');
     void resetViewButton.offsetWidth;
@@ -3194,6 +3205,7 @@
     if (!event.target.closest('.node')) {
       selectedNode = null;
       clearPaperDetail();
+      syncGraphInspectorVisibility();
       render();
     }
   });
@@ -3202,10 +3214,9 @@
   try { initialView = sessionStorage.getItem('paper-atlas-view') || activeView; } catch (_error) { /* optional */ }
   try {
     document.querySelector('.app-shell').classList.toggle('sidebar-collapsed', localStorage.getItem('paper-atlas-sidebar-collapsed') === 'true');
-    const inspectorHidden = localStorage.getItem('paper-atlas-inspector-hidden') === 'true';
-    graphWorkspace.classList.toggle('inspector-hidden', inspectorHidden);
-    toggleGraphInspector.classList.toggle('active', !inspectorHidden);
-    toggleGraphInspector.setAttribute('aria-pressed', String(!inspectorHidden));
+    const savedInspectorPreference = localStorage.getItem('paper-atlas-inspector-hidden');
+    graphInspectorPreference = savedInspectorPreference === null ? null : savedInspectorPreference === 'true';
+    syncGraphInspectorVisibility();
   } catch (_error) { /* optional */ }
   paperSearch.value = searchTerm;
   candidateSourceFilter.value = discoverySource;

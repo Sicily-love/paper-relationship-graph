@@ -35,7 +35,7 @@
 | --- | --- | --- |
 | GET | `/api/v1/bootstrap` | 能力、revision、数量摘要 |
 | GET/PUT | `/api/v1/topics` | 读取或保存搜索主题 |
-| GET | `/api/v1/graph` | 当前图谱快照 |
+| GET | `/api/v1/graph` | 当前浏览图谱快照；不返回仅供共同引用发现使用的外部参考文献池 |
 | GET | `/api/v1/candidates` | 分页读取候选，支持 `status/source/category/limit` |
 | POST | `/api/v1/discovery-runs` | 创建一次多来源发现任务 |
 | POST | `/api/v1/candidates/{id}/decision` | 原子提交推荐反馈与审核决定 |
