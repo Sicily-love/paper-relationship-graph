@@ -4,7 +4,7 @@
   const apiClient = window.PaperAtlasRuntime.createApiClient({
     token: document.querySelector('meta[name="paper-atlas-token"]')?.content || '',
   });
-  const graph = window.PAPER_GRAPH;
+  let graph = window.PAPER_GRAPH;
   let discovery = window.PAPER_DISCOVERY || {metadata: {}, topics: [], candidates: []};
   const releases = window.PAPER_RELEASES || {current_version: '', releases: []};
   if (!graph) {
@@ -188,18 +188,18 @@
   const viewPanels = [...document.querySelectorAll('[data-view-panel]')];
   const ns = 'http://www.w3.org/2000/svg';
 
-  const nodesById = Object.fromEntries(graph.nodes.map(node => [node.id, node]));
-  const allEdges = graph.edges.citation.map((edge, index) => ({...edge, type: 'citation', id: `citation-${index}`}));
-  const yearMin = graph.metadata.year_min;
-  const yearMax = graph.metadata.year_max;
-  const yearSpan = Math.max(1, yearMax - yearMin);
+  let nodesById = {};
+  let allEdges = [];
+  let yearMin = graph.metadata.year_min;
+  let yearMax = graph.metadata.year_max;
+  let yearSpan = Math.max(1, yearMax - yearMin);
   const NODE_RADIUS_MIN = 5.5;
   const NODE_RADIUS_MAX = 15;
   const TIMELINE_LEFT = 205;
   const TIMELINE_RIGHT = 905;
   const TIMELINE_TOP = 54;
   const TIMELINE_BOTTOM = 646;
-  const maxCitationCount = Math.max(1, ...graph.nodes.map(node => node.citation_count));
+  let maxCitationCount = 1;
   const TOPIC_TEMPLATES = [
     {
       id: 'category-01-model-architecture',
@@ -324,13 +324,15 @@
     return normalizeSearch([node.title, node.authors, node.abstract, node.category, node.year].join(' ')).includes(searchTerm);
   }
 
-  metricPapers.textContent = String(graph.metadata.unique_papers);
-  metricCitations.textContent = String(graph.metadata.citation_edges);
-  metricCategories.textContent = String(graph.categories.length);
-  const fullYearSpan = `${yearMin}–${yearMax}`;
-  metricYears.textContent = `${shortYear(yearMin)}–${shortYear(yearMax)}`;
-  metricYears.title = fullYearSpan;
-  metricYears.setAttribute('aria-label', fullYearSpan);
+  function renderGraphMetrics() {
+    metricPapers.textContent = String(graph.metadata.unique_papers);
+    metricCitations.textContent = String(graph.metadata.citation_edges);
+    metricCategories.textContent = String(graph.categories.length);
+    const fullYearSpan = `${yearMin}–${yearMax}`;
+    metricYears.textContent = `${shortYear(yearMin)}–${shortYear(yearMax)}`;
+    metricYears.title = fullYearSpan;
+    metricYears.setAttribute('aria-label', fullYearSpan);
+  }
   function activateView(view, remember = true) {
     if (!viewPanels.some(panel => panel.dataset.viewPanel === view)) view = 'graph';
     activeView = view;
@@ -351,10 +353,7 @@
     if (view === 'graph') requestAnimationFrame(render);
   }
 
-  const grouped = graph.nodes.reduce((result, node) => {
-    (result[node.category] ??= []).push(node);
-    return result;
-  }, {});
+  let grouped = {};
 
   function timelineX(year) {
     return TIMELINE_LEFT + (((year ?? yearMin) - yearMin) / yearSpan) * (TIMELINE_RIGHT - TIMELINE_LEFT);
@@ -476,15 +475,31 @@
     });
   }
 
-  buildTimelineGrid();
-  graph.nodes.forEach(node => {
-    node.radius = NODE_RADIUS_MIN + Math.sqrt(node.citation_count / maxCitationCount) * (NODE_RADIUS_MAX - NODE_RADIUS_MIN);
-    node.hitRadius = Math.max(8, node.radius + 2);
-  });
-  assignTimelinePositions();
+  function buildGraphScene() {
+    nodesById = Object.fromEntries(graph.nodes.map(node => [node.id, node]));
+    allEdges = (graph.edges?.citation || []).map((edge, index) => ({...edge, type: 'citation', id: `citation-${index}`}));
+    yearMin = graph.metadata.year_min;
+    yearMax = graph.metadata.year_max;
+    yearSpan = Math.max(1, yearMax - yearMin);
+    maxCitationCount = Math.max(1, ...graph.nodes.map(node => node.citation_count));
+    grouped = graph.nodes.reduce((result, node) => {
+      (result[node.category] ??= []).push(node);
+      return result;
+    }, {});
+    if (selectedNode && !nodesById[selectedNode]) selectedNode = null;
+    timelineGrid.replaceChildren();
+    nodeLayer.replaceChildren();
+    edgeLayer.replaceChildren();
+    renderGraphMetrics();
+    buildTimelineGrid();
+    graph.nodes.forEach(node => {
+      node.radius = NODE_RADIUS_MIN + Math.sqrt(node.citation_count / maxCitationCount) * (NODE_RADIUS_MAX - NODE_RADIUS_MIN);
+      node.hitRadius = Math.max(8, node.radius + 2);
+    });
+    assignTimelinePositions();
 
-  graph.categories.forEach((category, categoryIndex) => {
-    const group = [...grouped[category.id]].sort((a, b) => ((a.year ?? yearMin) - (b.year ?? yearMin)) || a.title.localeCompare(b.title));
+    graph.categories.forEach((category, categoryIndex) => {
+    const group = [...(grouped[category.id] || [])].sort((a, b) => ((a.year ?? yearMin) - (b.year ?? yearMin)) || a.title.localeCompare(b.title));
     group.forEach(node => {
       const groupElement = document.createElementNS(ns, 'g');
       groupElement.setAttribute('class', 'node');
@@ -574,14 +589,24 @@
       node.outgoingStemElement = outgoingStem;
       nodeLayer.appendChild(groupElement);
     });
-  });
+    });
 
-  allEdges.forEach(edge => {
-    const path = document.createElementNS(ns, 'path');
-    path.setAttribute('class', `edge ${edge.type}`);
-    edge.element = path;
-    edgeLayer.appendChild(path);
-  });
+    allEdges.forEach(edge => {
+      const path = document.createElementNS(ns, 'path');
+      path.setAttribute('class', `edge ${edge.type}`);
+      edge.element = path;
+      edgeLayer.appendChild(path);
+    });
+  }
+
+  async function refreshGraphData() {
+    graph = await apiRequest('/api/v1/graph');
+    window.PAPER_GRAPH = graph;
+    buildGraphScene();
+    render();
+  }
+
+  buildGraphScene();
 
   function connectedNodes(nodeId) {
     const connected = new Set([nodeId]);
@@ -1159,7 +1184,7 @@
       }
       if (action === 'accept' || action === 'replace') {
         if (payload.graph_updated !== false) {
-          setTimeout(() => window.location.reload(), 650);
+          await refreshGraphData();
         }
       }
     } catch (error) {
@@ -2248,9 +2273,8 @@
     return true;
   }
 
-  function rememberClassificationReviewAfterReload() {
+  function focusClassificationReview() {
     activateView('automation');
-    try { sessionStorage.setItem('paper-atlas-focus-classification-review', 'true'); } catch (_error) { /* optional */ }
   }
 
   async function runMaintenanceAction(action, button) {
@@ -2283,11 +2307,12 @@
       showToast(outcomeMessage, classificationOutcome?.pending.length ? 'warning' : 'success');
       recordActivity(action.label || '维护操作完成', outcomeMessage);
       if (classificationOutcome?.pending.length) {
-        if (result.graph_updated) rememberClassificationReviewAfterReload();
+        if (result.graph_updated) focusClassificationReview();
         else revealClassificationReview();
       }
       if (result.graph_updated) {
-        setTimeout(() => window.location.reload(), 600);
+        await refreshGraphData();
+        if (classificationOutcome?.pending.length) revealClassificationReview();
       } else {
         const state = await apiRequest('/api/state');
         if (state.health) renderHealth(state.health);
@@ -2445,7 +2470,9 @@
             if (!classificationReviewPendingIds.size && classificationGraphChanged) {
               classificationGraphChanged = false;
               if (classificationReloadTimer) clearTimeout(classificationReloadTimer);
-              classificationReloadTimer = setTimeout(() => window.location.reload(), 500);
+              classificationReloadTimer = setTimeout(() => {
+                refreshGraphData().catch(error => showToast(error.message, 'error'));
+              }, 100);
             }
           }
         };
@@ -2531,11 +2558,12 @@
       renderClassificationReview(state.classification_review);
       renderDiscoveryLog(state.discovery_log);
       if (classificationOutcome?.pending.length) {
-        if (result.result?.graph_updated) rememberClassificationReviewAfterReload();
+        if (result.result?.graph_updated) focusClassificationReview();
         else revealClassificationReview();
       }
       if (taskId === 'classification' && result.result?.graph_updated) {
-        setTimeout(() => window.location.reload(), 500);
+        await refreshGraphData();
+        if (classificationOutcome?.pending.length) revealClassificationReview();
       }
     } catch (error) {
       showToast(error.message, 'error');
@@ -2574,7 +2602,7 @@
       const result = await apiRequest('/api/maintenance/rebuild', {method: 'POST', body: '{}'});
       if (result.health) renderHealth(result.health);
       showToast(result.message);
-      setTimeout(() => window.location.reload(), 600);
+      await refreshGraphData();
     } catch (error) {
       showToast(error.message, 'error');
     } finally {
@@ -2726,12 +2754,6 @@
       renderTasks(state.tasks);
       renderClassificationReview(state.classification_review);
       renderDiscoveryLog(state.discovery_log);
-      let shouldRevealClassification = false;
-      try {
-        shouldRevealClassification = sessionStorage.getItem('paper-atlas-focus-classification-review') === 'true';
-        if (shouldRevealClassification) sessionStorage.removeItem('paper-atlas-focus-classification-review');
-      } catch (_error) { /* optional */ }
-      if (shouldRevealClassification) revealClassificationReview();
       serviceNotice.hidden = true;
       renderDiscovery();
       render();
@@ -2750,8 +2772,7 @@
           apiGraphRevision = state.graph_revision;
           classificationGraphChanged = true;
         } else {
-          window.location.reload();
-          return;
+          await refreshGraphData();
         }
       }
       apiGraphRevision = state.graph_revision || apiGraphRevision;
@@ -2920,7 +2941,8 @@
       });
       showToast(result.message);
       clearPaperDetail();
-      setTimeout(() => window.location.reload(), 500);
+      selectedNode = null;
+      await refreshGraphData();
     } catch (error) {
       showToast(error.message, 'error');
       removeGraphNodeButton.disabled = false;
