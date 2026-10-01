@@ -191,13 +191,17 @@ App 使用跨进程数据锁保证 App、源码模式和 `launchd` 不会同时�
 | `make health` | 检查论文库和生成数据 |
 | `make discover` | 搜索最新 arXiv 与领域高被引论文 |
 | `make discover-shared` | 生成共同引用候选 |
-| `make test` | 运行自动测试 |
+| `make test` | 根据当前改动自动运行相关测试；未知核心改动自动回退全量 |
+| `make test-smoke` | 运行 API、目录扫描和启动器冒烟测试 |
+| `make test-full` | 运行全部测试，发布前或跨模块重构时使用 |
 | `make release-notes` | 从 `CHANGELOG.md` 生成 App 内更新记录 |
 | `make mac-app` | 构建内置 Python 的通用架构 macOS App |
 | `make release` | 生成本地测试 DMG 和 SHA-256 文件 |
 | `make release-check` | 检查版本、运行资源、签名和数据一致性 |
 
 前端不需要 npm 构建。修改 `web/` 后刷新页面即可；修改 `CHANGELOG.md` 或 `VERSION` 后，应运行 `make release-notes`。
+
+测试选择由 `scripts/run_tests.py` 维护。文档和资源改动只运行冒烟测试；前端、分类、发现、API 等改动分别运行对应测试文件；依赖、CI、共享基础模块或无法识别的核心改动会自动运行全量测试。推送到 `main` 和版本标签时，GitHub Actions 始终额外运行完整测试。
 
 ## 发布说明
 

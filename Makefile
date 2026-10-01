@@ -1,7 +1,7 @@
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 PAPERS_DIR ?= ..
 
-.PHONY: start build update update-preview classify discover discover-highly-cited discover-shared accept reject preview serve health test release-notes python-runtime mac-app release release-public release-check
+.PHONY: start build update update-preview classify discover discover-highly-cited discover-shared accept reject preview serve health test test-smoke test-changed test-full release-notes python-runtime mac-app release release-public release-check
 
 start:
 	$(PYTHON) scripts/start_app.py
@@ -43,8 +43,16 @@ serve:
 health:
 	$(PYTHON) scripts/library_health.py --papers-dir "$(PAPERS_DIR)"
 
-test:
-	$(PYTHON) -m unittest discover -s tests -v
+test: test-changed
+
+test-smoke:
+	$(PYTHON) scripts/run_tests.py smoke
+
+test-changed:
+	$(PYTHON) scripts/run_tests.py changed $(if $(TEST_BASE),--base "$(TEST_BASE)",)
+
+test-full:
+	$(PYTHON) scripts/run_tests.py full
 
 release-notes:
 	$(PYTHON) scripts/generate_release_notes.py
