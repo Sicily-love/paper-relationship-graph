@@ -91,3 +91,9 @@
 ## 2026-09-07 新论文整理
 
 清理分类合并后遗留的旧目录。新增的 `Aspire: Can Models Self-Evolve from Vague Goals?`、`S3Gym: Can LLMs Turn Self-Testing and Self-Judging into Self-Improvement?` 与 `HarnessDev: Can LLMs Create and Evolve Their Own Agent Harness?` 均以智能体自我演化、评测或执行框架为主要贡献，统一归入 `10_通用智能体与自主发现`。整理后共有 130 份 PDF、1 份 PPTX，对应 123 篇唯一论文和 7 份重复或历史版本，没有未分类论文。
+
+## 2026-11-05 RSI 类别重整
+
+随着递归自我改进论文形成独立主题簇，分类体系由 13 类扩展为 14 类，新增 `11_RSI与递归自我改进`。该类覆盖系统对自身模型、数据、评测流程或 agent harness 的迭代改进，以及自动化 AI R&D 可能引发智能爆炸的研究；一般智能体、开放式发现与外部目标代码优化仍留在 `10_通用智能体与自主发现`。若论文的主要评测对象是 GPU 或加速器内核，即使方法具有自我改进环路，仍按主要贡献归入 `09_GPU内核智能体与自动调优`。
+
+本次归入 RSI 类的论文为 MetaRSI、Aspire、HarnessDev、S3Gym、Task-CoEvolve、HarnessPro，以及 `What if automating AI R&D triggers an intelligence explosion?`。`JustGoal` 按主要评测领域归入 GPU 内核智能体类。整理后共有 136 份 PDF、1 份 PPTX，14 个类别，根目录没有未分类论文；136 份 PDF 均可读取，图谱包含 549 条库内引用。

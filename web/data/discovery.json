@@ -68,10 +68,10 @@
       "status": "new",
       "first_seen": "2026-08-22T07:52:26.230973+00:00",
       "last_seen": "2026-08-22T07:53:38.671832+00:00",
-      "suggested_category": "02_注意力机制与长上下文",
-      "category_label": "注意力机制与长上下文",
-      "category_confidence": "高",
-      "category_reason": "标题与类别特征匹配",
+      "suggested_category": "06_量化与低精度计算",
+      "category_label": "量化与低精度计算",
+      "category_confidence": "中",
+      "category_reason": "摘要与类别特征匹配",
       "confidence": 90,
       "confidence_label": "高",
       "metadata_checks": [
@@ -82,7 +82,19 @@
         "PDF 链接可用",
         "arXiv 编号完整"
       ],
-      "metadata_warnings": []
+      "metadata_warnings": [],
+      "category_rule_version": "2026-11-05.1",
+      "recommendation_score": 4.5,
+      "ranking_components": {
+        "topic_relevance": 0.0,
+        "shared_evidence": 0.0,
+        "citation_impact": 0.0,
+        "source_diversity": 0.0,
+        "category_gap": 4.5
+      },
+      "ranking_explanation": [
+        "补充当前相对稀疏的类别"
+      ]
     },
     {
       "id": "arxiv:2608.19912",
@@ -110,9 +122,9 @@
       "status": "new",
       "first_seen": "2026-08-22T07:52:26.230973+00:00",
       "last_seen": "2026-08-22T07:53:38.671832+00:00",
-      "suggested_category": "01_模型架构与训练优化",
-      "category_label": "模型架构与训练优化",
-      "category_confidence": "需确认",
+      "suggested_category": "06_量化与低精度计算",
+      "category_label": "量化与低精度计算",
+      "category_confidence": "中",
       "category_reason": "摘要与类别特征匹配",
       "confidence": 90,
       "confidence_label": "高",
@@ -124,7 +136,19 @@
         "PDF 链接可用",
         "arXiv 编号完整"
       ],
-      "metadata_warnings": []
+      "metadata_warnings": [],
+      "category_rule_version": "2026-11-05.1",
+      "recommendation_score": 4.5,
+      "ranking_components": {
+        "topic_relevance": 0.0,
+        "shared_evidence": 0.0,
+        "citation_impact": 0.0,
+        "source_diversity": 0.0,
+        "category_gap": 4.5
+      },
+      "ranking_explanation": [
+        "补充当前相对稀疏的类别"
+      ]
     },
     {
       "id": "arxiv:2608.19837",
@@ -153,9 +177,9 @@
       "status": "new",
       "first_seen": "2026-08-22T07:52:26.230973+00:00",
       "last_seen": "2026-08-22T07:53:38.671832+00:00",
-      "suggested_category": "04_量化与低精度计算",
+      "suggested_category": "06_量化与低精度计算",
       "category_label": "量化与低精度计算",
-      "category_confidence": "中",
+      "category_confidence": "高",
       "category_reason": "标题与类别特征匹配",
       "confidence": 90,
       "confidence_label": "高",
@@ -167,7 +191,19 @@
         "PDF 链接可用",
         "arXiv 编号完整"
       ],
-      "metadata_warnings": []
+      "metadata_warnings": [],
+      "category_rule_version": "2026-11-05.1",
+      "recommendation_score": 4.5,
+      "ranking_components": {
+        "topic_relevance": 0.0,
+        "shared_evidence": 0.0,
+        "citation_impact": 0.0,
+        "source_diversity": 0.0,
+        "category_gap": 4.5
+      },
+      "ranking_explanation": [
+        "补充当前相对稀疏的类别"
+      ]
     },
     {
       "id": "arxiv:2608.19948",
@@ -192,8 +228,8 @@
       "status": "new",
       "first_seen": "2026-08-22T07:52:26.230973+00:00",
       "last_seen": "2026-08-22T07:53:38.671832+00:00",
-      "suggested_category": "02_注意力机制与长上下文",
-      "category_label": "注意力机制与长上下文",
+      "suggested_category": "06_量化与低精度计算",
+      "category_label": "量化与低精度计算",
       "category_confidence": "中",
       "category_reason": "摘要与类别特征匹配",
       "confidence": 90,
@@ -206,7 +242,19 @@
         "PDF 链接可用",
         "arXiv 编号完整"
       ],
-      "metadata_warnings": []
+      "metadata_warnings": [],
+      "category_rule_version": "2026-11-05.1",
+      "recommendation_score": 4.5,
+      "ranking_components": {
+        "topic_relevance": 0.0,
+        "shared_evidence": 0.0,
+        "citation_impact": 0.0,
+        "source_diversity": 0.0,
+        "category_gap": 4.5
+      },
+      "ranking_explanation": [
+        "补充当前相对稀疏的类别"
+      ]
     },
     {
       "id": "arxiv:2608.20110",
@@ -232,9 +280,9 @@
       "status": "new",
       "first_seen": "2026-08-22T07:52:26.230973+00:00",
       "last_seen": "2026-08-22T07:53:38.671832+00:00",
-      "suggested_category": "04_量化与低精度计算",
+      "suggested_category": "06_量化与低精度计算",
       "category_label": "量化与低精度计算",
-      "category_confidence": "需确认",
+      "category_confidence": "中",
       "category_reason": "摘要与类别特征匹配",
       "confidence": 90,
       "confidence_label": "高",
@@ -246,7 +294,19 @@
         "PDF 链接可用",
         "arXiv 编号完整"
       ],
-      "metadata_warnings": []
+      "metadata_warnings": [],
+      "category_rule_version": "2026-11-05.1",
+      "recommendation_score": 4.5,
+      "ranking_components": {
+        "topic_relevance": 0.0,
+        "shared_evidence": 0.0,
+        "citation_impact": 0.0,
+        "source_diversity": 0.0,
+        "category_gap": 4.5
+      },
+      "ranking_explanation": [
+        "补充当前相对稀疏的类别"
+      ]
     },
     {
       "id": "openalex:W3129831491",
@@ -292,10 +352,10 @@
       "status": "new",
       "first_seen": "2026-08-22T07:52:06.115213+00:00",
       "last_seen": "2026-08-22T07:52:06.115213+00:00",
-      "suggested_category": "05_分布式训练与数据基础设施",
+      "suggested_category": "07_分布式训练与数据基础设施",
       "category_label": "分布式训练与数据基础设施",
-      "category_confidence": "中",
-      "category_reason": "摘要与类别特征匹配；2 篇同类库内论文共同支撑",
+      "category_confidence": "需确认",
+      "category_reason": "摘要与类别特征匹配",
       "confidence": 80,
       "confidence_label": "中",
       "metadata_checks": [
@@ -307,6 +367,20 @@
       ],
       "metadata_warnings": [
         "缺少有效PDF 链接"
+      ],
+      "category_rule_version": "2026-11-05.1",
+      "recommendation_score": 34.6,
+      "ranking_components": {
+        "topic_relevance": 0.0,
+        "shared_evidence": 15.0,
+        "citation_impact": 16.57,
+        "source_diversity": 0.0,
+        "category_gap": 3.0
+      },
+      "ranking_explanation": [
+        "3 篇库内论文共同引用",
+        "被引 817 次，按发表年校正",
+        "补充当前相对稀疏的类别"
       ]
     },
     {
@@ -357,10 +431,10 @@
       "status": "new",
       "first_seen": "2026-08-22T07:52:06.115213+00:00",
       "last_seen": "2026-08-22T07:52:06.115213+00:00",
-      "suggested_category": "01_模型架构与训练优化",
-      "category_label": "模型架构与训练优化",
+      "suggested_category": "",
+      "category_label": "待确认类别",
       "category_confidence": "需确认",
-      "category_reason": "1 篇同类库内论文共同支撑",
+      "category_reason": "标题与摘要尚不足以判断主类别",
       "confidence": 80,
       "confidence_label": "中",
       "metadata_checks": [
@@ -372,6 +446,19 @@
       ],
       "metadata_warnings": [
         "缺少有效PDF 链接"
+      ],
+      "category_rule_version": "2026-11-05.1",
+      "recommendation_score": 40.0,
+      "ranking_components": {
+        "topic_relevance": 0.0,
+        "shared_evidence": 15.0,
+        "citation_impact": 25.0,
+        "source_diversity": 0.0,
+        "category_gap": 0.0
+      },
+      "ranking_explanation": [
+        "3 篇库内论文共同引用",
+        "被引 17,465 次，按发表年校正"
       ]
     },
     {
@@ -422,10 +509,10 @@
       "status": "new",
       "first_seen": "2026-08-22T07:52:06.115213+00:00",
       "last_seen": "2026-08-22T07:52:06.115213+00:00",
-      "suggested_category": "01_模型架构与训练优化",
-      "category_label": "模型架构与训练优化",
+      "suggested_category": "02_训练方法与优化器",
+      "category_label": "训练方法与优化器",
       "category_confidence": "中",
-      "category_reason": "标题与类别特征匹配；2 篇同类库内论文共同支撑",
+      "category_reason": "标题与类别特征匹配",
       "confidence": 80,
       "confidence_label": "中",
       "metadata_checks": [
@@ -437,6 +524,20 @@
       ],
       "metadata_warnings": [
         "缺少有效PDF 链接"
+      ],
+      "category_rule_version": "2026-11-05.1",
+      "recommendation_score": 49.4,
+      "ranking_components": {
+        "topic_relevance": 0.0,
+        "shared_evidence": 15.0,
+        "citation_impact": 24.37,
+        "source_diversity": 0.0,
+        "category_gap": 10.0
+      },
+      "ranking_explanation": [
+        "3 篇库内论文共同引用",
+        "被引 11,099 次，按发表年校正",
+        "补充当前相对稀疏的类别"
       ]
     },
     {
@@ -488,10 +589,10 @@
       "status": "new",
       "first_seen": "2026-08-22T07:52:06.115213+00:00",
       "last_seen": "2026-08-22T07:52:06.115213+00:00",
-      "suggested_category": "01_模型架构与训练优化",
-      "category_label": "模型架构与训练优化",
+      "suggested_category": "01_模型架构与基础组件",
+      "category_label": "模型架构与基础组件",
       "category_confidence": "中",
-      "category_reason": "2 篇同类库内论文共同支撑",
+      "category_reason": "标题与类别特征匹配",
       "confidence": 81,
       "confidence_label": "中",
       "metadata_checks": [
@@ -503,6 +604,20 @@
       ],
       "metadata_warnings": [
         "缺少有效PDF 链接"
+      ],
+      "category_rule_version": "2026-11-05.1",
+      "recommendation_score": 55.0,
+      "ranking_components": {
+        "topic_relevance": 0.0,
+        "shared_evidence": 20.0,
+        "citation_impact": 25.0,
+        "source_diversity": 0.0,
+        "category_gap": 10.0
+      },
+      "ranking_explanation": [
+        "4 篇库内论文共同引用",
+        "被引 227,270 次，按发表年校正",
+        "补充当前相对稀疏的类别"
       ]
     },
     {
@@ -553,9 +668,9 @@
       "status": "new",
       "first_seen": "2026-08-22T07:52:06.115213+00:00",
       "last_seen": "2026-08-22T07:52:06.115213+00:00",
-      "suggested_category": "02_注意力机制与长上下文",
-      "category_label": "注意力机制与长上下文",
-      "category_confidence": "中",
+      "suggested_category": "06_量化与低精度计算",
+      "category_label": "量化与低精度计算",
+      "category_confidence": "高",
       "category_reason": "摘要与类别特征匹配",
       "confidence": 92,
       "confidence_label": "高",
@@ -567,7 +682,21 @@
         "PDF 链接可用",
         "3 篇库内论文共同支撑"
       ],
-      "metadata_warnings": []
+      "metadata_warnings": [],
+      "category_rule_version": "2026-11-05.1",
+      "recommendation_score": 41.2,
+      "ranking_components": {
+        "topic_relevance": 0.0,
+        "shared_evidence": 15.0,
+        "citation_impact": 21.7,
+        "source_diversity": 0.0,
+        "category_gap": 4.5
+      },
+      "ranking_explanation": [
+        "3 篇库内论文共同引用",
+        "被引 5,666 次，按发表年校正",
+        "补充当前相对稀疏的类别"
+      ]
     }
   ]
 }

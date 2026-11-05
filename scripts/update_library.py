@@ -8,7 +8,9 @@ import json
 from pathlib import Path
 
 import build_graph
+import discover_papers
 import library_layout
+from discovery_utils import DEFAULT_DISCOVERY_JS, DEFAULT_DISCOVERY_JSON, load_json, write_discovery
 
 
 def paper_files(papers_dir: Path) -> list[Path]:
@@ -26,6 +28,34 @@ def previous_hashes(json_path: Path) -> set[str]:
     hashes = {node["sha256"] for node in data.get("nodes", []) if node.get("sha256")}
     hashes.update(item["sha256"] for item in data.get("duplicates", []) if item.get("sha256"))
     return hashes
+
+
+def refresh_discovery_taxonomy(
+    graph: dict,
+    json_path: Path = DEFAULT_DISCOVERY_JSON,
+    js_path: Path = DEFAULT_DISCOVERY_JS,
+) -> int:
+    """Keep saved recommendations aligned with the current category rules."""
+    if not json_path.exists():
+        return 0
+    discovery = load_json(json_path, {"metadata": {}, "candidates": []})
+    candidates = discovery.get("candidates", []) if isinstance(discovery, dict) else []
+    changed = 0
+    for candidate in candidates:
+        previous = (
+            candidate.get("suggested_category"),
+            candidate.get("category_rule_version"),
+        )
+        candidate.update(discover_papers.classify_candidate(candidate))
+        candidate.update(discover_papers.candidate_validation(candidate))
+        candidate.update(discover_papers.score_recommendation(candidate, graph))
+        current = (
+            candidate.get("suggested_category"),
+            candidate.get("category_rule_version"),
+        )
+        changed += current != previous
+    write_discovery(discovery, json_path, js_path)
+    return changed
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,6 +85,7 @@ def main() -> None:
     before = previous_hashes(args.output_json)
     graph = build_graph.build_graph(papers_dir, build_graph.DEFAULT_EXTRACTION_CACHE)
     build_graph.write_graph(graph, args.output_json, args.output_js)
+    reclassified_candidates = refresh_discovery_taxonomy(graph)
     after = {node["sha256"] for node in graph["nodes"]}
     after.update(item["sha256"] for item in graph["duplicates"])
 
@@ -63,7 +94,8 @@ def main() -> None:
     print(
         f"更新完成：PDF {pdf_count}，PPTX {pptx_count}，"
         f"新增 {len(after - before)}，移除 {len(before - after)}，"
-        f"内部引用 {graph['metadata']['citation_edges']} 条。"
+        f"内部引用 {graph['metadata']['citation_edges']} 条，"
+        f"候选重分类 {reclassified_candidates} 篇。"
     )
     for category in graph["categories"]:
         node = next(node for node in graph["nodes"] if node["id"] == category["main_node"])

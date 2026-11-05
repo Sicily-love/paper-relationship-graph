@@ -80,9 +80,10 @@ CATEGORY_LABELS = {
     "08_GPU内核_编译器与性能工程": "GPU 内核、编译器与性能工程",
     "09_GPU内核智能体与自动调优": "GPU 内核智能体与自动调优",
     "10_通用智能体与自主发现": "通用智能体与自主发现",
-    "11_生成模型与视频系统": "生成模型与视频系统",
-    "12_大模型技术报告与推理训练": "大模型技术报告与推理训练",
-    "13_个人兴趣与跨领域": "个人兴趣与跨领域",
+    "11_RSI与递归自我改进": "RSI 与递归自我改进",
+    "12_生成模型与视频系统": "生成模型与视频系统",
+    "13_大模型技术报告与推理训练": "大模型技术报告与推理训练",
+    "14_个人兴趣与跨领域": "个人兴趣与跨领域",
 }
 
 # These phrases encode the same primary-topic boundaries as the paper-organizer
@@ -92,7 +93,8 @@ CATEGORY_RULES = {
     "01_模型架构与基础组件": (
         "transformer architecture", "vision transformer", "positional encoding",
         "normalization", "activation function", "residual connection", "hyper connection",
-        "model architecture", "architectural component", "embedding architecture",
+        "residual learning", "resnet", "model architecture", "architectural component",
+        "embedding architecture",
     ),
     "02_训练方法与优化器": (
         "optimizer", "optimization algorithm", "weight decay", "regularization",
@@ -158,18 +160,26 @@ CATEGORY_RULES = {
         "evolutionary code search", "evolutionary program search", "variation operators",
         "persistent memory architecture", "code optimization agent", "computer use", "web agent",
     ),
-    "11_生成模型与视频系统": (
+    "11_RSI与递归自我改进": (
+        "recursive self-improvement", "recursive self improvement", "self-improving system",
+        "self improving system", "self-evolving model", "self evolving model",
+        "self-evolution", "self evolution", "harness evolution", "harness optimization",
+        "recursive harness", "self-testing", "self-judging", "self-improvement",
+        "automating ai r&d", "automated ai r&d", "intelligence explosion",
+        "model-rsi", "harness-rsi", "data-rsi", "metarsi",
+    ),
+    "12_生成模型与视频系统": (
         "video generation", "text-to-video", "image-to-video", "video diffusion",
         "diffusion transformer", "frame interpolation", "video inference",
         "world model video", "streaming video generation", "video model", "diffusion model",
         "diffusion models",
     ),
-    "12_大模型技术报告与推理训练": (
+    "13_大模型技术报告与推理训练": (
         "technical report", "reasoning model", "reasoning training", "reasoning llm",
         "reinforcement learning for reasoning", "rlhf", "grpo", "large language model report",
         "foundation model", "inference-time scaling", "test-time scaling",
     ),
-    "13_个人兴趣与跨领域": (
+    "14_个人兴趣与跨领域": (
         "living systems", "self-reference", "self referential", "natural time",
         "representational time", "theoretical biology", "open ended creativity",
     ),
@@ -178,7 +188,7 @@ CATEGORY_RULES = {
 # Keep rule changes auditable in candidate metadata and regression fixtures.
 # The classifier still returns one primary category, but these boundaries make
 # broad words such as "attention" and "agent" defer to more specific signals.
-CATEGORY_RULE_VERSION = "2026-09-03.2"
+CATEGORY_RULE_VERSION = "2026-11-05.1"
 
 ATTENTION_SPECIFIC_MARKERS = (
     "long context", "long-context", "context window", "kv cache",
@@ -212,6 +222,7 @@ TOPIC_DOMAIN_ANCHORS = {
     "category-10-gpu-performance": ("gpu", "cuda", "kernel", "compiler", "triton", "tensor"),
     "category-07-kernel-agents": ("gpu", "cuda", "kernel", "compiler", "agent", "llm"),
     "category-12-general-agents": ("agent", "llm", "language model", "tool use", "autonomous"),
+    "category-rsi-self-improvement": ("recursive self-improvement", "self-improvement", "self-evolution", "harness", "automating ai r&d"),
     "category-13-generative-video": ("video", "diffusion", "generative", "frame", "transformer"),
     "category-14-model-reports": ("language model", "llm", "reasoning", "foundation model", "training"),
     "category-15-personal-cross-domain": ("living systems", "self-reference", "biology", "cognition", "complex systems"),
@@ -239,9 +250,10 @@ TOPIC_CATEGORY_MAP = {
     "category-10-gpu-performance": "08_GPU内核_编译器与性能工程",
     "category-07-kernel-agents": "09_GPU内核智能体与自动调优",
     "category-12-general-agents": "10_通用智能体与自主发现",
-    "category-13-generative-video": "11_生成模型与视频系统",
-    "category-14-model-reports": "12_大模型技术报告与推理训练",
-    "category-15-personal-cross-domain": "13_个人兴趣与跨领域",
+    "category-rsi-self-improvement": "11_RSI与递归自我改进",
+    "category-13-generative-video": "12_生成模型与视频系统",
+    "category-14-model-reports": "13_大模型技术报告与推理训练",
+    "category-15-personal-cross-domain": "14_个人兴趣与跨领域",
     # Compatibility for search topics saved under the previous taxonomy.
     "category-02-attention-context": "04_长上下文与高效注意力",
     "category-03-moe-sparse": "05_MoE与稀疏模型",
@@ -249,8 +261,8 @@ TOPIC_CATEGORY_MAP = {
     "category-05-distributed-data": "07_分布式训练与数据基础设施",
     "category-06-gpu-performance": "08_GPU内核_编译器与性能工程",
     "category-08-general-agents": "10_通用智能体与自主发现",
-    "category-09-generative-video": "11_生成模型与视频系统",
-    "category-10-model-reports": "12_大模型技术报告与推理训练",
+    "category-09-generative-video": "12_生成模型与视频系统",
+    "category-10-model-reports": "13_大模型技术报告与推理训练",
 }
 
 PROFILE_STOPWORDS = {
@@ -431,7 +443,8 @@ def classify_candidate(candidate: dict) -> dict:
 
     combined = f" {normalize_title(' '.join((title, abstract_focus, topics)))} "
     normalized_title = normalize_title(title)
-    video_category = "11_生成模型与视频系统"
+    rsi_category = "11_RSI与递归自我改进"
+    video_category = "12_生成模型与视频系统"
     architecture_category = "01_模型架构与基础组件"
     kernel_category = "08_GPU内核_编译器与性能工程"
     kernel_agent_category = "09_GPU内核智能体与自动调优"
@@ -447,10 +460,17 @@ def classify_candidate(candidate: dict) -> dict:
     attention_kernel_signal = any(marker in normalized_title for marker in (
         "flashattention", "pagedattention", "tiledattention", "sdpa", "flex attention",
         "online normalizer", "online softmax", "attention kernel", "attention kernels",
+        "ultraattn", "spargeattention",
     ))
-    attention_quantization_signal = has_quantization and (
-        title_has_attention
-        or any(marker in normalized_title for marker in ("sageattention", "attn qat"))
+    attention_quantization_signal = (
+        any(marker in normalized_title for marker in ("sageattention", "attn qat"))
+        or (
+            has_quantization
+            and title_has_attention
+            and any(marker in normalized_title for marker in (
+                "quantization", "quantized", "4 bit", "8 bit", "int4", "int8", "fp4",
+            ))
+        )
     )
     long_context_signal = any(marker in normalized_title for marker in (
         "long context", "long-context", "attention sinks", "sparse attention",
@@ -506,6 +526,22 @@ def classify_candidate(candidate: dict) -> dict:
     if title_kernel_signal and title_agent_signal:
         scores[kernel_agent_category] += 60
         scores[kernel_category] = max(0, scores[kernel_category] - 12)
+    if " justgoal " in f" {normalized_title} " or (
+        " goal " in f" {normalized_title} " and " expert kernels " in f" {normalized_title} "
+    ):
+        scores[kernel_agent_category] += 64
+        scores[kernel_category] = max(0, scores[kernel_category] - 12)
+    rsi_title_signal = any(marker in f" {normalized_title} " for marker in (
+        " recursive self improvement ", " self improving system ", " self evolve ",
+        " self evolution ", " own agent harness ", " harness self improvement ",
+        " harness optimization ", " self testing and self judging ",
+        " automating ai r d ", " intelligence explosion ",
+    ))
+    if rsi_title_signal and not title_kernel_signal:
+        scores[rsi_category] += 72
+        scores["10_通用智能体与自主发现"] = max(
+            0, scores["10_通用智能体与自主发现"] - 16,
+        )
     if (
         any(marker in combined for marker in (" autonomous coding agent ", " autonomous coding agents "))
         and any(marker in combined for marker in (" kernel ", " kernels "))
@@ -537,7 +573,7 @@ def classify_candidate(candidate: dict) -> dict:
         " technical report ", " open large language models ", " model card ",
     )) or normalized_title.startswith("deepseek ")
     if report_title_signal:
-        scores["12_大模型技术报告与推理训练"] += 24
+        scores["13_大模型技术报告与推理训练"] += 24
     if " optimizer " in f" {normalized_title} ":
         scores["02_训练方法与优化器"] += 18
     if (
@@ -550,9 +586,17 @@ def classify_candidate(candidate: dict) -> dict:
         " pipeline parallelism ", " distributed training ",
         " compute communication ", " communication overlapping ",
     ))
+    distributed_system_signal = any(marker in f" {normalized_title} " for marker in (
+        " language model training on gpu clusters ", " pipeline parallel ", " pipeline parallelism ",
+        " megatron lm ", " zero infinity ", " zero offload ",
+    ))
     if distributed_title_signal:
         scores["07_分布式训练与数据基础设施"] += 18
         scores[long_context_category] = max(0, scores[long_context_category] - 8)
+    if distributed_system_signal:
+        scores["07_分布式训练与数据基础设施"] += 64
+        scores[kernel_category] = max(0, scores[kernel_category] - 24)
+        scores[long_context_category] = max(0, scores[long_context_category] - 24)
 
     ranked = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
     category, top_score = ranked[0]

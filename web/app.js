@@ -253,6 +253,11 @@
       keywords: ['AI agent', 'research agent', 'tool use', 'self-play', 'open-ended discovery'],
     },
     {
+      id: 'category-rsi-self-improvement',
+      label: 'RSI 与递归自我改进',
+      keywords: ['recursive self-improvement', 'self-evolving model', 'harness evolution', 'automated AI R&D', 'intelligence explosion'],
+    },
+    {
       id: 'category-13-generative-video',
       label: '生成模型与视频系统',
       keywords: ['video generation', 'diffusion transformer', 'video inference', 'frame interpolation', 'text-to-video'],

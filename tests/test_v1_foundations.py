@@ -22,6 +22,7 @@ import library_health  # noqa: E402
 import manage_candidate  # noqa: E402
 import prepare_release_seed  # noqa: E402
 import task_center  # noqa: E402
+import update_library  # noqa: E402
 from discovery_utils import write_discovery  # noqa: E402
 
 
@@ -51,6 +52,27 @@ class TransactionTests(unittest.TestCase):
                     )
             self.assertEqual(data, before)
             self.assertFalse(any(papers.rglob("*.pdf")))
+
+    def test_graph_update_reclassifies_saved_recommendations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            discovery_json = root / "discovery.json"
+            discovery_js = root / "discovery-data.js"
+            write_discovery({"metadata": {}, "candidates": [{
+                "id": "paper-1",
+                "title": "HarnessPro Recursive Harness Self-Improvement",
+                "abstract": "An agent recursively evolves its own harness.",
+                "suggested_category": "10_通用智能体与自主发现",
+            }]}, discovery_json, discovery_js)
+            changed = update_library.refresh_discovery_taxonomy(
+                {"categories": []}, discovery_json, discovery_js,
+            )
+            refreshed = json.loads(discovery_json.read_text())
+            self.assertEqual(changed, 1)
+            self.assertEqual(
+                refreshed["candidates"][0]["suggested_category"],
+                "11_RSI与递归自我改进",
+            )
 
     def test_committed_archive_is_marked_pending_then_complete(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -370,8 +392,9 @@ class WebContractTests(unittest.TestCase):
         self.assertEqual(build_graph.STANDARD_CATEGORIES[2], "03_训练动力学与模型分析")
         self.assertIn("04_长上下文与高效注意力", build_graph.STANDARD_CATEGORIES)
         self.assertIn("10_通用智能体与自主发现", build_graph.STANDARD_CATEGORIES)
-        self.assertEqual(build_graph.STANDARD_CATEGORIES[-1], "13_个人兴趣与跨领域")
-        self.assertEqual(len(build_graph.STANDARD_CATEGORIES), 13)
+        self.assertIn("11_RSI与递归自我改进", build_graph.STANDARD_CATEGORIES)
+        self.assertEqual(build_graph.STANDARD_CATEGORIES[-1], "14_个人兴趣与跨领域")
+        self.assertEqual(len(build_graph.STANDARD_CATEGORIES), 14)
 
     def test_native_titlebar_is_draggable_without_covering_web_actions(self):
         launcher = (ROOT / "platform" / "macos" / "PaperAtlasLauncher.m").read_text(encoding="utf-8")

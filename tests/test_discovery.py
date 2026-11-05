@@ -647,8 +647,22 @@ class DiscoveryTests(unittest.TestCase):
             "topics": [],
             "supporting_papers": [],
         })
-        self.assertEqual(result["suggested_category"], "13_个人兴趣与跨领域")
+        self.assertEqual(result["suggested_category"], "14_个人兴趣与跨领域")
         self.assertEqual(result["category_rule_version"], discover_papers.CATEGORY_RULE_VERSION)
+
+    def test_recursive_self_improvement_has_a_dedicated_category(self):
+        result = discover_papers.classify_candidate({
+            "title": "HarnessPro Recursive Harness Self-Improvement",
+            "abstract": "The agent recursively evolves its own harness using execution feedback.",
+        })
+        self.assertEqual(result["suggested_category"], "11_RSI与递归自我改进")
+
+    def test_self_improving_kernel_agent_keeps_its_primary_gpu_category(self):
+        result = discover_papers.classify_candidate({
+            "title": "AccelOpt A Self-Improving LLM Agentic System for AI Accelerator Kernel Optimization",
+            "abstract": "The system improves GPU and accelerator kernels over repeated iterations.",
+        })
+        self.assertEqual(result["suggested_category"], "09_GPU内核智能体与自动调优")
 
     def test_attention_kernel_paper_stays_in_attention_category(self):
         result = discover_papers.classify_candidate({
@@ -656,6 +670,20 @@ class DiscoveryTests(unittest.TestCase):
             "abstract": "We implement scaled dot-product attention with a fused CUDA kernel.",
         })
         self.assertEqual(result["suggested_category"], "04_长上下文与高效注意力")
+
+    def test_flashattention_low_precision_remains_an_attention_kernel(self):
+        result = discover_papers.classify_candidate({
+            "title": "FlashAttention-3 Fast and Accurate Attention with Asynchrony and Low-precision",
+            "abstract": "We co-design an exact attention algorithm and GPU kernel pipeline.",
+        })
+        self.assertEqual(result["suggested_category"], "04_长上下文与高效注意力")
+
+    def test_pipeline_parallel_long_context_system_stays_distributed(self):
+        result = discover_papers.classify_candidate({
+            "title": "SlimPipe Memory-Thrifty and Efficient Pipeline Parallelism for Long-Context LLM Training",
+            "abstract": "A distributed pipeline-parallel training system for GPU clusters.",
+        })
+        self.assertEqual(result["suggested_category"], "07_分布式训练与数据基础设施")
 
     def test_moe_kernel_optimization_prefers_moe_category(self):
         result = discover_papers.classify_candidate({
